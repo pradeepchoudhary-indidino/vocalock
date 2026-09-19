@@ -224,12 +224,6 @@ class PhraseSpotter(
         return false
     }
 
-    /**
-     * How close two phrases are, for setup to refuse a pair it could not tell
-     * apart. Lower means more similar; 0 is identical.
-     */
-    fun distanceBetween(a: String, b: String): Int = editDistance(normalize(a), normalize(b))
-
     /** Two phrases this close cannot be reliably separated by the matcher. */
     fun tooSimilar(a: String, b: String): Boolean {
         val na = normalize(a)

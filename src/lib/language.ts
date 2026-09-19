@@ -25,8 +25,3 @@ export function deviceSpeechTag(): string {
   const locale = (navigator.languages?.[0] ?? navigator.language ?? 'en-IN').toLowerCase();
   return locale.startsWith('hi') ? 'hi-IN' : 'en-IN';
 }
-
-/** The other model, for the automatic second attempt when the first fails. */
-export function otherLanguage(language: Language): Language {
-  return language === 'hi' ? 'en' : 'hi';
-}

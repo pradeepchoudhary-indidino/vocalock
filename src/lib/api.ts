@@ -24,7 +24,7 @@ export interface Session {
   token?: string;
 }
 
-export const backendConfigured = API_BASE !== '';
+const backendConfigured = API_BASE !== '';
 
 /**
  * The on-device database. Used while there is no server; once VITE_API_BASE
@@ -101,11 +101,3 @@ export async function cancelSubscription(session: Session): Promise<void> {
   await post('/cancelSubscription', { uid: session.uid, token: session.token });
 }
 
-/** The payment ledger, for Payment Settings. */
-export async function listPayments(session: Session) {
-  if (!backendConfigured) {
-    await db();
-    return local.listPayments(session.uid);
-  }
-  return post<unknown[]>('/listPayments', { uid: session.uid, token: session.token });
-}

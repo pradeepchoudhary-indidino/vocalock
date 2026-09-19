@@ -14,7 +14,6 @@ ext {
     androidxEspressoCoreVersion = '3.6.1'
     cordovaAndroidVersion = '10.1.1'
     androidxSecurityCryptoVersion = '1.1.0-alpha06'
-    kotlinVersion = '2.1.20'
     // Vosk is built locally (see vosk/), not pulled from Maven — the released
     // AAR's libvosk.so is not 16 KB page aligned. JNA is what it binds through.
     jnaVersion = '5.18.1'

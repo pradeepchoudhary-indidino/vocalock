@@ -1,14 +1,14 @@
 import { Preferences } from '@capacitor/preferences';
 import { create } from 'zustand';
 import { cancelSubscription, startSubscription, type Session } from '../lib/api';
+import type { PlanStatus } from '../db/types';
 
 const KEY_ENTITLEMENT = 'vocalock.entitlement';
 const KEY_SESSION = 'vocalock.session';
 
-export type PlanStatus = 'none' | 'trial' | 'active' | 'cancelled' | 'expired';
-
 export interface Entitlement {
-  status: PlanStatus;
+  /** 'none' is the app's own idle state; the rest mirror the database. */
+  status: PlanStatus | 'none';
   plan: string;
   trialPrice: number;
   price: number;

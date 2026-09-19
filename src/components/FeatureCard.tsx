@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Toggle } from './Controls';
 
-export type Tint = 'mint' | 'lilac' | 'peach';
+type Tint = 'mint' | 'lilac' | 'peach';
 
 interface FeatureCardProps {
   tint: Tint;

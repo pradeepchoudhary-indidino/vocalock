@@ -210,28 +210,6 @@ export function Note({
   );
 }
 
-export function Button({
-  children,
-  onClick,
-  variant = 'primary',
-  disabled = false,
-}: {
-  children: ReactNode;
-  onClick: () => void;
-  variant?: 'primary' | 'ghost' | 'quiet' | 'mint' | 'lilac' | 'danger';
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      className={`btn btn--${variant}`}
-      disabled={disabled}
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  );
-}
 
 export function Sheet({
   title,

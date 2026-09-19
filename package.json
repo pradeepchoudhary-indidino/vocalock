@@ -9,7 +9,9 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "sync": "npm run build && npx cap sync android",
-    "android": "npm run sync && npx cap open android"
+    "android": "npm run sync && npx cap open android",
+    "deadcode": "knip",
+    "check": "tsc -b && oxlint && knip"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^7.0.3",
@@ -18,7 +20,6 @@
     "@capacitor/core": "^7.4.4",
     "@capacitor/preferences": "^7.0.4",
     "@capacitor/status-bar": "^7.0.3",
-    "firebase": "^12.3.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.9.1",
@@ -30,6 +31,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "knip": "^6.37.0",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",
     "vite": "^8.3.0"

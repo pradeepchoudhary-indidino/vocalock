@@ -5,11 +5,6 @@ export type Sensitivity = 'low' | 'med' | 'high';
 /** Which bundled Vosk model spots the phrases. */
 export type Language = 'en' | 'hi';
 
-export const LANGUAGES: { value: Language; label: string; speechTag: string }[] = [
-  { value: 'en', label: 'English', speechTag: 'en-IN' },
-  { value: 'hi', label: 'हिन्दी', speechTag: 'hi-IN' },
-];
-
 /**
  * Mirrors the SharedPreferences document the Kotlin ListenerService reads.
  * The WebView is never the only holder of these values — see spec section 3.

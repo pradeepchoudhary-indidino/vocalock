@@ -44,30 +44,11 @@ export function MicIcon({ size = 20 }: IconProps) {
   );
 }
 
-export function BellIcon({ size = 20 }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
-      <path d="M18 9a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16S18 14 18 9Z" />
-      <path d="M10.3 19a2 2 0 0 0 3.4 0" />
-    </svg>
-  );
-}
-
 export function LockIcon({ size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
       <rect x="4.5" y="10.5" width="15" height="10.5" rx="3" />
       <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
-    </svg>
-  );
-}
-
-export function SlidersIcon({ size = 20 }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
-      <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
-      <circle cx="16" cy="7" r="2.2" />
-      <circle cx="10" cy="17" r="2.2" />
     </svg>
   );
 }
@@ -80,14 +61,6 @@ export function ShieldIcon({ size = 20 }: IconProps) {
   );
 }
 
-export function WaveIcon({ size = 20 }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
-      <path d="M4 12v0M8 8.5v7M12 5v14M16 8.5v7M20 12v0" />
-    </svg>
-  );
-}
-
 export function ClapIcon({ size = 26 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
@@ -95,15 +68,6 @@ export function ClapIcon({ size = 26 }: IconProps) {
       <path d="M10.1 8.3 8.4 6.6a1.6 1.6 0 1 1 2.3-2.3l2.6 2.6" />
       <path d="M12.6 7.4a1.6 1.6 0 1 1 2.3-2.3l3 3a5.6 5.6 0 0 1-7.9 7.9l-1.5-1.5" />
       <path d="M4.2 5.1 3.5 3.4M7.4 3.6 7.2 2M2.6 8.5 1 8.2" />
-    </svg>
-  );
-}
-
-export function KeyIcon({ size = 20 }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} aria-hidden="true">
-      <circle cx="8" cy="12" r="3.6" />
-      <path d="M11.6 12H21M17.5 12v3M20 12v2.4" />
     </svg>
   );
 }
