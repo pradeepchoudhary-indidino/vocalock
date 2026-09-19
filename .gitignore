@@ -1,0 +1,41 @@
+# --- dependencies & build output ---
+node_modules/
+dist/
+functions/node_modules/
+functions/lib/
+server/node_modules/
+server/dist/
+android/build/
+android/app/build/
+android/vosk/build/
+android/capacitor-cordova-android-plugins/build/
+android/.gradle/
+.gradle/
+*.apk
+*.aab
+
+# --- machine-specific ---
+android/local.properties
+.DS_Store
+.venv-tools/
+
+# --- secrets: never commit ---
+.env
+.env.local
+server/.env
+android/keystore.properties
+*.jks
+*.keystore
+# Not strictly secret (it ships in every APK) but it identifies the Firebase
+# project, so it stays out of anything public.
+android/app/google-services.json
+
+# --- large binaries fetched by scripts/fetch-assets.sh ---
+# 78 MB of speech models. Downloadable and verifiable, so they do not belong in
+# git history where they can never be removed.
+android/app/src/main/assets/vosk-model-*.zip
+
+# Pulled database snapshots contain a real phone number.
+*.db
+*.db-wal
+*.db-shm

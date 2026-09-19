@@ -1,0 +1,120 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+
+// Release signing. Credentials live in android/keystore.properties, which is
+// gitignored and never committed — see README. Without that file the project
+// still builds; only assembleRelease/bundleRelease produce an unsigned output.
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+def hasReleaseKeystore = keystorePropertiesFile.exists()
+if (hasReleaseKeystore) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    namespace "com.indidino.vocalock"
+    compileSdk rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.indidino.vocalock"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // 85 locales of AndroidX strings ship by default; we support two.
+        resConfigs "en", "hi"
+
+        ndk {
+            // arm64 only. Vosk is built for this ABI alone, and it is the only
+            // one where 16 KB pages exist; shipping the released 4 KB-aligned
+            // x86_64 lib would fail the same Play check we are fixing. It also
+            // drops JNA's dead armeabi/mips/x86 payloads.
+            abiFilters 'arm64-v8a'
+        }
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    // The Vosk model is already a zip; re-compressing it just slows the build.
+    androidResources {
+        noCompress += ['zip']
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+    kotlinOptions {
+        jvmTarget = '21'
+    }
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            release {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        } else {
+            // No real keystore yet, so sign release builds with the local debug
+            // key. That is enough to hand a non-debuggable, minified build to
+            // testers; Play rejects debug-signed uploads, so this cannot be
+            // shipped by accident. Create the real keystore (see
+            // keystore.properties.example) and this branch stops being used.
+            release {
+                storeFile file(System.getProperty("user.home") + "/.android/debug.keystore")
+                storePassword "android"
+                keyAlias "androiddebugkey"
+                keyPassword "android"
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // Keep rules for JNA and Vosk live in proguard-rules.pro; both bind
+            // natively by name and R8 would otherwise rename them away. Verify
+            // on a device after any dependency bump — this is the classic
+            // "fine in debug, crashes in release" failure.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation "androidx.core:core-ktx:$androidxCoreVersion"
+    // Backs SecureStore: the PIN hash lives in EncryptedSharedPreferences.
+    implementation "androidx.security:security-crypto:$androidxSecurityCryptoVersion"
+    // Offline phrase spotting, built locally for 16 KB page alignment.
+    implementation project(':vosk')
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

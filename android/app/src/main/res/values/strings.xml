@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">VocaLock</string>
+    <string name="title_activity_main">VocaLock</string>
+    <string name="package_name">com.indidino.vocalock</string>
+    <string name="custom_url_scheme">com.indidino.vocalock</string>
+    <string name="vl_phone_found">Phone found</string>
+    <string name="vl_phone_found_sub">VocaLock heard you</string>
+    <string name="vl_stop_alert">Stop alert</string>
+    <string name="vl_listening_title">Listening for your clap</string>
+    <string name="vl_listening_text">Audio stays on this phone</string>
+    <string name="vl_listening_channel">Listening</string>
+    <string name="vl_locked_by">Locked by VocaLock</string>
+    <string name="vl_say_unlock">Say your unlock phrase</string>
+    <string name="vl_mic_live">\u25CF Listening</string>
+    <string name="vl_use_pin">Use PIN</string>
+    <string name="vl_wrong_pin">Wrong PIN. Try again.</string>
+    <string name="vl_too_many">Too many tries. Wait 30 seconds.</string>
+    <string name="vl_boot_title">Tap to resume listening</string>
+    <string name="vl_boot_text">VocaLock stopped when your phone restarted</string>
+    <string name="vl_boot_channel">After restart</string>
+</resources>

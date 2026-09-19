@@ -1,0 +1,2 @@
+upstream commit 05adbfcc0df27a1535913c6accd4b7fc60ffd59d (2026-08-09)
+built 2026-09-19T11:19Z with NDK 28.2.13676358, -Wl,-z,max-page-size=16384

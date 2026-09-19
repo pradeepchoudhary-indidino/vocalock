@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mirrors src/theme.css so the native screens match the React theme by hand. -->
+<resources>
+    <color name="vl_blue">#3AA0F5</color>
+    <color name="vl_blue_deep">#1565C0</color>
+    <color name="vl_ink">#14213D</color>
+    <color name="vl_bg">#F4F7FD</color>
+</resources>

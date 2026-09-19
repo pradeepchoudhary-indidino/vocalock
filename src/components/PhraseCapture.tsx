@@ -1,0 +1,127 @@
+import { useEffect, useState } from 'react';
+import type { PluginListenerHandle } from '@capacitor/core';
+import { MicIcon } from './Icons';
+import { VoiceSetup } from '../plugins';
+import { deviceSpeechTag } from '../lib/language';
+
+type Phase = 'idle' | 'listening' | 'captured';
+
+interface PhraseCaptureProps {
+  onCaptured: (text: string) => void;
+  captured: string;
+  onStartOver: () => void;
+}
+
+/**
+ * The mic button plus live transcript used by setup steps 1 and 2.
+ * Capture runs through Android's SpeechRecognizer via VoiceSetupPlugin.
+ */
+export function PhraseCapture({
+  onCaptured,
+  captured,
+  onStartOver,
+}: PhraseCaptureProps) {
+  const [phase, setPhase] = useState<Phase>(captured ? 'captured' : 'idle');
+  const [partial, setPartial] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const handles: PluginListenerHandle[] = [];
+    let live = true;
+
+    void (async () => {
+      const onPartial = await VoiceSetup.addListener('partialTranscript', ({ text }) =>
+        setPartial(text),
+      );
+      const onFinal = await VoiceSetup.addListener('finalTranscript', ({ text }) => {
+        setPartial('');
+        setPhase('captured');
+        onCaptured(text);
+      });
+      const onError = await VoiceSetup.addListener('captureError', ({ message }) => {
+        setPartial('');
+        setPhase('idle');
+        setError(message);
+      });
+      if (!live) {
+        void onPartial.remove();
+        void onFinal.remove();
+        void onError.remove();
+        return;
+      }
+      handles.push(onPartial, onFinal, onError);
+    })();
+
+    return () => {
+      live = false;
+      void VoiceSetup.stopCapture();
+      handles.forEach((h) => void h.remove());
+    };
+  }, [onCaptured]);
+
+  const start = async () => {
+    if (phase === 'listening') {
+      await VoiceSetup.stopCapture();
+      setPhase('idle');
+      return;
+    }
+    setError('');
+    setPartial('');
+    setPhase('listening');
+    try {
+      // The device's own language decides how we listen; the script that comes
+      // back then decides which offline model spots it.
+      await VoiceSetup.startCapture({ language: deviceSpeechTag() });
+    } catch (err) {
+      setPhase('idle');
+      setError(err instanceof Error ? err.message : 'Could not start listening');
+    }
+  };
+
+  const hint =
+    phase === 'listening'
+      ? 'Listening… tap to stop'
+      : phase === 'captured'
+        ? 'Tap the mic to record it again'
+        : 'Tap the mic and say your phrase';
+
+  return (
+    <>
+      <button
+        type="button"
+        className={`mic-btn${phase === 'listening' ? ' mic-btn--listening' : ''}${
+          phase === 'captured' ? ' mic-btn--captured' : ''
+        }`}
+        aria-label={phase === 'listening' ? 'Stop listening' : 'Start listening'}
+        onClick={start}
+      >
+        <MicIcon size={46} />
+      </button>
+      <div className="mic-hint">{hint}</div>
+
+      <div className="transcript">
+        {partial ? (
+          <div className="transcript__chip transcript__chip--partial">{partial}</div>
+        ) : captured ? (
+          <div className="transcript__chip">&ldquo;{captured}&rdquo;</div>
+        ) : null}
+      </div>
+
+      {error ? <div className="field-error">{error}</div> : null}
+
+      {captured ? (
+        <button
+          className="text-btn"
+          type="button"
+          onClick={() => {
+            setPartial('');
+            setPhase('idle');
+            onStartOver();
+          }}
+        >
+          Start over
+        </button>
+      ) : null}
+    </>
+  );
+}

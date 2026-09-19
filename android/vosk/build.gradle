@@ -1,0 +1,44 @@
+// Local build of Vosk, replacing com.alphacephei:vosk-android:0.3.47.
+//
+// Why this module exists: the released 0.3.47 AAR ships a libvosk.so whose ELF
+// LOAD segments are 4 KB aligned. Android 15+ and Google Play require 16 KB on
+// 64-bit ABIs, and a prebuilt .so cannot be re-aligned — it has to be relinked.
+// Upstream fixed this on master (build-vosk.sh passes -Wl,-z,max-page-size=16384
+// for arm64-v8a) but has published no release since March 2023, so we build it.
+//
+// See build-libvosk-arm64.sh for the exact, repeatable build, and README.md.
+// The Java sources in src/main/java/org/vosk are vendored verbatim from the same
+// upstream commit the .so is built from, so native and Java never drift apart.
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'org.vosk'
+    compileSdk rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        minSdkVersion rootProject.ext.minSdkVersion
+        // Only the ABI we built. 16 KB pages exist only on 64-bit ARM, and the
+        // app sets the same filter, so nothing else can slip in.
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+
+    packagingOptions {
+        jniLibs {
+            // Must stay uncompressed so the loader can map it straight from the
+            // APK; this is the other half of the 16 KB requirement.
+            useLegacyPackaging false
+        }
+    }
+}
+
+dependencies {
+    api "net.java.dev.jna:jna:$jnaVersion@aar"
+}
