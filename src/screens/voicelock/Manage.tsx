@@ -40,6 +40,13 @@ export function VoiceLockManage() {
             await syncService();
           }}
         />
+        <ToggleRow
+          label="Block the notification shade"
+          sub="Stronger, but Android asks you to confirm every single time you lock."
+          checked={settings.blockNotificationShade}
+          tint="lilac"
+          onChange={(blockNotificationShade) => void patch({ blockNotificationShade })}
+        />
       </Card>
 
       <Card>

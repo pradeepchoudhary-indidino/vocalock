@@ -33,13 +33,12 @@ object LockController {
         val app = context.applicationContext
         if (isLocked && (LockActivity.isShowing || overlay?.isShowing == true)) return
 
-        // An Activity, because only an Activity can enter Lock Task Mode, which
-        // is what disables the notification shade, Home and Recents. The overlay
-        // cannot do that: no app can block the shade from a window.
-        //
-        // The overlay stays as the fallback for when the Activity cannot be
-        // launched — a lock the user can walk out of still beats none at all.
-        if (canStartActivity(app)) {
+        // The overlay is the default because it is silent. Lock Task Mode
+        // blocks the shade, Home and Recents, but Android insists on its own
+        // confirmation every time it starts, so it is opt-in — and the overlay
+        // also covers the case where the Activity cannot be launched.
+        val blockShade = SettingsStore.read(app).blockNotificationShade
+        if (blockShade && canStartActivity(app)) {
             LockActivity.show(app)
         } else if (Settings.canDrawOverlays(app)) {
             Log.w(TAG, "falling back to the overlay lock")

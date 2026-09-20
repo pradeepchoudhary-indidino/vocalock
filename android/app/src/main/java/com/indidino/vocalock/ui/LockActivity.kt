@@ -88,6 +88,10 @@ class LockActivity : AppCompatActivity() {
         setTheme(R.style.VocaLockFullScreen)
         showOverKeyguard()
         setContentView(buildView())
+        // Only after setContentView: the insets controller comes from the
+        // DecorView, which does not exist until there is a content view, and
+        // asking for it earlier throws.
+        hideSystemBars()
         live = this
         handler.post(clockTick)
         enterLockTask()
@@ -144,7 +148,6 @@ class LockActivity : AppCompatActivity() {
             )
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        hideSystemBars()
     }
 
     private fun hideSystemBars() {

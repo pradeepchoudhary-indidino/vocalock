@@ -21,6 +21,8 @@ export interface ListenerSettings {
   ringtone: string;
   alertDurationSec: number;
   voiceLockEnabled: boolean;
+  /** Enter lock task mode when locking. Android prompts every time. */
+  blockNotificationShade: boolean;
   language: Language;
   lockPhrase: string;
   unlockPhrase: string;
@@ -39,6 +41,7 @@ export const DEFAULT_SETTINGS: ListenerSettings = {
   ringtone: 'default',
   alertDurationSec: 30,
   voiceLockEnabled: false,
+  blockNotificationShade: false,
   language: 'en',
   lockPhrase: '',
   unlockPhrase: '',
