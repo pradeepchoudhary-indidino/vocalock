@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Screen } from '../../components/Screen';
 import { NavBar } from '../../components/NavBar';
 import { Card, Note, Sheet, ToggleRow } from '../../components/Controls';
@@ -11,6 +11,29 @@ export function VoiceLockManage() {
   const navigate = useNavigate();
   const { settings, patch, syncService } = useSettings();
   const [confirmRemove, setConfirmRemove] = useState(false);
+  // Device admin IS the mode, so this reads the real thing rather than a
+  // setting that could drift from it — the user can revoke admin in Android
+  // settings at any time and we would never hear about it.
+  const [deviceLock, setDeviceLock] = useState(false);
+
+  const refreshMode = useCallback(async () => {
+    const { active } = await Listener.isDeviceLockAvailable();
+    // oxlint-disable-next-line react/set-state-in-effect -- device admin lives
+    // in Android, not in React. Reading it is exactly the external-system
+    // synchronisation an effect is for, and it cannot be derived during render.
+    setDeviceLock(active);
+  }, []);
+
+  useEffect(() => {
+    void refreshMode();
+    // The consent and revoke screens are separate activities, so the answer
+    // only arrives when the user comes back.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refreshMode();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [refreshMode]);
 
   const remove = async () => {
     await patch({ lockPhrase: '', unlockPhrase: '', voiceLockEnabled: false, isLocked: false });
@@ -40,15 +63,20 @@ export function VoiceLockManage() {
             await syncService();
           }}
         />
-        {settings.unlockPhrase ? (
         <ToggleRow
-          label="Block the notification shade"
-          sub="Stronger, but Android asks you to confirm every single time you lock."
-          checked={settings.blockNotificationShade}
+          label="Lock my phone properly"
+          sub={
+            deviceLock
+              ? 'Your phrase locks your real lock screen. Unlock with your fingerprint or PIN.'
+              : 'Use your phone\u2019s own lock instead of covering the screen.'
+          }
+          checked={deviceLock}
           tint="lilac"
-          onChange={(blockNotificationShade) => void patch({ blockNotificationShade })}
+          onChange={(next) => {
+            if (next) void Listener.requestDeviceLock();
+            else void Listener.releaseDeviceLock().then(refreshMode);
+          }}
         />
-        ) : null}
       </Card>
 
       <Card>
@@ -58,7 +86,7 @@ export function VoiceLockManage() {
             <div className="row__label">&ldquo;{settings.lockPhrase}&rdquo;</div>
           </div>
         </div>
-        {settings.unlockPhrase ? (
+        {!deviceLock && settings.unlockPhrase ? (
           <div className="row">
             <div className="row__main">
               <div className="row__sub">Unlock phrase</div>
@@ -88,7 +116,7 @@ export function VoiceLockManage() {
       </button>
 
       <div style={{ height: 14 }} />
-      {settings.unlockPhrase ? (
+      {!deviceLock ? (
         <Note tone="warn">
           A focus tool, not a security lock. It cannot cover your Android lock screen, and
           it can be got past by force-stopping VocaLock in Android settings.

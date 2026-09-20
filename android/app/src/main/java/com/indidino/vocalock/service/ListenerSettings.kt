@@ -31,15 +31,6 @@ data class ListenerSettings(
     val language: String = "en",
     val lockPhrase: String = "",
     val unlockPhrase: String = "",
-    /**
-     * Enter Lock Task Mode when locking, which blocks the notification shade,
-     * Home and Recents.
-     *
-     * Off by default: without Device Owner, Android shows its own confirmation
-     * every single time lock task starts, and a system prompt on every lock is
-     * a worse experience than a shade that can be opened.
-     */
-    val blockNotificationShade: Boolean = false,
     val isLocked: Boolean = false,
 ) {
     /** True when any detector needs the microphone open. */
@@ -72,7 +63,6 @@ object SettingsStore {
     private const val LANGUAGE = "language"
     private const val LOCK_PHRASE = "lockPhrase"
     private const val UNLOCK_PHRASE = "unlockPhrase"
-    private const val BLOCK_SHADE = "blockNotificationShade"
     private const val IS_LOCKED = "isLocked"
 
     fun prefs(context: Context): SharedPreferences =
@@ -96,7 +86,6 @@ object SettingsStore {
             language = p.getString(LANGUAGE, d.language) ?: d.language,
             lockPhrase = p.getString(LOCK_PHRASE, d.lockPhrase) ?: d.lockPhrase,
             unlockPhrase = p.getString(UNLOCK_PHRASE, d.unlockPhrase) ?: d.unlockPhrase,
-            blockNotificationShade = p.getBoolean(BLOCK_SHADE, d.blockNotificationShade),
             isLocked = p.getBoolean(IS_LOCKED, d.isLocked),
         )
     }
@@ -108,7 +97,7 @@ object SettingsStore {
             if (patch.isNull(key)) return@forEach
             when (key) {
                 CLAP_ENABLED, WHISTLE_ENABLED, ONLY_WHEN_SCREEN_OFF, RING, VIBRATE,
-                FLASHLIGHT, VOICE_LOCK_ENABLED, BLOCK_SHADE, IS_LOCKED ->
+                FLASHLIGHT, VOICE_LOCK_ENABLED, IS_LOCKED ->
                     e.putBoolean(key, patch.optBoolean(key))
 
                 CLAPS_REQUIRED -> e.putInt(key, patch.optInt(key, 2).coerceIn(1, 5))
@@ -149,7 +138,6 @@ object SettingsStore {
         put(LANGUAGE, s.language)
         put(LOCK_PHRASE, s.lockPhrase)
         put(UNLOCK_PHRASE, s.unlockPhrase)
-        put(BLOCK_SHADE, s.blockNotificationShade)
         put(IS_LOCKED, s.isLocked)
     }
 }

@@ -3,7 +3,6 @@ package com.indidino.vocalock.service
 import android.content.Context
 import android.provider.Settings
 import android.util.Log
-import com.indidino.vocalock.ui.LockActivity
 import com.indidino.vocalock.ui.LockOverlay
 import org.json.JSONObject
 
@@ -31,34 +30,33 @@ object LockController {
 
     fun lock(context: Context, announce: Boolean = true) {
         val app = context.applicationContext
-        if (isLocked && (LockActivity.isShowing || overlay?.isShowing == true)) return
+        if (isLocked && overlay?.isShowing == true) return
 
         // The overlay is the default because it is silent. Lock Task Mode
         // blocks the shade, Home and Recents, but Android insists on its own
         // confirmation every time it starts, so it is opt-in — and the overlay
         // also covers the case where the Activity cannot be launched.
-        // The real lock screen when the user has granted device admin. This is
-        // the only mode that survives the app being force-stopped, because it
-        // is Android holding the lock rather than us drawing over the screen.
+        // Two modes, and the choice is simply whether device admin was granted.
+        //
+        // Screen pinning used to sit in between. It blocked the shade, but
+        // without Device Owner Android demands confirmation every single time
+        // lock task starts, and a system prompt before every lock is worse than
+        // the problem it solves. The phone's own lock screen achieves the same
+        // thing with no prompt at all.
         if (DeviceLock.lockNow(app)) {
-            isLocked = false
-            SettingsStore.setLocked(app, false)
-            // Nothing to dismiss later: the user gets back in with their own
-            // credential, so there is no lock state for us to track.
+            // Android holds the lock now, not us: there is no overlay to
+            // dismiss later and no lock state of ours to track. The user gets
+            // back in with their own credential.
             if (announce) ListenerBus.emit("lockState", JSONObject().put("locked", true))
             return
         }
 
-        val blockShade = SettingsStore.read(app).blockNotificationShade
-        if (blockShade && canStartActivity(app)) {
-            LockActivity.show(app)
-        } else if (Settings.canDrawOverlays(app)) {
-            Log.w(TAG, "falling back to the overlay lock")
+        if (Settings.canDrawOverlays(app)) {
             val view = overlay ?: LockOverlay(app).also { overlay = it }
             view.onUnlocked = { how -> clear(app, how) }
             view.show()
         } else {
-            Log.w(TAG, "neither an activity nor an overlay can be shown; not locking")
+            Log.w(TAG, "no device admin and no overlay permission; cannot lock")
             return
         }
 
@@ -84,17 +82,8 @@ object LockController {
     }
 
     private fun dismissUi() {
-        LockActivity.dismiss()
         overlay?.hide()
     }
-
-    /**
-     * Starting an Activity from the background is allowed because the app holds
-     * SYSTEM_ALERT_WINDOW — the same grant the overlay needs. Without it Android
-     * silently drops the launch, so check rather than discover it at runtime.
-     */
-    private fun canStartActivity(context: Context): Boolean =
-        Settings.canDrawOverlays(context)
 
     private fun clear(context: Context, how: String) {
         val app = context.applicationContext
