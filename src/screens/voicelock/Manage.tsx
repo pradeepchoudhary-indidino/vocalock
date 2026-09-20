@@ -40,6 +40,7 @@ export function VoiceLockManage() {
             await syncService();
           }}
         />
+        {settings.unlockPhrase ? (
         <ToggleRow
           label="Block the notification shade"
           sub="Stronger, but Android asks you to confirm every single time you lock."
@@ -47,6 +48,7 @@ export function VoiceLockManage() {
           tint="lilac"
           onChange={(blockNotificationShade) => void patch({ blockNotificationShade })}
         />
+        ) : null}
       </Card>
 
       <Card>
@@ -56,12 +58,21 @@ export function VoiceLockManage() {
             <div className="row__label">&ldquo;{settings.lockPhrase}&rdquo;</div>
           </div>
         </div>
-        <div className="row">
-          <div className="row__main">
-            <div className="row__sub">Unlock phrase</div>
-            <div className="row__label">&ldquo;{settings.unlockPhrase}&rdquo;</div>
+        {settings.unlockPhrase ? (
+          <div className="row">
+            <div className="row__main">
+              <div className="row__sub">Unlock phrase</div>
+              <div className="row__label">&ldquo;{settings.unlockPhrase}&rdquo;</div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="row">
+            <div className="row__main">
+              <div className="row__sub">To unlock</div>
+              <div className="row__label">Your fingerprint or PIN</div>
+            </div>
+          </div>
+        )}
       </Card>
 
       <button
@@ -77,10 +88,17 @@ export function VoiceLockManage() {
       </button>
 
       <div style={{ height: 14 }} />
-      <Note tone="warn">
-        A focus tool, not a security lock. It cannot cover your Android lock screen, and it
-        can be got past by force-stopping VocaLock in Android settings.
-      </Note>
+      {settings.unlockPhrase ? (
+        <Note tone="warn">
+          A focus tool, not a security lock. It cannot cover your Android lock screen, and
+          it can be got past by force-stopping VocaLock in Android settings.
+        </Note>
+      ) : (
+        <Note>
+          Your phrase locks your phone with its own lock screen, so it stays locked even if
+          VocaLock is closed or force-stopped.
+        </Note>
+      )}
 
       {confirmRemove ? (
         <Sheet title="Remove voice lock" onDismiss={() => setConfirmRemove(false)}>

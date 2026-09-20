@@ -125,6 +125,20 @@ export class ListenerPluginWeb extends WebPlugin implements ListenerPlugin {
     this.showMockLock();
   }
 
+  async isDeviceLockAvailable(): Promise<{ active: boolean }> {
+    // The browser has no device admin, so the mock always takes the overlay
+    // path — which is the branch that needs exercising in a browser anyway.
+    return { active: localStorage.getItem('vocalock.mock.deviceAdmin') === 'true' };
+  }
+
+  async requestDeviceLock(): Promise<void> {
+    localStorage.setItem('vocalock.mock.deviceAdmin', 'true');
+  }
+
+  async releaseDeviceLock(): Promise<void> {
+    localStorage.removeItem('vocalock.mock.deviceAdmin');
+  }
+
   async isLocked(): Promise<{ locked: boolean }> {
     return { locked: (await this.getSettings()).isLocked };
   }

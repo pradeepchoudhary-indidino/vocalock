@@ -33,17 +33,27 @@ export function VoiceLockDone() {
             <div className="row__label">&ldquo;{settings.lockPhrase}&rdquo;</div>
           </div>
         </div>
-        <div className="row">
-          <div className="row__main">
-            <div className="row__sub">Unlock phrase</div>
-            <div className="row__label">&ldquo;{settings.unlockPhrase}&rdquo;</div>
+        {settings.unlockPhrase ? (
+          <div className="row">
+            <div className="row__main">
+              <div className="row__sub">Unlock phrase</div>
+              <div className="row__label">&ldquo;{settings.unlockPhrase}&rdquo;</div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="row">
+            <div className="row__main">
+              <div className="row__sub">To unlock</div>
+              <div className="row__label">Your fingerprint or PIN</div>
+            </div>
+          </div>
+        )}
       </div>
 
       <Note>
-        Try it now raises the lock so you can see it. Say your unlock phrase, or use your
-        backup PIN, to clear it.
+        {settings.unlockPhrase
+          ? 'Try it now raises the lock so you can see it. Say your unlock phrase, or use your backup PIN, to clear it.'
+          : 'Try it now locks your phone for real. Unlock it the way you normally do.'}
       </Note>
     </Screen>
   );

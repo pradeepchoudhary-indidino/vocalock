@@ -16,6 +16,7 @@ import com.getcapacitor.annotation.Permission
 import com.getcapacitor.annotation.PermissionCallback
 import com.indidino.vocalock.service.AlertController
 import com.indidino.vocalock.service.ListenerBus
+import com.indidino.vocalock.service.DeviceLock
 import com.indidino.vocalock.service.LockController
 import com.indidino.vocalock.service.ListenerService
 import com.indidino.vocalock.service.SecureStore
@@ -148,6 +149,36 @@ class ListenerPlugin : Plugin() {
     @PluginMethod
     fun stopPhraseCheck(call: PluginCall) {
         ListenerService.stopPhraseCheck(context)
+        call.resolve()
+    }
+
+    // ----- device admin (the real lock screen) -----
+
+    @PluginMethod
+    fun isDeviceLockAvailable(call: PluginCall) {
+        call.resolve(JSObject().put("active", DeviceLock.isActive(context)))
+    }
+
+    /**
+     * Opens the system consent screen. Resolves immediately — the answer is not
+     * known until the user comes back, so the caller re-checks
+     * isDeviceLockAvailable() on resume rather than waiting here.
+     */
+    @PluginMethod
+    fun requestDeviceLock(call: PluginCall) {
+        val target = activity
+        if (target == null) {
+            call.reject("No activity to show the consent screen")
+            return
+        }
+        runCatching { target.startActivity(DeviceLock.consentIntent(context)) }
+            .onFailure { call.reject(it.message ?: "Could not open the consent screen") }
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun releaseDeviceLock(call: PluginCall) {
+        DeviceLock.release(context)
         call.resolve()
     }
 

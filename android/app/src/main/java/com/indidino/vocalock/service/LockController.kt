@@ -37,6 +37,18 @@ object LockController {
         // blocks the shade, Home and Recents, but Android insists on its own
         // confirmation every time it starts, so it is opt-in — and the overlay
         // also covers the case where the Activity cannot be launched.
+        // The real lock screen when the user has granted device admin. This is
+        // the only mode that survives the app being force-stopped, because it
+        // is Android holding the lock rather than us drawing over the screen.
+        if (DeviceLock.lockNow(app)) {
+            isLocked = false
+            SettingsStore.setLocked(app, false)
+            // Nothing to dismiss later: the user gets back in with their own
+            // credential, so there is no lock state for us to track.
+            if (announce) ListenerBus.emit("lockState", JSONObject().put("locked", true))
+            return
+        }
+
         val blockShade = SettingsStore.read(app).blockNotificationShade
         if (blockShade && canStartActivity(app)) {
             LockActivity.show(app)

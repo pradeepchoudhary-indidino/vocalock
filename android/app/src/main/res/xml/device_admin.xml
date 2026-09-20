@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The only policy requested is force-lock, which is what backs
+  DevicePolicyManager.lockNow(). Deliberately nothing else: no password
+  policies, no wipe-data, no camera disabling. Asking for less than you need is
+  the difference between a device-admin declaration that passes Play review and
+  one that does not.
+-->
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies>
+        <force-lock />
+    </uses-policies>
+</device-admin>

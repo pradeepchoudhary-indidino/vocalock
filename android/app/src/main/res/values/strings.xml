@@ -19,4 +19,6 @@
     <string name="vl_boot_title">Tap to resume listening</string>
     <string name="vl_boot_text">VocaLock stopped when your phone restarted</string>
     <string name="vl_boot_channel">After restart</string>
+    <string name="vl_admin_explanation">Lets VocaLock lock your phone with your own lock screen when you say your phrase.</string>
+    <string name="vl_admin_disable_warning">Voice Lock will go back to covering your screen instead of locking your phone properly.</string>
 </resources>

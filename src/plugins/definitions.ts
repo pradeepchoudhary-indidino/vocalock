@@ -131,7 +131,16 @@ export interface ListenerPlugin {
   startPhraseCheck(options: { phrase: string; language: Language }): Promise<void>;
   stopPhraseCheck(): Promise<void>;
 
-  /** Raises the native lock overlay; used by "Try it" in the setup flow. */
+  /**
+   * Whether device admin is granted, which is what lets the app lock the real
+   * lock screen instead of drawing a cover over it.
+   */
+  isDeviceLockAvailable(): Promise<{ active: boolean }>;
+  /** Opens the system consent screen. Re-check availability on resume. */
+  requestDeviceLock(): Promise<void>;
+  releaseDeviceLock(): Promise<void>;
+
+  /** Raises the lock; used by "Try it" in the setup flow. */
   lock(): Promise<void>;
   unlock(): Promise<void>;
   isLocked(): Promise<{ locked: boolean }>;

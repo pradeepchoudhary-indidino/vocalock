@@ -51,7 +51,7 @@ export function LockPhrase() {
           language={language}
           onPassed={() => {
             track('voice_setup_step', { step: 1 });
-            navigate('/voice-lock/unlock-phrase');
+            navigate('/voice-lock/mode');
           }}
           onRejected={startOver}
         />

@@ -16,6 +16,7 @@ import { PaymentSettings } from './screens/PaymentSettings';
 import { Legal } from './screens/Legal';
 import { VoiceLockIntro } from './screens/voicelock/Intro';
 import { LockPhrase } from './screens/voicelock/LockPhrase';
+import { LockMode } from './screens/voicelock/LockMode';
 import { UnlockPhrase } from './screens/voicelock/UnlockPhrase';
 import { BackupPin } from './screens/voicelock/BackupPin';
 import { VoiceLockDone } from './screens/voicelock/Done';
@@ -95,6 +96,7 @@ export function App() {
       <Route path="/voice-lock" element={<VoiceLockManage />} />
       <Route path="/voice-lock/intro" element={<VoiceLockIntro />} />
       <Route path="/voice-lock/lock-phrase" element={<LockPhrase />} />
+      <Route path="/voice-lock/mode" element={<LockMode />} />
       <Route path="/voice-lock/unlock-phrase" element={<UnlockPhrase />} />
       <Route path="/voice-lock/pin" element={<BackupPin />} />
       <Route path="/voice-lock/done" element={<VoiceLockDone />} />
