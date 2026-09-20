@@ -7,6 +7,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.SystemClock
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.indidino.vocalock.MainActivity
 import com.indidino.vocalock.R
@@ -21,15 +23,35 @@ import com.indidino.vocalock.R
  */
 class BootReceiver : BroadcastReceiver() {
 
+    private val TAG = "BootReceiver"
+
+
     companion object {
         const val CHANNEL_ID = "vocalock_boot"
         const val NOTIFICATION_ID = 4103
+
+        /**
+         * A real boot means the device has only just come up. Android delivers
+         * BOOT_COMPLETED outside an actual boot as well — being force-stopped
+         * and relaunched triggers it — and acting on those was posting "tap to
+         * resume listening" to people who had not restarted anything, and
+         * silently clearing an active lock.
+         *
+         * elapsedRealtime() is time since boot, so anything beyond this is not
+         * a boot however the broadcast is labelled.
+         */
+        private const val BOOT_GRACE_MS = 3 * 60 * 1000L
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED &&
             intent.action != Intent.ACTION_LOCKED_BOOT_COMPLETED
         ) {
+            return
+        }
+
+        if (SystemClock.elapsedRealtime() > BOOT_GRACE_MS) {
+            Log.i(TAG, "ignoring BOOT_COMPLETED: device has been up too long to be a boot")
             return
         }
 

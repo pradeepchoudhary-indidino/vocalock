@@ -37,6 +37,19 @@
             android:screenOrientation="portrait"
             android:configChanges="orientation|keyboardHidden|screenSize|uiMode" />
 
+        <!-- The lock screen. singleTask + excludeFromRecents so it cannot be
+             stacked or swiped away from the recents list. -->
+        <activity
+            android:name=".ui.LockActivity"
+            android:theme="@style/VocaLockFullScreen"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|keyboardHidden|screenSize|uiMode" />
+
         <service
             android:name=".service.ListenerService"
             android:exported="false"
