@@ -64,7 +64,8 @@ src/
                 Calibrate, Profile, PaymentSettings, Legal, voicelock/*
   components/   Screen shell, NavBar, controls, icons
   assets/fonts/ Poppins (woff2, bundled — never fetched at runtime)
-  lib/          Firebase app init, analytics
+  lib/          Firebase app init, analytics, theme preference
+  theme.css     the whole design system: tokens first, then the classes
 android/app/src/main/java/com/indidino/vocalock/
   plugins/      ListenerPlugin          the bridge, no detection logic
                 VoiceSetupPlugin        SpeechRecognizer, setup-time capture only
@@ -80,8 +81,44 @@ android/app/src/main/java/com/indidino/vocalock/
                 BootReceiver            posts "tap to resume" after a restart
   ui/           AlertActivity           "Phone found", pure Kotlin (screen 12)
                 LockOverlay             the lock screen, an overlay window not an Activity
+                Palette                 the colours those two screens paint with
 android/vosk/   local Vosk build — see "Vosk is built here" below
 ```
+
+## Theming
+
+`src/theme.css` is the only place colour, spacing, type size, radius or easing is
+decided. Everything below the token blocks reads a `var(--…)`; nothing hardcodes a
+colour. That is what lets the dark theme be a palette swap rather than a second
+stylesheet.
+
+There is deliberately **no `prefers-color-scheme` block in the CSS**. `src/lib/theme.ts`
+resolves the preference (Auto / Light / Dark, set in Profile → Appearance, stored in
+the WebView's `localStorage`) and always writes an explicit `data-theme` onto `<html>`,
+so the dark palette is declared exactly once. `index.html` runs the same few lines
+inline before the bundle loads, or a dark-mode user gets a white flash; `MainActivity`
+repaints the WebView background for the same reason, since `capacitor.config.ts` can
+only name one.
+
+Three tokens exist because a flat surface colour is not enough in both themes:
+
+- `--tint-raise` — a chip sitting **on** a tinted card. Translucent white, so it
+  lightens whatever tint is under it. `--surface` would be *darker* than the tint in
+  dark mode and read as a hole.
+- `--raised` — a control lifted out of an inset track (`--surface-2`), e.g. the
+  selected segment. Same reason.
+- `--on-mint` / `--on-lilac` — a saturated fill has to be bright to read on a
+  near-black ground, so in dark mode the text on it flips dark. White on the dark
+  theme's green is 3.1:1 and fails.
+
+Every text/background pair in both themes clears WCAG AA, and every interactive
+element is at least 48×48 (some visually smaller, with the hit area padded out by a
+transparent pseudo-element — see `.navbar__back::after`). Both were checked against
+the rendered DOM across all 17 routes, not by eye.
+
+`ui/Palette.kt` mirrors the dark tokens by hand for `LockOverlay` and `AlertActivity`,
+which run with no WebView alive and so cannot read the CSS. Keep the two in step —
+they had already drifted a redesign apart once.
 
 ## How detection works
 

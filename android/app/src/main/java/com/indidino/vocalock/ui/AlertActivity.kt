@@ -91,7 +91,7 @@ class AlertActivity : AppCompatActivity() {
             setPadding(dp(28), dp(28), dp(28), dp(36))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                intArrayOf(Color.parseColor("#3AA0F5"), Color.parseColor("#1565C0")),
+                intArrayOf(Palette.brandFrom, Palette.brandTo),
             )
         }
 
@@ -114,7 +114,7 @@ class AlertActivity : AppCompatActivity() {
         root.addView(
             TextView(this).apply {
                 text = getString(R.string.vl_phone_found_sub)
-                setTextColor(Color.parseColor("#E3EFFC"))
+                setTextColor(Palette.alertSub)
                 textSize = 14f
                 gravity = Gravity.CENTER
             },
@@ -122,7 +122,7 @@ class AlertActivity : AppCompatActivity() {
 
         val stop = TextView(this).apply {
             text = getString(R.string.vl_stop_alert)
-            setTextColor(Color.parseColor("#1565C0"))
+            setTextColor(Palette.onLightBrand)
             textSize = 16f
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
@@ -142,7 +142,7 @@ class AlertActivity : AppCompatActivity() {
 
         countdown = TextView(this).apply {
             text = countdownText(AlertController.secondsLeft)
-            setTextColor(Color.parseColor("#D7E8FA"))
+            setTextColor(Palette.alertSub)
             textSize = 13f
             gravity = Gravity.CENTER
             setPadding(0, dp(14), 0, 0)

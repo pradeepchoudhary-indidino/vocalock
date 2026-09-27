@@ -168,7 +168,7 @@ class LockOverlay(private val context: Context) {
             setPadding(dp(28), dp(40), dp(28), dp(40))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                intArrayOf(Color.parseColor("#221F3D"), Color.parseColor("#100E20")),
+                intArrayOf(Palette.lockFrom, Palette.lockTo),
             )
             // Swallow every touch so nothing underneath reacts.
             isClickable = true
@@ -186,7 +186,7 @@ class LockOverlay(private val context: Context) {
         root.addView(
             TextView(context).apply {
                 text = context.getString(R.string.vl_locked_by)
-                setTextColor(Color.parseColor("#9C98C4"))
+                setTextColor(Palette.lockInkFaint)
                 textSize = 13f
                 gravity = Gravity.CENTER
                 setPadding(0, dp(6), 0, dp(34))
@@ -195,7 +195,7 @@ class LockOverlay(private val context: Context) {
 
         statusView = TextView(context).apply {
             text = context.getString(R.string.vl_say_unlock)
-            setTextColor(Color.parseColor("#C9C4F0"))
+            setTextColor(Palette.lockInkSoft)
             textSize = 15f
             gravity = Gravity.CENTER
         }
@@ -206,7 +206,7 @@ class LockOverlay(private val context: Context) {
         root.addView(
             TextView(context).apply {
                 text = context.getString(R.string.vl_mic_live)
-                setTextColor(Color.parseColor("#7358E0"))
+                setTextColor(Palette.accent)
                 textSize = 12f
                 gravity = Gravity.CENTER
                 setPadding(0, dp(8), 0, dp(26))
@@ -230,7 +230,7 @@ class LockOverlay(private val context: Context) {
             gravity = Gravity.CENTER
             setPadding(dp(28), dp(14), dp(28), dp(14))
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#2C2850"))
+                setColor(Palette.lockSurface)
                 cornerRadius = dp(24).toFloat()
             }
             layoutParams = LinearLayout.LayoutParams(
@@ -284,7 +284,7 @@ class LockOverlay(private val context: Context) {
             }
             if (key.isNotEmpty()) {
                 background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#2C2850"))
+                    setColor(Palette.lockSurface)
                     cornerRadius = dp(20).toFloat()
                 }
             }
@@ -344,8 +344,8 @@ class LockOverlay(private val context: Context) {
                     background = GradientDrawable().apply {
                         shape = GradientDrawable.OVAL
                         setColor(
-                            if (index < pin.length) Color.parseColor("#7358E0")
-                            else Color.parseColor("#3A3560"),
+                            if (index < pin.length) Palette.accent
+                            else Palette.pinEmpty,
                         )
                     }
                 },

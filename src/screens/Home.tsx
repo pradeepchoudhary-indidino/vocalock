@@ -99,9 +99,8 @@ export function Home() {
         action={
           voiceLockSetUp ? undefined : (
             <button
-              className="feature__state"
+              className="feature__action"
               type="button"
-              style={{ fontWeight: 600 }}
               onClick={() => navigate('/voice-lock/intro')}
             >
               Set up &rarr;

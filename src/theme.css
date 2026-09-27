@@ -1,46 +1,195 @@
 @import './assets/fonts/fonts.css';
 
+/* ============================================================================
+   VocaLock theme
+   ---------------------------------------------------------------------------
+   Every colour, radius, size, step of spacing and motion curve lives here as a
+   token. Nothing below the token blocks hardcodes a colour, which is what makes
+   the dark theme a palette swap rather than a rewrite.
+
+   Direction: the friendly pastel language the app already had, but with the ink
+   and accent colours deepened until they actually pass WCAG AA (the old palette
+   failed on 8 of 16 text pairs), plus the bolder shape scale and spring motion
+   Material 3 Expressive moved Android towards.
+   ========================================================================== */
+
 :root {
-  /* Warmer ground than the old #F4F7FD — softer, less clinical. */
+  /* ---- surfaces ------------------------------------------------------- */
   --bg: #f7f6fb;
-  --card: #ffffff;
-  --ink: #1d1b34;
-  --ink-soft: #62607d;
-  --ink-faint: #9694ac;
-  --line: #ece9f5;
+  --bg-0: rgba(247, 246, 251, 0); /* transparent twin of --bg, for fades */
+  --surface: #ffffff; /* cards, sheets, raised controls */
+  --surface-2: #f1eff9; /* inset tracks: segmented, stepper, quiet button */
+  --surface-3: #e7e3f3; /* switch-off track, meter well */
 
-  --blue: #5b8def;
-  --blue-deep: #3563cc;
-  --gradient: linear-gradient(135deg, #6ea8fe 0%, #3563cc 100%);
+  /* ---- ink ------------------------------------------------------------ */
+  --ink: #1d1b34; /* 15.5:1 on --bg */
+  --ink-soft: #5b5875; /* 6.3:1 on --bg */
+  --ink-faint: #6e6b89; /* 4.7:1 on --bg — was #9694ac at 2.7:1 */
+  --line: #e4e0f0;
+  --line-strong: #cfc9e2;
 
-  /* Per-feature tints. Each feature keeps its colour everywhere it appears. */
+  /* ---- brand ---------------------------------------------------------- */
+  --brand: #3352bd; /* brand as text/icon: 6.8:1 on white */
+  --brand-solid: #3f63d6; /* brand as a fill under white text: 5.3:1 */
+  --on-brand: #ffffff;
+  --gradient: linear-gradient(135deg, #4a6ae0 0%, #2f45ad 100%);
+  --brand-glow: rgba(47, 69, 173, 0.28);
+
+  /* ---- per-feature accents -------------------------------------------
+     Each feature keeps one colour everywhere it appears: clap = mint,
+     voice lock = lilac, warnings/attention = peach, information = sky. */
   --mint: #e4f6ee;
-  --mint-ink: #0f7a53;
-  --mint-solid: #17a672;
+  --mint-ink: #0b6845; /* 6.1:1 on --mint */
+  --mint-solid: #0b7d54; /* 5.2:1 under --on-mint */
+  --on-mint: #ffffff;
+  --mint-glow: rgba(11, 125, 84, 0.26);
+
   --lilac: #ece7fb;
-  --lilac-ink: #5a3fbe;
-  --lilac-solid: #7358e0;
+  --lilac-ink: #4c33ad; /* 7.6:1 on --lilac */
+  --lilac-solid: #6243d6; /* 6.4:1 under --on-lilac */
+  --on-lilac: #ffffff;
+  --lilac-glow: rgba(98, 67, 214, 0.26);
+
   --peach: #fdeee2;
-  --peach-ink: #a85a18;
-  --peach-solid: #e07c2a;
+  --peach-ink: #8f4a10; /* 5.9:1 on --peach */
+  --peach-solid: #b3610f;
+
   --sky: #e5f0fe;
-  --sky-ink: #24609e;
+  --sky-ink: #1e5794; /* 6.3:1 on --sky */
 
-  --green: #17a672;
-  --red: #e0554e;
-  --amber: #d98518;
+  /* ---- status --------------------------------------------------------- */
+  --green: #0b7d54; /* 5.2:1 on --bg */
+  --red: #c0322b;
+  --red-wash: #fdeceb;
+  --amber: #9c5c05;
 
-  --radius-xl: 28px;
+  /* ---- shape ----------------------------------------------------------
+     M3 Expressive pushes shape harder than M3 did; these run a step larger
+     than the old scale and every pill uses --radius-full, not 50%. */
+  --radius-xl: 30px;
   --radius: 22px;
   --radius-sm: 16px;
-  --shadow: 0 2px 12px rgba(29, 27, 52, 0.045);
-  --shadow-lift: 0 10px 30px rgba(29, 27, 52, 0.1);
+  --radius-xs: 12px;
+  --radius-full: 999px;
 
+  /* ---- spacing (4px base) --------------------------------------------- */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s8: 32px;
+  --gutter: 18px;
+
+  /* ---- type scale ----------------------------------------------------- */
+  --t-display: 34px;
+  --t-title-lg: 25px;
+  --t-title: 20px;
+  --t-heading: 18px;
+  --t-body-lg: 16px;
+  --t-body: 14.5px;
+  --t-label: 13px;
+  --t-caption: 12px;
+  --t-micro: 11px;
+
+  /* ---- elevation ------------------------------------------------------ */
+  /* Raised chip sitting ON a tinted card — has to lighten whatever is under it,
+     so it is translucent white rather than a flat surface colour. */
+  --tint-raise: rgba(255, 255, 255, 0.74);
+  /* A control lifted out of an inset track (--surface-2). It has to sit ABOVE
+     that track in both themes, which is why it is not just --surface: in dark
+     mode --surface is darker than the track it would sit in. */
+  --raised: #ffffff;
+
+  --shadow: 0 2px 12px rgba(29, 27, 52, 0.05);
+  --shadow-lift: 0 10px 30px rgba(29, 27, 52, 0.11);
+  --scrim: rgba(29, 27, 52, 0.45);
+
+  /* ---- motion ---------------------------------------------------------
+     Spring-flavoured curves. A real spring needs JS; these overshoot just
+     enough to read as physical while staying pure CSS. */
+  --ease-spring: cubic-bezier(0.34, 1.46, 0.64, 1);
+  --ease-spring-soft: cubic-bezier(0.22, 1.2, 0.36, 1);
+  --ease-out: cubic-bezier(0.22, 0.8, 0.3, 1);
+  --dur-press: 120ms;
+  --dur-fast: 180ms;
+  --dur: 260ms;
+
+  /* ---- layout --------------------------------------------------------- */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --dock-h: 88px;
+  --tap: 48px; /* Android minimum touch target */
+
   color-scheme: light;
 }
+
+/* ---------- dark theme ------------------------------------------------
+   Worth having beyond taste: this app listens around the clock and people
+   reach for it at night, and on OLED a near-black ground costs less battery
+   than the white one.
+
+   There is deliberately no `prefers-color-scheme` block. src/lib/theme.ts
+   resolves the preference (auto / light / dark) and always writes an explicit
+   data-theme onto <html>, so the palette is declared exactly once here.
+   index.html applies it before first paint to avoid a white flash. */
+
+:root[data-theme='dark'] {
+  --bg: #12111c;
+  --bg-0: rgba(18, 17, 28, 0);
+  --surface: #1c1a2b;
+  --surface-2: #262338;
+  --surface-3: #332f47;
+
+  --ink: #f2f0fa;
+  --ink-soft: #b4b0cb;
+  --ink-faint: #8d89a6;
+  --line: #2c2940;
+  --line-strong: #423d59;
+
+  --brand: #9db4ff;
+  --brand-solid: #4a6ae0;
+  --gradient: linear-gradient(135deg, #4a6ae0 0%, #2b3a94 100%);
+  --brand-glow: rgba(24, 33, 84, 0.6);
+
+  --mint: #1d4536;
+  --mint-ink: #7ce4bb;
+  /* On a near-black ground a saturated fill has to be bright to read, so the
+     text on it flips dark — the M3 on-colour pattern. */
+  --mint-solid: #2fc98d;
+  --on-mint: #04241a; /* 7.8:1 */
+  --mint-glow: rgba(9, 61, 41, 0.6);
+
+  --lilac: #372e60;
+  --lilac-ink: #c9bcff;
+  --lilac-solid: #9880ff;
+  --on-lilac: #150a2e; /* 6.2:1 */
+  --lilac-glow: rgba(38, 25, 92, 0.6);
+
+  --peach: #4b3120;
+  --peach-ink: #ffc48d;
+  --peach-solid: #d07c22;
+
+  --sky: #1d3a5c;
+  --sky-ink: #a8cbff;
+
+  --green: #3fd396;
+  --red: #ff8d85;
+  --red-wash: #3b1f21;
+  --amber: #f0b24b;
+
+  --tint-raise: rgba(255, 255, 255, 0.1);
+  --raised: #332f47;
+
+  --shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lift: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --scrim: rgba(5, 4, 12, 0.66);
+
+  color-scheme: dark;
+}
+
+/* ---------- reset ---------- */
 
 * {
   box-sizing: border-box;
@@ -66,6 +215,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Devanagari sits taller than Latin; give Hindi room so ि and ी don't clip. */
+:lang(hi) {
+  line-height: 1.65;
+}
+
 input,
 textarea {
   -webkit-user-select: text;
@@ -81,6 +235,14 @@ button {
   background: none;
   padding: 0;
   cursor: pointer;
+}
+
+/* Visible keyboard focus. The app is touch-first, but TalkBack and a paired
+   keyboard both need to show where they are. */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
 }
 
 #root {
@@ -106,28 +268,28 @@ button {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 4px 18px 24px;
+  padding: var(--s1) var(--gutter) var(--s6);
 }
 
 .screen__body--docked {
-  padding-bottom: calc(var(--dock-h) + var(--safe-bottom) + 12px);
+  padding-bottom: calc(var(--dock-h) + var(--safe-bottom) + var(--s3));
 }
 
 .screen__dock {
   position: sticky;
   bottom: 0;
-  padding: 12px 18px calc(16px + var(--safe-bottom));
-  background: linear-gradient(to top, var(--bg) 62%, rgba(247, 246, 251, 0));
+  padding: var(--s3) var(--gutter) calc(var(--s4) + var(--safe-bottom));
+  background: linear-gradient(to top, var(--bg) 62%, var(--bg-0));
 }
 
 .screen--enter {
-  animation: slide-in 240ms cubic-bezier(0.22, 0.8, 0.3, 1) both;
+  animation: slide-in var(--dur) var(--ease-spring-soft) both;
 }
 
 @keyframes slide-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -138,7 +300,10 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .screen--enter,
   .feature__icon,
-  .chip--on .chip__dot {
+  .chip--on .chip__dot,
+  .mic-btn--listening::before,
+  .mic-btn--listening::after,
+  .mock-alert__bell {
     animation: none;
   }
 }
@@ -148,24 +313,45 @@ button {
 .navbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 18px 10px;
+  gap: var(--s3);
+  padding: 14px var(--gutter) 10px;
   min-height: 58px;
 }
 
 .navbar__back {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
-  background: #fff;
+  background: var(--surface);
+  color: var(--ink);
   box-shadow: var(--shadow);
   flex: none;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+
+/* Visual size stays 42px for balance; the tap area is padded out to 48. */
+.navbar__back::after,
+.avatar-btn::after,
+.toggle::before,
+.stepper__btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--tap);
+  height: var(--tap);
+  transform: translate(-50%, -50%);
+}
+
+.navbar__back:active {
+  transform: scale(0.92);
 }
 
 .navbar__title {
-  font-size: 18px;
+  font-size: var(--t-heading);
   font-weight: 600;
   letter-spacing: -0.015em;
 }
@@ -181,57 +367,59 @@ button {
 }
 
 .brand__mark {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-sm);
   background: var(--gradient);
   display: grid;
   place-items: center;
-  color: #fff;
+  color: var(--on-brand);
   font-weight: 700;
-  font-size: 18px;
-  box-shadow: 0 5px 14px rgba(53, 99, 204, 0.3);
+  font-size: var(--t-heading);
+  box-shadow: 0 5px 14px var(--brand-glow);
 }
 
 .brand__name {
-  font-size: 20px;
+  font-size: var(--t-title);
   font-weight: 600;
   letter-spacing: -0.025em;
 }
 
 .greeting {
-  font-size: 13px;
+  font-size: var(--t-label);
   color: var(--ink-soft);
   margin-top: -2px;
 }
 
 .avatar-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #fff;
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--ink);
   box-shadow: var(--shadow);
   display: grid;
   place-items: center;
   flex: none;
 }
 
-/* ---------- feature cards (the new home) ---------- */
+/* ---------- feature cards (the home screen) ---------- */
 
 .feature {
   display: block;
   width: 100%;
   text-align: left;
   border-radius: var(--radius-xl);
-  padding: 20px;
+  padding: var(--s5);
   margin-bottom: 14px;
   position: relative;
   overflow: hidden;
-  transition: transform 140ms ease;
+  transition: transform var(--dur-fast) var(--ease-spring);
 }
 
 .feature:active {
-  transform: scale(0.985);
+  transform: scale(0.97);
 }
 
 .feature--mint {
@@ -258,16 +446,16 @@ button {
 .feature__icon {
   width: 56px;
   height: 56px;
-  border-radius: 20px;
+  border-radius: var(--radius);
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--tint-raise);
   flex: none;
   font-size: 26px;
 }
 
 .feature__icon--live {
-  animation: breathe 2.6s ease-in-out infinite;
+  animation: breathe 2.6s var(--ease-spring-soft) infinite;
 }
 
 @keyframes breathe {
@@ -281,15 +469,15 @@ button {
 }
 
 .feature__title {
-  font-size: 18px;
+  font-size: var(--t-heading);
   font-weight: 600;
   letter-spacing: -0.015em;
   margin: 2px 0 3px;
 }
 
 .feature__sub {
-  font-size: 13px;
-  opacity: 0.8;
+  font-size: var(--t-label);
+  opacity: 0.86;
   margin: 0;
 }
 
@@ -297,33 +485,55 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 16px;
+  margin-top: var(--s4);
 }
 
 .feature__state {
-  font-size: 12.5px;
+  font-size: var(--t-caption);
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.72);
-  border-radius: 999px;
-  padding: 6px 13px;
+  background: var(--tint-raise);
+  border-radius: var(--radius-full);
+  padding: 6px var(--s3);
 }
 
 .feature__spacer {
   flex: 1;
 }
 
+/* Same pill as .feature__state, but it is a real button, so it carries the
+   48px touch target the status label does not need. */
+.feature__action {
+  position: relative;
+  font-size: var(--t-caption);
+  font-weight: 600;
+  color: inherit;
+  background: var(--tint-raise);
+  border-radius: var(--radius-full);
+  padding: 8px var(--s4);
+}
+
+.feature__action::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: var(--tap);
+  transform: translateY(-50%);
+}
+
 /* ---------- cards, rows ---------- */
 
 .card {
-  background: var(--card);
+  background: var(--surface);
   border-radius: var(--radius);
-  padding: 18px;
+  padding: var(--s4) var(--s5);
   box-shadow: var(--shadow);
   margin-bottom: 14px;
 }
 
 .card--flush {
-  padding: 4px 18px;
+  padding: var(--s1) var(--s5);
 }
 
 .card--tint-sky {
@@ -332,7 +542,7 @@ button {
 }
 
 .card__title {
-  font-size: 16.5px;
+  font-size: var(--t-body-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
   margin: 0 0 5px;
@@ -340,17 +550,17 @@ button {
 
 .card__text {
   color: var(--ink-soft);
-  font-size: 13.5px;
+  font-size: var(--t-body);
   margin: 0;
 }
 
 .section-label {
-  font-size: 11.5px;
+  font-size: var(--t-micro);
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-faint);
-  margin: 24px 6px 10px;
+  margin: var(--s6) 6px 10px;
 }
 
 .row {
@@ -358,6 +568,7 @@ button {
   align-items: center;
   gap: 14px;
   padding: 15px 0;
+  min-height: var(--tap);
   border-bottom: 1px solid var(--line);
   width: 100%;
   text-align: left;
@@ -373,12 +584,12 @@ button {
 }
 
 .row__label {
-  font-size: 14.5px;
+  font-size: var(--t-body);
   font-weight: 500;
 }
 
 .row__sub {
-  font-size: 12.5px;
+  font-size: var(--t-caption);
   color: var(--ink-soft);
   margin-top: 2px;
 }
@@ -391,7 +602,7 @@ button {
 .row__icon {
   width: 38px;
   height: 38px;
-  border-radius: 13px;
+  border-radius: var(--radius-xs);
   display: grid;
   place-items: center;
   flex: none;
@@ -422,11 +633,11 @@ button {
 .toggle {
   position: relative;
   width: 52px;
-  height: 31px;
-  border-radius: 16px;
-  background: #dcd8ea;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
   flex: none;
-  transition: background 200ms ease;
+  transition: background var(--dur-fast) var(--ease-out);
 }
 
 .toggle[aria-checked='true'] {
@@ -442,16 +653,16 @@ button {
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 25px;
-  height: 25px;
-  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
   background: #fff;
-  box-shadow: 0 1px 4px rgba(29, 27, 52, 0.22);
-  transition: transform 200ms cubic-bezier(0.3, 1.5, 0.6, 1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  transition: transform var(--dur-fast) var(--ease-spring);
 }
 
 .toggle[aria-checked='true']::after {
-  transform: translateX(21px);
+  transform: translateX(20px);
 }
 
 .toggle:disabled {
@@ -460,24 +671,26 @@ button {
 
 .segmented {
   display: flex;
-  gap: 4px;
-  background: #f2f0f9;
-  border-radius: 15px;
-  padding: 4px;
+  gap: var(--s1);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: var(--s1);
 }
 
 .segmented__opt {
   flex: 1;
-  padding: 10px 4px;
-  border-radius: 12px;
-  font-size: 13.5px;
+  padding: 13px var(--s1);
+  min-height: var(--tap);
+  border-radius: var(--radius-xs);
+  font-size: var(--t-body);
   font-weight: 500;
   color: var(--ink-soft);
-  transition: all 170ms ease;
+  transition: background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
 }
 
 .segmented__opt[aria-pressed='true'] {
-  background: #fff;
+  background: var(--raised);
   color: var(--ink);
   font-weight: 600;
   box-shadow: var(--shadow);
@@ -486,23 +699,24 @@ button {
 .stepper {
   display: flex;
   align-items: center;
-  gap: 4px;
-  background: #f2f0f9;
-  border-radius: 14px;
-  padding: 4px;
+  gap: var(--s1);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: var(--s1);
   flex: none;
 }
 
 .stepper__btn {
-  width: 33px;
-  height: 33px;
-  border-radius: 11px;
-  background: #fff;
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-xs);
+  background: var(--raised);
   display: grid;
   place-items: center;
   font-size: 19px;
   font-weight: 500;
-  color: var(--blue-deep);
+  color: var(--brand);
   box-shadow: var(--shadow);
 }
 
@@ -514,17 +728,18 @@ button {
 .stepper__value {
   min-width: 48px;
   text-align: center;
-  font-size: 14px;
+  font-size: var(--t-body);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .select {
-  border: 1px solid var(--line);
-  background: #fff;
-  border-radius: 13px;
-  padding: 10px 12px;
-  font-size: 13.5px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  border-radius: var(--radius-xs);
+  padding: 12px var(--s3);
+  min-height: var(--tap);
+  font-size: var(--t-body);
   font-weight: 500;
   color: var(--ink);
 }
@@ -535,18 +750,19 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--s2);
   width: 100%;
   min-height: 56px;
-  border-radius: 28px;
+  border-radius: var(--radius-full);
   font-size: 15.5px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  transition: transform 130ms ease, opacity 130ms ease;
+  transition: transform var(--dur-press) var(--ease-spring),
+    opacity var(--dur-press) var(--ease-out);
 }
 
 .btn:active:not(:disabled) {
-  transform: scale(0.975);
+  transform: scale(0.96);
 }
 
 .btn:disabled {
@@ -555,37 +771,37 @@ button {
 
 .btn--primary {
   background: var(--gradient);
-  color: #fff;
-  box-shadow: 0 8px 22px rgba(53, 99, 204, 0.3);
+  color: var(--on-brand);
+  box-shadow: 0 8px 22px var(--brand-glow);
 }
 
 .btn--mint {
   background: var(--mint-solid);
-  color: #fff;
-  box-shadow: 0 8px 22px rgba(23, 166, 114, 0.28);
+  color: var(--on-mint);
+  box-shadow: 0 8px 22px var(--mint-glow);
 }
 
 .btn--lilac {
   background: var(--lilac-solid);
-  color: #fff;
-  box-shadow: 0 8px 22px rgba(115, 88, 224, 0.28);
+  color: var(--on-lilac);
+  box-shadow: 0 8px 22px var(--lilac-glow);
 }
 
 .btn--ghost {
-  background: #fff;
-  color: var(--blue-deep);
+  background: var(--surface);
+  color: var(--brand);
   box-shadow: var(--shadow);
 }
 
 .btn--quiet {
-  min-height: 48px;
-  background: #f2f0f9;
+  min-height: var(--tap);
+  background: var(--surface-2);
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--t-body);
 }
 
 .btn--danger {
-  background: #fdeceb;
+  background: var(--red-wash);
   color: var(--red);
 }
 
@@ -599,7 +815,8 @@ button {
   width: 100%;
   text-align: center;
   padding: 14px;
-  font-size: 14px;
+  min-height: var(--tap);
+  font-size: var(--t-body);
   font-weight: 600;
   color: var(--ink-soft);
 }
@@ -611,8 +828,8 @@ button {
   align-items: center;
   gap: 7px;
   padding: 7px 14px;
-  border-radius: 999px;
-  font-size: 12.5px;
+  border-radius: var(--radius-full);
+  font-size: var(--t-caption);
   font-weight: 600;
 }
 
@@ -622,7 +839,7 @@ button {
 }
 
 .chip--off {
-  background: #f2f0f9;
+  background: var(--surface-2);
   color: var(--ink-soft);
 }
 
@@ -634,12 +851,12 @@ button {
 .chip__dot {
   width: 7px;
   height: 7px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background: currentColor;
 }
 
 .chip--on .chip__dot {
-  animation: pulse 1.9s ease-in-out infinite;
+  animation: pulse 1.9s var(--ease-out) infinite;
 }
 
 @keyframes pulse {
@@ -657,7 +874,7 @@ button {
   gap: 10px;
   border-radius: var(--radius-sm);
   padding: 14px;
-  font-size: 12.5px;
+  font-size: var(--t-caption);
   line-height: 1.55;
   background: var(--sky);
   color: var(--sky-ink);
@@ -671,7 +888,7 @@ button {
 
 .note__icon {
   flex: none;
-  font-size: 14px;
+  font-size: var(--t-body);
   line-height: 1.35;
 }
 
@@ -680,14 +897,15 @@ button {
 .steps {
   display: flex;
   gap: 6px;
-  padding: 0 18px 8px;
+  padding: 0 var(--gutter) var(--s2);
 }
 
 .steps__pip {
   height: 4px;
   flex: 1;
-  border-radius: 2px;
-  background: var(--line);
+  border-radius: var(--radius-full);
+  background: var(--line-strong);
+  transition: background var(--dur) var(--ease-out);
 }
 
 .steps__pip--done {
@@ -695,13 +913,13 @@ button {
 }
 
 .hero-illo {
-  width: 108px;
-  height: 108px;
-  border-radius: 36px;
+  width: 112px;
+  height: 112px;
+  border-radius: 38px;
   display: grid;
   place-items: center;
   font-size: 46px;
-  margin: 12px auto 18px;
+  margin: var(--s3) auto var(--s5);
 }
 
 .hero-illo--mint {
@@ -717,19 +935,19 @@ button {
 }
 
 .page-title {
-  font-size: 25px;
+  font-size: var(--t-title-lg);
   font-weight: 600;
   letter-spacing: -0.03em;
   text-align: center;
-  margin: 0 0 8px;
+  margin: 0 0 var(--s2);
   line-height: 1.25;
 }
 
 .page-sub {
-  font-size: 14px;
+  font-size: var(--t-body);
   color: var(--ink-soft);
   text-align: center;
-  margin: 0 0 22px;
+  margin: 0 0 var(--s6);
 }
 
 /* ---------- mic capture ---------- */
@@ -737,23 +955,23 @@ button {
 .mic-btn {
   width: 128px;
   height: 128px;
-  border-radius: 50%;
-  margin: 8px auto 4px;
+  border-radius: var(--radius-full);
+  margin: var(--s2) auto var(--s1);
   display: grid;
   place-items: center;
   background: var(--lilac);
-  color: var(--lilac-solid);
+  color: var(--lilac-ink);
   position: relative;
-  transition: transform 160ms ease;
+  transition: transform var(--dur-fast) var(--ease-spring);
 }
 
 .mic-btn:active {
-  transform: scale(0.96);
+  transform: scale(0.94);
 }
 
 .mic-btn--listening {
   background: var(--lilac-solid);
-  color: #fff;
+  color: var(--on-lilac);
 }
 
 .mic-btn--listening::before,
@@ -761,9 +979,9 @@ button {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   border: 2px solid var(--lilac-solid);
-  animation: ripple 1.8s ease-out infinite;
+  animation: ripple 1.8s var(--ease-out) infinite;
 }
 
 .mic-btn--listening::after {
@@ -783,12 +1001,12 @@ button {
 
 .mic-btn--captured {
   background: var(--mint);
-  color: var(--mint-solid);
+  color: var(--mint-ink);
 }
 
 .mic-hint {
   text-align: center;
-  font-size: 13px;
+  font-size: var(--t-label);
   color: var(--ink-soft);
   margin-top: 10px;
 }
@@ -797,14 +1015,14 @@ button {
   min-height: 56px;
   display: grid;
   place-items: center;
-  margin: 16px 0 4px;
+  margin: var(--s4) 0 var(--s1);
 }
 
 .transcript__chip {
-  background: #fff;
-  border-radius: 18px;
-  padding: 13px 18px;
-  font-size: 16px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: var(--s3) var(--s5);
+  font-size: var(--t-body-lg);
   font-weight: 500;
   box-shadow: var(--shadow);
   text-align: center;
@@ -819,7 +1037,7 @@ button {
 
 .field-error {
   color: var(--red);
-  font-size: 13px;
+  font-size: var(--t-label);
   font-weight: 500;
   text-align: center;
   margin-top: 10px;
@@ -831,45 +1049,46 @@ button {
 .pin-dots {
   display: flex;
   justify-content: center;
-  gap: 13px;
-  margin: 20px 0 6px;
+  gap: var(--s3);
+  margin: var(--s5) 0 6px;
 }
 
 .pin-dot {
   width: 15px;
   height: 15px;
-  border-radius: 50%;
-  background: var(--line);
-  transition: all 160ms ease;
+  border-radius: var(--radius-full);
+  background: var(--line-strong);
+  transition: transform var(--dur-fast) var(--ease-spring),
+    background var(--dur-fast) var(--ease-out);
 }
 
 .pin-dot--filled {
   background: var(--lilac-solid);
-  transform: scale(1.12);
+  transform: scale(1.14);
 }
 
 .pin-pad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: var(--s3);
   max-width: 300px;
-  margin: 18px auto 0;
+  margin: var(--s5) auto 0;
 }
 
 .pin-key {
   height: 66px;
-  border-radius: 22px;
-  background: #fff;
+  border-radius: var(--radius);
+  background: var(--surface);
   font-size: 23px;
   font-weight: 500;
   box-shadow: var(--shadow);
   display: grid;
   place-items: center;
-  transition: transform 110ms ease;
+  transition: transform var(--dur-press) var(--ease-spring);
 }
 
 .pin-key:active {
-  transform: scale(0.94);
+  transform: scale(0.92);
 }
 
 .pin-key--blank {
@@ -887,7 +1106,7 @@ button {
 
 .paywall__video-wrap {
   position: relative;
-  margin-bottom: 18px;
+  margin-bottom: var(--s5);
 }
 
 .paywall__video {
@@ -903,13 +1122,14 @@ button {
 .paywall__unmute {
   position: absolute;
   left: 50%;
-  bottom: 12px;
+  bottom: var(--s3);
   transform: translateX(-50%);
-  background: rgba(29, 27, 52, 0.82);
+  background: rgba(15, 14, 26, 0.86);
   color: #fff;
-  border-radius: 999px;
-  padding: 9px 18px;
-  font-size: 13px;
+  border-radius: var(--radius-full);
+  padding: 11px var(--s5);
+  min-height: 40px;
+  font-size: var(--t-label);
   font-weight: 600;
   backdrop-filter: blur(6px);
 }
@@ -921,14 +1141,14 @@ button {
   background: var(--gradient);
   display: grid;
   place-items: center;
-  color: #fff;
+  color: var(--on-brand);
   font-size: 46px;
-  margin-bottom: 18px;
+  margin-bottom: var(--s5);
 }
 
 .price {
   text-align: center;
-  margin: 4px 0 6px;
+  margin: var(--s1) 0 6px;
 }
 
 .price__big {
@@ -939,13 +1159,13 @@ button {
 }
 
 .price__then {
-  font-size: 14px;
+  font-size: var(--t-body);
   color: var(--ink-soft);
-  margin-top: 4px;
+  margin-top: var(--s1);
 }
 
 .price__terms {
-  font-size: 12.5px;
+  font-size: var(--t-caption);
   color: var(--ink-faint);
   text-align: center;
   margin-top: 10px;
@@ -953,27 +1173,27 @@ button {
 }
 
 .bullets {
-  margin: 20px 0 6px;
+  margin: var(--s5) 0 6px;
   display: grid;
-  gap: 12px;
+  gap: var(--s3);
 }
 
 .bullet {
   display: flex;
-  gap: 12px;
+  gap: var(--s3);
   align-items: flex-start;
-  font-size: 14px;
+  font-size: var(--t-body);
 }
 
 .bullet__tick {
   width: 24px;
   height: 24px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background: var(--mint);
-  color: var(--mint-solid);
+  color: var(--mint-ink);
   display: grid;
   place-items: center;
-  font-size: 13px;
+  font-size: var(--t-label);
   font-weight: 700;
   flex: none;
 }
@@ -981,17 +1201,18 @@ button {
 .payer-picker {
   display: flex;
   gap: 10px;
-  margin: 18px 0 4px;
+  margin: var(--s5) 0 var(--s1);
 }
 
 .payer {
   flex: 1;
-  border-radius: 16px;
-  padding: 13px 8px;
+  border-radius: var(--radius-sm);
+  padding: var(--s3) var(--s2);
   text-align: center;
-  font-size: 12.5px;
+  font-size: var(--t-caption);
   font-weight: 600;
-  background: #fff;
+  background: var(--surface);
+  color: var(--ink);
   box-shadow: var(--shadow);
   border: 2px solid transparent;
 }
@@ -1003,8 +1224,8 @@ button {
 
 .payer__logo {
   display: block;
-  font-size: 20px;
-  margin-bottom: 4px;
+  font-size: var(--t-title);
+  margin-bottom: var(--s1);
 }
 
 /* ---------- phone entry ---------- */
@@ -1013,11 +1234,17 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #fff;
-  border-radius: 18px;
-  padding: 4px 16px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: var(--s1) var(--s4);
   box-shadow: var(--shadow);
   margin-top: 6px;
+  border: 2px solid transparent;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+
+.phone-field:focus-within {
+  border-color: var(--brand-solid);
 }
 
 .phone-field__cc {
@@ -1046,8 +1273,8 @@ button {
   align-items: flex-end;
   gap: 3px;
   height: 148px;
-  padding: 12px;
-  background: #faf9fd;
+  padding: var(--s3);
+  background: var(--surface-2);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
@@ -1056,23 +1283,23 @@ button {
   flex: 1;
   min-width: 2px;
   border-radius: 2px;
-  background: linear-gradient(180deg, #8fbcff, #3563cc);
+  background: linear-gradient(180deg, var(--brand-solid), var(--brand));
   transition: height 60ms linear;
 }
 
 .meter__bar--peak {
-  background: linear-gradient(180deg, #ffc46b, #e07c2a);
+  background: linear-gradient(180deg, var(--peach-solid), var(--amber));
 }
 
 .meter-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: var(--s3);
 }
 
 .meter-head__count {
-  font-size: 32px;
+  font-size: var(--t-display);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
@@ -1080,13 +1307,13 @@ button {
 
 .heard {
   text-align: center;
-  font-size: 13px;
+  font-size: var(--t-label);
   font-weight: 600;
-  color: var(--mint-solid);
+  color: var(--green);
   min-height: 20px;
   margin-top: 10px;
   opacity: 0;
-  transition: opacity 150ms ease;
+  transition: opacity var(--dur-fast) var(--ease-out);
 }
 
 .heard--show {
@@ -1099,19 +1326,19 @@ button {
   flex: 1;
   display: grid;
   place-items: center;
-  gap: 20px;
+  gap: var(--s5);
   align-content: center;
   background: var(--bg);
 }
 
 .splash__mark {
-  width: 84px;
-  height: 84px;
-  border-radius: 28px;
+  width: 88px;
+  height: 88px;
+  border-radius: 30px;
   background: var(--gradient);
   display: grid;
   place-items: center;
-  color: #fff;
+  color: var(--on-brand);
   font-size: 35px;
   font-weight: 700;
   box-shadow: var(--shadow-lift);
@@ -1120,9 +1347,9 @@ button {
 .spinner {
   width: 22px;
   height: 22px;
-  border: 2.5px solid var(--line);
-  border-top-color: var(--blue-deep);
-  border-radius: 50%;
+  border: 2.5px solid var(--line-strong);
+  border-top-color: var(--brand);
+  border-radius: var(--radius-full);
   animation: spin 800ms linear infinite;
 }
 
@@ -1133,18 +1360,18 @@ button {
 }
 
 .tick {
-  color: var(--mint-solid);
+  color: var(--green);
   font-weight: 700;
 }
 
 .allow-link {
-  color: var(--blue-deep);
+  color: var(--brand);
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: var(--t-body);
 }
 
 .required-tag {
-  font-size: 10.5px;
+  font-size: var(--t-micro);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1154,8 +1381,8 @@ button {
 .plan-card {
   background: var(--gradient);
   border-radius: var(--radius);
-  padding: 20px;
-  color: #fff;
+  padding: var(--s5);
+  color: var(--on-brand);
   box-shadow: var(--shadow-lift);
   margin-bottom: 14px;
 }
@@ -1164,7 +1391,7 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 13.5px;
+  font-size: var(--t-body);
   padding: 5px 0;
 }
 
@@ -1174,19 +1401,19 @@ button {
 
 .version-foot {
   text-align: center;
-  font-size: 12px;
+  font-size: var(--t-caption);
   color: var(--ink-faint);
-  padding: 22px 0 6px;
+  padding: var(--s6) 0 6px;
 }
 
 .sheet-backdrop {
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgba(29, 27, 52, 0.42);
+  background: var(--scrim);
   display: flex;
   align-items: flex-end;
-  animation: fade-in 180ms ease both;
+  animation: fade-in var(--dur-fast) var(--ease-out) both;
 }
 
 @keyframes fade-in {
@@ -1204,8 +1431,8 @@ button {
   margin: 0 auto;
   background: var(--bg);
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  padding: 24px 18px calc(20px + var(--safe-bottom));
-  animation: sheet-up 260ms cubic-bezier(0.22, 0.85, 0.3, 1) both;
+  padding: var(--s6) var(--gutter) calc(var(--s5) + var(--safe-bottom));
+  animation: sheet-up var(--dur) var(--ease-spring-soft) both;
 }
 
 @keyframes sheet-up {
@@ -1218,7 +1445,7 @@ button {
 }
 
 .policy-body {
-  font-size: 14px;
+  font-size: var(--t-body);
   color: var(--ink-soft);
   line-height: 1.65;
 }
@@ -1227,11 +1454,11 @@ button {
   color: var(--ink);
   font-size: 15px;
   font-weight: 600;
-  margin: 22px 0 6px;
+  margin: var(--s6) 0 6px;
 }
 
 .policy-body p {
-  margin: 0 0 12px;
+  margin: 0 0 var(--s3);
 }
 
 /* Web-mock stand-in for the native AlertActivity. */
@@ -1245,13 +1472,13 @@ button {
   place-content: center;
   justify-items: center;
   gap: 14px;
-  padding: 24px;
+  padding: var(--s6);
   text-align: center;
 }
 
 .mock-alert__bell {
   font-size: 58px;
-  animation: shake 600ms ease-in-out infinite;
+  animation: shake 600ms var(--ease-out) infinite;
 }
 
 @keyframes shake {
@@ -1270,15 +1497,15 @@ button {
 }
 
 .mock-alert__note {
-  font-size: 13px;
+  font-size: var(--t-label);
   opacity: 0.85;
 }
 
 .mock-alert__stop {
   margin-top: 10px;
   background: #fff;
-  color: var(--blue-deep);
-  border-radius: 28px;
+  color: #2f45ad;
+  border-radius: var(--radius-full);
   min-height: 56px;
   padding: 0 44px;
   font-size: 15.5px;
@@ -1286,7 +1513,7 @@ button {
 }
 
 .mock-alert__count {
-  font-size: 13px;
+  font-size: var(--t-label);
   opacity: 0.85;
   font-variant-numeric: tabular-nums;
 }
@@ -1302,7 +1529,7 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: var(--s3);
   padding: 28px;
   text-align: center;
 }
@@ -1318,27 +1545,29 @@ button {
 .otp-row {
   position: relative;
   display: flex;
-  gap: 12px;
+  gap: var(--s3);
   justify-content: center;
-  margin: 8px 0 4px;
+  margin: var(--s2) 0 var(--s1);
 }
 
 .otp-box {
   width: 58px;
   height: 66px;
-  border-radius: 18px;
-  background: #fff;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
   box-shadow: var(--shadow);
   display: grid;
   place-items: center;
   font-size: 26px;
   font-weight: 600;
   border: 2px solid transparent;
-  transition: border-color 150ms ease;
+  transition: border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
 }
 
 .otp-box--active {
   border-color: var(--lilac-solid);
+  transform: scale(1.04);
 }
 
 /* The real field sits invisibly over the boxes so SMS autofill and the numeric

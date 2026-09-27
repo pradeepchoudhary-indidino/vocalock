@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Mirrors src/theme.css so the native screens match the React theme by hand. -->
+<!-- Mirrors the tokens in src/theme.css. The Kotlin screens read their colours
+     from ui/Palette.kt; these exist for the places only XML can reach.
+     (XML comments cannot contain a double hyphen, so the token names below are
+     written without their leading dashes.) -->
 <resources>
-    <color name="vl_blue">#3AA0F5</color>
-    <color name="vl_blue_deep">#1565C0</color>
-    <color name="vl_ink">#14213D</color>
-    <color name="vl_bg">#F4F7FD</color>
+    <color name="vl_brand">#4A6AE0</color>      <!-- gradient, light stop -->
+    <color name="vl_brand_deep">#2F45AD</color> <!-- gradient, dark stop -->
+    <color name="vl_ink">#1D1B34</color>        <!-- ink -->
+    <color name="vl_bg">#F7F6FB</color>         <!-- bg, light -->
+    <color name="vl_bg_dark">#12111C</color>    <!-- bg, dark -->
 </resources>

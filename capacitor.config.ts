@@ -6,14 +6,15 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   android: {
     // Keep the WebView opaque so the native LockOverlay / AlertActivity
-    // are the only things that ever draw over the app.
-    backgroundColor: '#F4F7FD',
+    // are the only things that ever draw over the app. This is the light-theme
+    // ground (--bg); MainActivity repaints it for a phone in dark mode.
+    backgroundColor: '#F7F6FB',
   },
   plugins: {
     StatusBar: {
       overlaysWebView: false,
       style: 'LIGHT',
-      backgroundColor: '#F4F7FD',
+      backgroundColor: '#F7F6FB',
     },
   },
 };

@@ -1,5 +1,7 @@
 package com.indidino.vocalock
 
+import android.content.res.Configuration
+import android.graphics.Color
 import android.os.Bundle
 import com.getcapacitor.BridgeActivity
 import com.indidino.vocalock.plugins.ListenerPlugin
@@ -15,7 +17,21 @@ class MainActivity : BridgeActivity() {
         registerPlugin(ListenerPlugin::class.java)
         registerPlugin(VoiceSetupPlugin::class.java)
         super.onCreate(savedInstanceState)
+        paintWebViewGround()
         resumeListeningIfArmed()
+    }
+
+    /**
+     * capacitor.config.ts can only name one WebView background, so on a phone in
+     * dark mode the first frame would flash light before index.html resolves the
+     * theme. Repaint it here to match.
+     */
+    private fun paintWebViewGround() {
+        val night = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
+            Configuration.UI_MODE_NIGHT_YES
+        bridge?.webView?.setBackgroundColor(
+            if (night) Color.parseColor("#12111C") else Color.parseColor("#F7F6FB"),
+        )
     }
 
     /**

@@ -6,8 +6,27 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#F4F7FD" />
+    <meta name="theme-color" content="#F7F6FB" />
     <title>VocaLock</title>
+    <!-- Resolve the theme before the first paint, otherwise a dark-mode user
+         gets a white flash while the bundle loads. Mirrors src/lib/theme.ts. -->
+    <script>
+      (function () {
+        var pref = 'auto';
+        try {
+          pref = localStorage.getItem('vocalock.theme') || 'auto';
+        } catch (e) {}
+        var dark =
+          pref === 'dark' ||
+          (pref === 'auto' &&
+            window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        document
+          .querySelector('meta[name="theme-color"]')
+          .setAttribute('content', dark ? '#12111C' : '#F7F6FB');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

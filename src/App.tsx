@@ -24,6 +24,7 @@ import { VoiceLockManage } from './screens/voicelock/Manage';
 import { Listener } from './plugins';
 import { useSettings } from './store/settings';
 import { track } from './lib/analytics';
+import { initTheme, THEME_BG, useTheme } from './lib/theme';
 
 /** Back on these exits the app rather than navigating. */
 const ROOT_ROUTES = new Set(['/home', '/splash', '/login', '/paywall', '/']);
@@ -38,11 +39,18 @@ export function App() {
   const setServiceRunning = useSettings((s) => s.setServiceRunning);
   const patch = useSettings((s) => s.patch);
 
+  // index.html painted the theme before first paint; adopt it and start
+  // following the system setting while the preference is 'auto'.
+  const { mode } = useTheme();
+  useEffect(initTheme, []);
+
+  // Match the native status bar to the web theme, or its icons end up invisible.
+  // Capacitor's Style.Dark means a dark bar with light icons.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
-    void StatusBar.setStyle({ style: Style.Light });
-    void StatusBar.setBackgroundColor({ color: '#F7F6FB' });
-  }, []);
+    void StatusBar.setStyle({ style: mode === 'dark' ? Style.Dark : Style.Light });
+    void StatusBar.setBackgroundColor({ color: THEME_BG[mode] });
+  }, [mode]);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;

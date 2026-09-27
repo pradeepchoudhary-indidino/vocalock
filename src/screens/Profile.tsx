@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Screen } from '../components/Screen';
 import { NavBar } from '../components/NavBar';
-import { Card, LinkRow, Sheet } from '../components/Controls';
+import { Card, LinkRow, SectionLabel, Segmented, Sheet } from '../components/Controls';
 import { CardIcon, DocIcon, LifebuoyIcon, LogOutIcon, ShieldIcon } from '../components/Icons';
 import { daysLeft, isPremium, usePremium } from '../store/account';
 import { APP_VERSION } from '../lib/analytics';
+import { setThemePref, useTheme, type ThemePref } from '../lib/theme';
 
 const PLAN_LABEL: Record<string, string> = {
   none: 'No plan',
@@ -19,6 +20,7 @@ const PLAN_LABEL: Record<string, string> = {
 export function Profile() {
   const navigate = useNavigate();
   const { session, entitlement, signOut } = usePremium();
+  const { pref: themePref } = useTheme();
   const [confirmOut, setConfirmOut] = useState(false);
 
   const premium = isPremium(entitlement);
@@ -60,6 +62,23 @@ export function Profile() {
       ) : null}
 
       <div style={{ height: 14 }} />
+
+      <SectionLabel>Appearance</SectionLabel>
+      <Card>
+        <p className="card__text" style={{ marginBottom: 12 }}>
+          Dark keeps the screen easy on the eyes at night and uses less battery on
+          OLED phones.
+        </p>
+        <Segmented<ThemePref>
+          value={themePref}
+          onChange={setThemePref}
+          options={[
+            { value: 'auto', label: 'Auto' },
+            { value: 'light', label: 'Light' },
+            { value: 'dark', label: 'Dark' },
+          ]}
+        />
+      </Card>
 
       <Card flush>
         <LinkRow
