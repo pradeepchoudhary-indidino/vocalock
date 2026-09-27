@@ -91,7 +91,7 @@ class AlertActivity : AppCompatActivity() {
             setPadding(dp(28), dp(28), dp(28), dp(36))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                intArrayOf(Palette.brandFrom, Palette.brandTo),
+                intArrayOf(Palette.alertTop, Palette.alertMid, Palette.alertBottom),
             )
         }
 

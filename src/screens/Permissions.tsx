@@ -74,7 +74,7 @@ export function Permissions() {
 
   return (
     <Screen
-      nav={<NavBar title="Permissions" />}
+      hero={<NavBar title="Permissions" />}
       dock={
         <button className="btn btn--primary" type="button" onClick={() => navigate(-1)}>
           Done

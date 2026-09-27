@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import { Screen } from '../../components/Screen';
 import { NavBar } from '../../components/NavBar';
+import { LockIcon } from '../../components/Icons';
 import { Card, Note, Sheet, ToggleRow } from '../../components/Controls';
 import { Listener } from '../../plugins';
 import { useSettings } from '../../store/settings';
@@ -44,8 +45,39 @@ export function VoiceLockManage() {
   };
 
   return (
-    <Screen
-      nav={<NavBar title="Voice Lock" />}
+    <Screen flow="purple"
+      hero={
+        <>
+          <NavBar title="Voice Lock" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span className="emblem">
+              {settings.voiceLockEnabled ? (
+                <>
+                  <span className="emblem__ring" />
+                  <span className="emblem__ring" />
+                </>
+              ) : null}
+              <span className="emblem__disc">
+                <LockIcon size={26} />
+              </span>
+            </span>
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+              <span className="hero__status">
+                <span
+                  className="chip__dot"
+                  style={{ background: settings.voiceLockEnabled ? '#7dffb0' : 'rgba(255,255,255,.5)' }}
+                />
+                {settings.voiceLockEnabled ? 'Armed' : 'Off'}
+              </span>
+              <span className="hero__sub">
+                {settings.voiceLockEnabled
+                  ? 'Say your lock phrase any time'
+                  : 'Turn it on to lock with your voice'}
+              </span>
+            </span>
+          </div>
+        </>
+      }
       dock={
         <button className="btn btn--lilac" type="button" onClick={() => void Listener.lock()}>
           Lock my screen now

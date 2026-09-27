@@ -52,8 +52,8 @@ export function LockMode() {
   }, [asking, checkOnReturn]);
 
   return (
-    <Screen
-      nav={
+    <Screen flow="purple"
+      hero={
         <>
           <NavBar title="How should it lock?" />
           <StepPips total={3} done={2} />

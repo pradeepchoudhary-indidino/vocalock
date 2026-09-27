@@ -30,7 +30,7 @@ class MainActivity : BridgeActivity() {
         val night = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
             Configuration.UI_MODE_NIGHT_YES
         bridge?.webView?.setBackgroundColor(
-            if (night) Color.parseColor("#12111C") else Color.parseColor("#F7F6FB"),
+            if (night) Color.parseColor("#0D1526") else Color.parseColor("#EEF4FC"),
         )
     }
 

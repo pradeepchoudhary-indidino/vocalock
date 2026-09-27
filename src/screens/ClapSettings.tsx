@@ -12,7 +12,7 @@ import {
   StepperRow,
   ToggleRow,
 } from '../components/Controls';
-import { ShieldIcon } from '../components/Icons';
+import { ClapIcon, ShieldIcon } from '../components/Icons';
 import { Listener, type Sensitivity } from '../plugins';
 import { missingPermissionCount, useSettings } from '../store/settings';
 
@@ -39,7 +39,41 @@ export function ClapSettings() {
 
   return (
     <Screen
-      nav={<NavBar title="Clap to Find" />}
+      hero={
+        <>
+          <NavBar title="Clap to Find" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span className="emblem">
+              {on ? (
+                <>
+                  <span className="emblem__ring" />
+                  <span className="emblem__ring" />
+                </>
+              ) : null}
+              <span className="emblem__disc">
+                <ClapIcon size={30} />
+              </span>
+            </span>
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+              <span className="hero__status">
+                {on ? (
+                  <span className="bars" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                ) : null}
+                {on ? 'On \u00b7 Listening' : 'Off'}
+              </span>
+              <span className="hero__sub">
+                {on
+                  ? `Clap ${settings.clapsRequired}\u00d7 and your phone rings`
+                  : 'Turn it on to find your phone by clapping'}
+              </span>
+            </span>
+          </div>
+        </>
+      }
       dock={
         <div className="btn-pair">
           <button className="btn btn--ghost" type="button" onClick={() => void Listener.testAlert()}>
@@ -51,10 +85,6 @@ export function ClapSettings() {
         </div>
       }
     >
-      <div style={{ marginBottom: 14 }}>
-        <Chip tone={on ? 'on' : 'off'}>{on ? 'On — listening' : 'Off'}</Chip>
-      </div>
-
       <Note>
         VocaLock ignores sounds coming from your own phone, so claps in a video or a song
         will not set it off.

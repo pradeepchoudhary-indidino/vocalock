@@ -9,12 +9,16 @@ interface NavBarProps {
   right?: ReactNode;
 }
 
+/**
+ * The top row of a hero: back arrow, title, and whatever sits on the right.
+ * It is always drawn on the gradient, so everything in it is white.
+ */
 export function NavBar({ title, backTo = '/home', right }: NavBarProps) {
   const navigate = useNavigate();
   return (
-    <div className="navbar">
+    <div className="hero__bar">
       <button
-        className="navbar__back"
+        className="hero__btn"
         type="button"
         aria-label="Back"
         onClick={() => {
@@ -24,8 +28,8 @@ export function NavBar({ title, backTo = '/home', right }: NavBarProps) {
       >
         <ChevronLeft />
       </button>
-      {title ? <span className="navbar__title">{title}</span> : null}
-      <span className="navbar__spacer" />
+      {title ? <h1 className="hero__title">{title}</h1> : null}
+      <span className="hero__spacer" />
       {right}
     </div>
   );

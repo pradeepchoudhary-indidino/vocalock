@@ -58,7 +58,16 @@ export function Otp() {
 
   return (
     <Screen
-      nav={<NavBar title="" backTo="/login" />}
+      hero={
+        <>
+          <NavBar title="" backTo="/login" />
+          <div className="hero__centre">
+            <div className="hero-illo">&#128274;</div>
+            <h1 className="hero__h1">Enter the code</h1>
+            <p className="hero__sub">Sent to {phone}</p>
+          </div>
+        </>
+      }
       dock={
         <button
           className="btn btn--primary"
@@ -70,10 +79,6 @@ export function Otp() {
         </button>
       }
     >
-      <div className="hero-illo hero-illo--lilac">&#128274;</div>
-      <h1 className="page-title">Enter the code</h1>
-      <p className="page-sub">Sent to {phone}</p>
-
       {/* One real input behind the boxes: it keeps SMS autofill and the numeric
           keypad working, which per-digit inputs famously break. */}
       <div

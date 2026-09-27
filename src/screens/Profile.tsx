@@ -27,14 +27,18 @@ export function Profile() {
   const left = daysLeft(entitlement);
 
   return (
-    <Screen nav={<NavBar title="Profile" />}>
-      <div style={{ textAlign: 'center', padding: '6px 0 18px' }}>
-        <div className="hero-illo hero-illo--lilac" style={{ margin: '0 auto 12px' }}>
-          &#128100;
-        </div>
-        <div style={{ fontSize: 19, fontWeight: 600 }}>{session?.phone ?? 'VocaLock'}</div>
-        <div className="row__sub">VocaLock account</div>
-      </div>
+    <Screen
+      hero={
+        <>
+          <NavBar title="Profile" />
+          <div className="hero__centre">
+            <div className="hero-illo">&#128100;</div>
+            <div className="hero__name">{session?.phone ?? 'VocaLock'}</div>
+            <div className="hero__sub">VocaLock account</div>
+          </div>
+        </>
+      }
+    >
 
       <div className="plan-card">
         <div style={{ fontSize: 13, opacity: 0.85 }}>Your plan</div>

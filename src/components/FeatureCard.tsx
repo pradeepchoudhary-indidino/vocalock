@@ -1,71 +1,77 @@
 import type { ReactNode } from 'react';
-import { Toggle } from './Controls';
+import { GearIcon } from './Icons';
 
-type Tint = 'mint' | 'lilac' | 'peach';
+type Feature = 'clap' | 'lock';
 
-interface FeatureCardProps {
-  tint: Tint;
+interface FeatureTileProps {
+  feature: Feature;
   icon: ReactNode;
   title: string;
   sub: string;
-  /** Short status word shown in the pill, e.g. "Listening" or "Off". */
-  state: string;
-  live?: boolean;
-  checked?: boolean;
-  onToggle?: (next: boolean) => void;
+  /** What the action button says, e.g. "Listening", "Armed", "Turn on". */
+  action: string;
+  on: boolean;
+  onAction: () => void;
+  /** Opens this feature's settings. */
   onOpen: () => void;
-  action?: ReactNode;
+  settingsLabel: string;
 }
 
 /**
- * The Home screen's main unit: one tinted card per feature. Each feature keeps
- * its own colour everywhere else in the app, so a row icon or a button reads as
- * "that's the Clap one" without a label.
+ * One feature, as a tile. The tile IS the status display: its fill, its bottom
+ * edge, its disc and its action button all change together, so there is no
+ * separate "on" label to keep in sync.
+ *
+ * The action button carries a live indicator — bars for Clap (it is listening
+ * for sound) and a pulse for Voice Lock (it is armed and waiting).
  */
-export function FeatureCard({
-  tint,
+export function FeatureTile({
+  feature,
   icon,
   title,
   sub,
-  state,
-  live = false,
-  checked,
-  onToggle,
-  onOpen,
   action,
-}: FeatureCardProps) {
+  on,
+  onAction,
+  onOpen,
+  settingsLabel,
+}: FeatureTileProps) {
   return (
-    <div className={`feature feature--${tint}`}>
-      <button
-        type="button"
-        className="feature__head"
-        style={{ width: '100%', textAlign: 'left', color: 'inherit' }}
-        onClick={onOpen}
-      >
-        <span className={`feature__icon${live ? ' feature__icon--live' : ''}`}>{icon}</span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span className="feature__title" style={{ display: 'block' }}>
-            {title}
-          </span>
-          <span className="feature__sub" style={{ display: 'block' }}>
-            {sub}
-          </span>
+    <div className={`tile tile--${feature}${on ? ' tile--on' : ''}`}>
+      <button className="tile__gear" type="button" aria-label={settingsLabel} onClick={onOpen}>
+        <span>
+          <GearIcon />
         </span>
       </button>
 
-      <div className="feature__foot">
-        <span className="feature__state">{state}</span>
-        <span className="feature__spacer" />
-        {action}
-        {onToggle ? (
-          <Toggle
-            label={title}
-            checked={checked ?? false}
-            onChange={onToggle}
-            tint={tint === 'lilac' ? 'lilac' : 'mint'}
-          />
+      <span className="tile__disc">{icon}</span>
+
+      <span>
+        <span className="tile__name" style={{ display: 'block' }}>
+          {title}
+        </span>
+        <span className="tile__sub" style={{ display: 'block' }}>
+          {sub}
+        </span>
+      </span>
+
+      <button
+        className="tile__action"
+        type="button"
+        aria-label={title}
+        aria-pressed={on}
+        onClick={onAction}
+      >
+        {on && feature === 'clap' ? (
+          <span className="bars" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
         ) : null}
-      </div>
+        {on && feature === 'lock' ? <span className="tile__pulse" aria-hidden="true" /> : null}
+        {action}
+      </button>
     </div>
   );
 }

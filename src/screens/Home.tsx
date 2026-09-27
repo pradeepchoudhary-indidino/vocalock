@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Screen } from '../components/Screen';
-import { FeatureCard } from '../components/FeatureCard';
-import { Card, Chip, LinkRow } from '../components/Controls';
-import { BoltIcon, ClapIcon, LockIcon, ShieldIcon, UserIcon } from '../components/Icons';
+import { FeatureTile } from '../components/FeatureCard';
+import { BoltIcon, ChevronRight, ClapIcon, LockIcon, UserIcon } from '../components/Icons';
 import { Listener } from '../plugins';
 import { missingPermissionCount, useSettings } from '../store/settings';
 import { daysLeft, usePremium } from '../store/account';
@@ -32,6 +31,12 @@ export function Home() {
   const missing = missingPermissionCount(permissions);
   const trialDays = daysLeft(entitlement);
 
+  const clapOn = settings.clapEnabled && serviceRunning;
+  const lockOn = voiceLockSetUp && settings.voiceLockEnabled && serviceRunning;
+  const liveCount = (clapOn ? 1 : 0) + (lockOn ? 1 : 0);
+  const heroTitle =
+    liveCount === 2 ? 'You’re protected' : liveCount === 1 ? 'Half protected' : 'Not protected';
+
   const toggleClap = async (next: boolean) => {
     track('clap_toggle', { on: next });
     await patch({ clapEnabled: next });
@@ -39,104 +44,132 @@ export function Home() {
     if (next && missing > 0) navigate('/permissions');
   };
 
-  const nav = (
-    <div className="navbar">
-      <div>
-        <div className="brand">
-          <div className="brand__mark">V</div>
-          <div>
-            <div className="brand__name">VocaLock</div>
-            <div className="greeting">{greeting()}</div>
-          </div>
+  const hero = (
+    <>
+      <div className="hero__bar">
+        <span className="hero__tile">
+          <LockIcon size={22} />
+        </span>
+        <div>
+          <div className="hero__greet">{greeting()}</div>
+          <div className="hero__name">VocaLock</div>
+        </div>
+        <span className="hero__spacer" />
+        <button
+          className="hero__btn"
+          type="button"
+          aria-label="Profile"
+          onClick={() => navigate('/profile')}
+        >
+          <UserIcon />
+        </button>
+      </div>
+
+      <div className="hero__centre">
+        <div className="hero__emblem">
+          {liveCount > 0 ? (
+            <>
+              <span className="hero__emblem-ring" />
+              <span className="hero__emblem-ring" />
+            </>
+          ) : null}
+          <span className="hero__emblem-mark" aria-hidden="true">
+            {liveCount === 2 ? '\u{1F6E1}' : liveCount === 1 ? '\u{1F441}' : '\u{1F4A4}'}
+          </span>
+        </div>
+        <div className="hero__h1">{heroTitle}</div>
+        <div className="hero__pips">
+          <span className={`hero__pip${clapOn ? ' hero__pip--on' : ''}`}>Clap</span>
+          <span className={`hero__pip${lockOn ? ' hero__pip--on' : ''}`}>Voice lock</span>
         </div>
       </div>
-      <span className="navbar__spacer" />
-      <button className="avatar-btn" type="button" aria-label="Profile" onClick={() => navigate('/profile')}>
-        <UserIcon />
-      </button>
-    </div>
+    </>
   );
 
   return (
-    <Screen nav={nav}>
-      <FeatureCard
-        tint="mint"
-        icon={<ClapIcon />}
-        title="Clap to Find"
-        sub={
-          settings.clapEnabled
-            ? `Clap ${settings.clapsRequired} times and it rings`
-            : 'Lost your phone? Just clap.'
-        }
-        state={settings.clapEnabled && serviceRunning ? 'Listening' : 'Off'}
-        live={settings.clapEnabled && serviceRunning}
-        checked={settings.clapEnabled}
-        onToggle={toggleClap}
-        onOpen={() => navigate('/clap')}
-      />
+    <Screen hero={hero}>
+      <div className="home-grid">
+        <FeatureTile
+          feature="clap"
+          icon={<ClapIcon size={30} />}
+          title="Clap to Find"
+          sub={
+            settings.clapEnabled
+              ? `Clap ${settings.clapsRequired}× and it rings`
+              : 'Lost it? Just clap.'
+          }
+          action={clapOn ? 'Listening' : 'Turn on'}
+          on={clapOn}
+          onAction={() => void toggleClap(!settings.clapEnabled)}
+          onOpen={() => navigate('/clap')}
+          settingsLabel="Clap to Find settings"
+        />
 
-      <FeatureCard
-        tint="lilac"
-        icon={<LockIcon size={26} />}
-        title="Voice Lock"
-        sub={
-          voiceLockSetUp
-            ? 'Say your phrase to lock the screen'
-            : 'Lock your screen with your voice'
-        }
-        state={voiceLockSetUp ? (settings.voiceLockEnabled ? 'Armed' : 'Off') : 'Not set up'}
-        live={voiceLockSetUp && settings.voiceLockEnabled && serviceRunning}
-        checked={voiceLockSetUp ? settings.voiceLockEnabled : undefined}
-        onToggle={
-          voiceLockSetUp
-            ? async (next) => {
-                await patch({ voiceLockEnabled: next });
-                await syncService();
-              }
-            : undefined
-        }
-        onOpen={() => navigate(voiceLockSetUp ? '/voice-lock' : '/voice-lock/intro')}
-        action={
-          voiceLockSetUp ? undefined : (
-            <button
-              className="feature__action"
-              type="button"
-              onClick={() => navigate('/voice-lock/intro')}
-            >
-              Set up &rarr;
-            </button>
-          )
-        }
-      />
+        <FeatureTile
+          feature="lock"
+          icon={<LockIcon size={28} />}
+          title="Voice Lock"
+          sub={voiceLockSetUp ? 'Say your phrase to lock' : 'Lock with your voice'}
+          action={lockOn ? 'Armed' : voiceLockSetUp ? 'Turn on' : 'Set up'}
+          on={lockOn}
+          onAction={async () => {
+            if (!voiceLockSetUp) {
+              navigate('/voice-lock/intro');
+              return;
+            }
+            await patch({ voiceLockEnabled: !settings.voiceLockEnabled });
+            await syncService();
+          }}
+          onOpen={() => navigate(voiceLockSetUp ? '/voice-lock' : '/voice-lock/intro')}
+          settingsLabel="Voice Lock settings"
+        />
+      </div>
 
       {missing > 0 ? (
-        <Card flush>
-          <LinkRow
-            label="Finish setting up"
-            sub={`${missing} permission${missing > 1 ? 's' : ''} still needed`}
-            icon={<ShieldIcon />}
-            tint="peach"
-            onClick={() => navigate('/permissions')}
-            right={<Chip tone="warn">{missing}</Chip>}
-          />
-        </Card>
+        <button className="action-strip" type="button" onClick={() => navigate('/permissions')}>
+          <span className="action-strip__tile">
+            <BoltIcon />
+          </span>
+          <span className="action-strip__main">
+            <span className="action-strip__name" style={{ display: 'block' }}>
+              Finish setting up
+            </span>
+            <span className="action-strip__sub" style={{ display: 'block' }}>
+              {missing} permission{missing > 1 ? 's' : ''} still needed
+            </span>
+          </span>
+          <ChevronRight />
+        </button>
       ) : null}
 
-      <Card flush>
-        <LinkRow
-          label="Test the alert"
-          sub="Hear what it sounds like"
-          icon={<BoltIcon />}
-          tint="peach"
-          onClick={() => void Listener.testAlert()}
-        />
-      </Card>
+      <button className="action-strip" type="button" onClick={() => void Listener.testAlert()}>
+        <span className="action-strip__tile">
+          <BoltIcon />
+        </span>
+        <span className="action-strip__main">
+          <span className="action-strip__name" style={{ display: 'block' }}>
+            Test the alert
+          </span>
+          <span className="action-strip__sub" style={{ display: 'block' }}>
+            Hear what it sounds like
+          </span>
+        </span>
+        <ChevronRight />
+      </button>
 
       {entitlement.status === 'trial' ? (
-        <div style={{ textAlign: 'center', marginTop: 6 }}>
-          <Chip tone="off">
-            Trial &middot; {trialDays} day{trialDays === 1 ? '' : 's'} left
-          </Chip>
+        <div className="plan-card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span className="action-strip__tile" style={{ boxShadow: 'none', background: '#fff0c2' }}>
+            &#11088;
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span className="action-strip__name" style={{ display: 'block' }}>
+              Premium trial
+            </span>
+            <span className="tile__sub" style={{ display: 'block' }}>
+              {trialDays} day{trialDays === 1 ? '' : 's'} left
+            </span>
+          </span>
         </div>
       ) : null}
     </Screen>

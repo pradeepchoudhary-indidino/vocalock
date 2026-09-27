@@ -38,14 +38,18 @@ export function LockPhrase() {
 
   const nav = (
     <>
-      <NavBar title="Lock phrase" />
+      <NavBar title="Lock phrase" right={<span className="hero__step">Step 1 of 3</span>} />
       <StepPips total={3} done={1} />
+      <div className="hero__centre">
+        <h1 className="hero__h1">Say your lock phrase</h1>
+        <p className="hero__sub">Saying this locks your screen. Pick something you would not say by accident.</p>
+      </div>
     </>
   );
 
   if (checking) {
     return (
-      <Screen nav={nav}>
+      <Screen flow="purple" hero={nav}>
         <PhraseCheck
           phrase={lockPhrase}
           language={language}
@@ -60,8 +64,8 @@ export function LockPhrase() {
   }
 
   return (
-    <Screen
-      nav={nav}
+    <Screen flow="purple"
+      hero={nav}
       dock={
         <button
           className="btn btn--lilac"
@@ -73,10 +77,6 @@ export function LockPhrase() {
         </button>
       }
     >
-      <h1 className="page-title">Say your lock phrase</h1>
-      <p className="page-sub">
-        Saying this locks your screen. Pick something you would not say by accident.
-      </p>
 
 
 

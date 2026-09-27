@@ -120,7 +120,7 @@ export function Legal() {
   const content = DOCS[doc ?? ''] ?? DOCS.privacy;
 
   return (
-    <Screen nav={<NavBar title={content.title} />}>
+    <Screen hero={<NavBar title={content.title} />}>
       {doc === 'privacy' ? (
         <Note>
           <strong>Audio never leaves your phone.</strong> Everything VocaLock hears is

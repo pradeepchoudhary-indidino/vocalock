@@ -1,78 +1,67 @@
 @import './assets/fonts/fonts.css';
 
 /* ============================================================================
-   VocaLock theme
+   VocaLock theme — "chunky playful"
    ---------------------------------------------------------------------------
-   Every colour, radius, size, step of spacing and motion curve lives here as a
-   token. Nothing below the token blocks hardcodes a colour, which is what makes
-   the dark theme a palette swap rather than a rewrite.
+   Built from the design canvas (claude.ai/artifact/ES5Mc2wHui9CkPMqF8xchF).
 
-   Direction: the friendly pastel language the app already had, but with the ink
-   and accent colours deepened until they actually pass WCAG AA (the old palette
-   failed on 8 of 16 text pairs), plus the bolder shape scale and spring motion
-   Material 3 Expressive moved Android towards.
+   Two things define the look:
+
+   1. HARD EDGES, NOT SHADOWS. A card is a 2px border with a 6px bottom border;
+      a button is a flat fill with `0 5px 0` under it and presses 3px down on
+      tap. Nothing uses a soft blur. Change one and the whole thing stops
+      reading as a single idea.
+
+   2. FLOW COLOUR. Each flow owns a hue — blue for Home/Clap/Paywall/Profile,
+      purple for Voice Lock — and every hero, card edge, button and icon on that
+      flow inherits it. `.screen[data-flow]` sets the --f-* tokens; components
+      below only ever read those, never a raw hue.
+
+   The canvas ships a `tokens.json` too, but its own metadata says it documents
+   reference-app screenshots, and it describes a flatter design than the
+   artboards draw. The artboards are the source of truth here.
    ========================================================================== */
 
 :root {
-  /* ---- surfaces ------------------------------------------------------- */
-  --bg: #f7f6fb;
-  --bg-0: rgba(247, 246, 251, 0); /* transparent twin of --bg, for fades */
-  --surface: #ffffff; /* cards, sheets, raised controls */
-  --surface-2: #f1eff9; /* inset tracks: segmented, stepper, quiet button */
-  --surface-3: #e7e3f3; /* switch-off track, meter well */
+  /* ---- ink (shared by both flows) ------------------------------------- */
+  --ink: #10243d;
+  --ink-muted: #5b6470;
+  --ink-faint: #8a95a3; /* icons and chevrons only — 3.0:1, never body text */
 
-  /* ---- ink ------------------------------------------------------------ */
-  --ink: #1d1b34; /* 15.5:1 on --bg */
-  --ink-soft: #5b5875; /* 6.3:1 on --bg */
-  --ink-faint: #6e6b89; /* 4.7:1 on --bg — was #9694ac at 2.7:1 */
-  --line: #e4e0f0;
-  --line-strong: #cfc9e2;
+  /* ---- fixed accents --------------------------------------------------- */
+  --green: #1f9d68;
+  --green-edge: #15744c;
+  --indigo: #4f72ea;
+  --indigo-edge: #3551b8;
+  --yellow: #ffc233;
+  --yellow-edge: #e09a00;
+  --yellow-ink: #3d2a00;
+  --yellow-wash: #fff6dc;
+  --yellow-line: #ffe29a;
+  --yellow-line-edge: #f3c250;
+  --red: #d94c52;
+  --red-edge: #a8323a;
+  --red-ink: #b3242c;
+  --red-wash: #fbeef1;
+  --red-line: #ebb4bb;
+  --red-line-edge: #e3a2ab;
+  --on-accent: #ffffff;
 
-  /* ---- brand ---------------------------------------------------------- */
-  --brand: #3352bd; /* brand as text/icon: 6.8:1 on white */
-  --brand-solid: #3f63d6; /* brand as a fill under white text: 5.3:1 */
-  --on-brand: #ffffff;
-  --gradient: linear-gradient(135deg, #4a6ae0 0%, #2f45ad 100%);
-  --brand-glow: rgba(47, 69, 173, 0.28);
+  /* ---- shape ----------------------------------------------------------- */
+  --r-card: 24px;
+  --r-hero: 36px;
+  --r-md: 20px;
+  --r-sm: 16px;
+  --r-xs: 12px;
+  --r-pill: 999px;
 
-  /* ---- per-feature accents -------------------------------------------
-     Each feature keeps one colour everywhere it appears: clap = mint,
-     voice lock = lilac, warnings/attention = peach, information = sky. */
-  --mint: #e4f6ee;
-  --mint-ink: #0b6845; /* 6.1:1 on --mint */
-  --mint-solid: #0b7d54; /* 5.2:1 under --on-mint */
-  --on-mint: #ffffff;
-  --mint-glow: rgba(11, 125, 84, 0.26);
+  /* ---- the hard edge --------------------------------------------------- */
+  --edge-card: 6px; /* a card's bottom border */
+  --edge-btn: 5px; /* the drop under a button */
+  --edge-chip: 3px; /* the drop under an icon circle */
+  --press: 3px; /* how far a .chunky element travels on tap */
 
-  --lilac: #ece7fb;
-  --lilac-ink: #4c33ad; /* 7.6:1 on --lilac */
-  --lilac-solid: #6243d6; /* 6.4:1 under --on-lilac */
-  --on-lilac: #ffffff;
-  --lilac-glow: rgba(98, 67, 214, 0.26);
-
-  --peach: #fdeee2;
-  --peach-ink: #8f4a10; /* 5.9:1 on --peach */
-  --peach-solid: #b3610f;
-
-  --sky: #e5f0fe;
-  --sky-ink: #1e5794; /* 6.3:1 on --sky */
-
-  /* ---- status --------------------------------------------------------- */
-  --green: #0b7d54; /* 5.2:1 on --bg */
-  --red: #c0322b;
-  --red-wash: #fdeceb;
-  --amber: #9c5c05;
-
-  /* ---- shape ----------------------------------------------------------
-     M3 Expressive pushes shape harder than M3 did; these run a step larger
-     than the old scale and every pill uses --radius-full, not 50%. */
-  --radius-xl: 30px;
-  --radius: 22px;
-  --radius-sm: 16px;
-  --radius-xs: 12px;
-  --radius-full: 999px;
-
-  /* ---- spacing (4px base) --------------------------------------------- */
+  /* ---- spacing (4px base) ---------------------------------------------- */
   --s1: 4px;
   --s2: 8px;
   --s3: 12px;
@@ -80,113 +69,136 @@
   --s5: 20px;
   --s6: 24px;
   --s8: 32px;
-  --gutter: 18px;
+  --gutter: 20px;
+  --overlap: 40px; /* how far the body rides up over the hero */
 
-  /* ---- type scale ----------------------------------------------------- */
-  --t-display: 34px;
-  --t-title-lg: 25px;
-  --t-title: 20px;
-  --t-heading: 18px;
-  --t-body-lg: 16px;
-  --t-body: 14.5px;
-  --t-label: 13px;
-  --t-caption: 12px;
-  --t-micro: 11px;
+  /* ---- type ------------------------------------------------------------ */
+  --display: 'Fredoka', 'Poppins', system-ui, sans-serif;
+  --body: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --t-hero: 28px;
+  --t-title: 24px;
+  --t-heading: 22px;
+  --t-btn: 19px;
+  --t-chip: 16px;
+  --t-row: 16px;
+  --t-body: 14px;
+  --t-caption: 13px;
+  --t-label: 12px;
 
-  /* ---- elevation ------------------------------------------------------ */
-  /* Raised chip sitting ON a tinted card — has to lighten whatever is under it,
-     so it is translucent white rather than a flat surface colour. */
-  --tint-raise: rgba(255, 255, 255, 0.74);
-  /* A control lifted out of an inset track (--surface-2). It has to sit ABOVE
-     that track in both themes, which is why it is not just --surface: in dark
-     mode --surface is darker than the track it would sit in. */
-  --raised: #ffffff;
+  /* ---- motion ---------------------------------------------------------- */
+  --dur-press: 90ms;
+  --dur: 200ms;
 
-  --shadow: 0 2px 12px rgba(29, 27, 52, 0.05);
-  --shadow-lift: 0 10px 30px rgba(29, 27, 52, 0.11);
-  --scrim: rgba(29, 27, 52, 0.45);
-
-  /* ---- motion ---------------------------------------------------------
-     Spring-flavoured curves. A real spring needs JS; these overshoot just
-     enough to read as physical while staying pure CSS. */
-  --ease-spring: cubic-bezier(0.34, 1.46, 0.64, 1);
-  --ease-spring-soft: cubic-bezier(0.22, 1.2, 0.36, 1);
-  --ease-out: cubic-bezier(0.22, 0.8, 0.3, 1);
-  --dur-press: 120ms;
-  --dur-fast: 180ms;
-  --dur: 260ms;
-
-  /* ---- layout --------------------------------------------------------- */
+  /* ---- layout ---------------------------------------------------------- */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --dock-h: 88px;
-  --tap: 48px; /* Android minimum touch target */
+  --tap: 48px;
 
   color-scheme: light;
 }
 
-/* ---------- dark theme ------------------------------------------------
-   Worth having beyond taste: this app listens around the clock and people
-   reach for it at night, and on OLED a near-black ground costs less battery
-   than the white one.
+/* ---------- flow: blue (Home, Clap to Find, Paywall, Profile) ---------- */
 
-   There is deliberately no `prefers-color-scheme` block. src/lib/theme.ts
-   resolves the preference (auto / light / dark) and always writes an explicit
-   data-theme onto <html>, so the palette is declared exactly once here.
-   index.html applies it before first paint to avoid a white flash. */
+[data-flow='blue'] {
+  --f-bg: #eef4fc;
+  --f-card: #ffffff;
+  --f-line: #dbe6f3;
+  --f-line-edge: #c6d6ea;
+  --f-divider: #eef2f7;
+  --f-track: #eef4fc;
+  --f-hero: linear-gradient(180deg, #2188e4 0%, #1669c5 60%, #1257a8 100%);
+  --f-solid: #2188e4;
+  --f-solid-edge: #1257a8;
+  --f-ink: #1669c5; /* the hue as text on a light ground */
+  --f-wash: #e4f2fd;
+  --f-halo: rgba(7, 40, 90, 0.35); /* the drop under a white tile on the hero */
+  /* The canvas draws this gradient from #2188e4, but white 18px/600 on that is
+     3.68:1. Starting one step deeper is visually the same and passes 4.5. */
+  --f-btn: linear-gradient(90deg, #1b75cb, #1257a8);
+  --f-btn-edge: #0f4f98;
+}
 
-:root[data-theme='dark'] {
-  --bg: #12111c;
-  --bg-0: rgba(18, 17, 28, 0);
-  --surface: #1c1a2b;
-  --surface-2: #262338;
-  --surface-3: #332f47;
+/* ---------- flow: purple (Voice Lock) ---------- */
 
-  --ink: #f2f0fa;
-  --ink-soft: #b4b0cb;
-  --ink-faint: #8d89a6;
-  --line: #2c2940;
-  --line-strong: #423d59;
+[data-flow='purple'] {
+  --f-bg: #f4f1fe;
+  --f-card: #ffffff;
+  --f-line: #e2dafb;
+  --f-line-edge: #cfc3f7;
+  --f-divider: #f0ebfd;
+  --f-track: #f1edfe;
+  --f-hero: linear-gradient(180deg, #8a6cf5 0%, #6a4be0 60%, #5236c2 100%);
+  --f-solid: #7a5af0;
+  --f-solid-edge: #5236c2;
+  --f-ink: #5f3fd6;
+  --f-wash: #e9e3fd;
+  --f-halo: rgba(40, 20, 110, 0.4);
+  --f-btn: linear-gradient(90deg, #7a5af0, #5f3fd6);
+  --f-btn-edge: #4228a8;
+}
 
-  --brand: #9db4ff;
-  --brand-solid: #4a6ae0;
-  --gradient: linear-gradient(135deg, #4a6ae0 0%, #2b3a94 100%);
-  --brand-glow: rgba(24, 33, 84, 0.6);
+/* ---------- dark ------------------------------------------------------
+   The canvas has no dark artboards, but its Profile screen ships an
+   Auto / Light / Dark control, so the theme is meant to exist. Derived here in
+   the same language: the grounds go near-black, the hero keeps its gradient
+   (it is the flow's identity), and the hard edges become darker rather than
+   lighter so a card still reads as a solid object with weight under it.
 
-  --mint: #1d4536;
-  --mint-ink: #7ce4bb;
-  /* On a near-black ground a saturated fill has to be bright to read, so the
-     text on it flips dark — the M3 on-colour pattern. */
-  --mint-solid: #2fc98d;
-  --on-mint: #04241a; /* 7.8:1 */
-  --mint-glow: rgba(9, 61, 41, 0.6);
+   There is no `prefers-color-scheme` block; src/lib/theme.ts resolves the
+   preference and writes an explicit data-theme onto <html>, so each palette is
+   declared once. index.html applies it before first paint. */
 
-  --lilac: #372e60;
-  --lilac-ink: #c9bcff;
-  --lilac-solid: #9880ff;
-  --on-lilac: #150a2e; /* 6.2:1 */
-  --lilac-glow: rgba(38, 25, 92, 0.6);
+[data-theme='dark'] {
+  --ink: #eaf1fb;
+  --ink-muted: #a9b8cf;
+  --ink-faint: #7d8ba3;
 
-  --peach: #4b3120;
-  --peach-ink: #ffc48d;
-  --peach-solid: #d07c22;
-
-  --sky: #1d3a5c;
-  --sky-ink: #a8cbff;
-
-  --green: #3fd396;
-  --red: #ff8d85;
-  --red-wash: #3b1f21;
-  --amber: #f0b24b;
-
-  --tint-raise: rgba(255, 255, 255, 0.1);
-  --raised: #332f47;
-
-  --shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lift: 0 12px 32px rgba(0, 0, 0, 0.55);
-  --scrim: rgba(5, 4, 12, 0.66);
+  --green: #22a871;
+  --green-edge: #11603f;
+  --indigo: #5b7cf0;
+  --indigo-edge: #2f4694;
+  --yellow: #ffc94d;
+  --yellow-edge: #b9781a;
+  --yellow-ink: #2a1c00;
+  --yellow-wash: #3a2c10;
+  --yellow-line: #6b5010;
+  --yellow-line-edge: #4c3908;
+  --red: #e05a60;
+  --red-edge: #8c2229;
+  --red-ink: #ff9ba1;
+  --red-wash: #3a1f24;
+  --red-line: #6b333a;
+  --red-line-edge: #4d2228;
 
   color-scheme: dark;
+}
+
+[data-theme='dark'] [data-flow='blue'] {
+  --f-bg: #0d1526;
+  --f-card: #17223a;
+  --f-line: #24334f;
+  --f-line-edge: #16223a;
+  --f-divider: #23314b;
+  --f-track: #101b30;
+  --f-solid: #2f7fd0;
+  --f-solid-edge: #12365f;
+  --f-ink: #7db8f5;
+  --f-wash: #14304f;
+  --f-halo: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] [data-flow='purple'] {
+  --f-bg: #151129;
+  --f-card: #221b3d;
+  --f-line: #342a57;
+  --f-line-edge: #211a3a;
+  --f-divider: #322855;
+  --f-track: #1c1636;
+  --f-solid: #8560f3;
+  --f-solid-edge: #3a2775;
+  --f-ink: #b9a4ff;
+  --f-wash: #2a2148;
+  --f-halo: rgba(0, 0, 0, 0.55);
 }
 
 /* ---------- reset ---------- */
@@ -204,9 +216,9 @@ body {
 }
 
 body {
-  background: var(--bg);
+  background: #eef4fc;
   color: var(--ink);
-  font-family: 'Poppins', -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--body);
   font-size: 15px;
   line-height: 1.5;
   -webkit-user-select: none;
@@ -215,7 +227,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Devanagari sits taller than Latin; give Hindi room so ि and ी don't clip. */
+[data-theme='dark'] body {
+  background: #0d1526;
+}
+
+/* Devanagari sits taller than Latin, and has no Fredoka cut, so Hindi headings
+   land on Poppins. Give them the room so ि and ी do not clip. */
 :lang(hi) {
   line-height: 1.65;
 }
@@ -237,18 +254,27 @@ button {
   cursor: pointer;
 }
 
-/* Visible keyboard focus. The app is touch-first, but TalkBack and a paired
-   keyboard both need to show where they are. */
 :focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 3px solid var(--f-ink, #1669c5);
   outline-offset: 2px;
-  border-radius: var(--radius-xs);
+  border-radius: var(--r-xs);
 }
 
 #root {
   min-height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+/* The press. Everything tappable that sits on a hard edge uses this: the
+   element drops by --press and its edge shortens by the same amount, so the
+   object looks pushed into the page rather than merely moved. */
+.chunky {
+  transition: transform var(--dur-press) ease, box-shadow var(--dur-press) ease;
+}
+
+.chunky:active:not(:disabled) {
+  transform: translateY(var(--press));
 }
 
 /* ---------- screen shell ---------- */
@@ -261,35 +287,43 @@ button {
   max-width: 520px;
   width: 100%;
   margin: 0 auto;
-  padding-top: var(--safe-top);
+  background: var(--f-bg);
 }
 
 .screen__body {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: var(--s1) var(--gutter) var(--s6);
+  padding: var(--s5) var(--gutter) var(--s6);
+}
+
+/* When a hero is present the body rides up over its rounded bottom. */
+.screen--hero .screen__body {
+  margin-top: calc(var(--overlap) * -1);
+  padding-top: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .screen__body--docked {
-  padding-bottom: calc(var(--dock-h) + var(--safe-bottom) + var(--s3));
+  padding-bottom: calc(96px + var(--safe-bottom));
 }
 
 .screen__dock {
   position: sticky;
   bottom: 0;
-  padding: var(--s3) var(--gutter) calc(var(--s4) + var(--safe-bottom));
-  background: linear-gradient(to top, var(--bg) 62%, var(--bg-0));
+  padding: var(--s4) var(--gutter) calc(var(--s8) + var(--safe-bottom));
+  background: var(--f-bg);
 }
 
 .screen--enter {
-  animation: slide-in var(--dur) var(--ease-spring-soft) both;
+  animation: slide-in 260ms cubic-bezier(0.22, 1.1, 0.36, 1) both;
 }
 
 @keyframes slide-in {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -297,46 +331,94 @@ button {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .screen--enter,
-  .feature__icon,
-  .chip--on .chip__dot,
-  .mic-btn--listening::before,
-  .mic-btn--listening::after,
-  .mock-alert__bell {
-    animation: none;
-  }
+/* ---------- the hero ---------- */
+
+.hero {
+  background: var(--f-hero);
+  border-radius: 0 0 var(--r-hero) var(--r-hero);
+  padding: calc(var(--safe-top) + var(--s6)) var(--gutter)
+    calc(var(--overlap) + var(--s5));
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  position: relative;
+  overflow: hidden;
+  color: #fff;
 }
 
-/* ---------- nav ---------- */
+/* The two soft discs every artboard carries. Decorative, so they are drawn
+   here rather than added to every screen's markup. */
+.hero::before,
+.hero::after {
+  content: '';
+  position: absolute;
+  border-radius: var(--r-pill);
+  pointer-events: none;
+}
 
-.navbar {
+.hero::before {
+  width: 260px;
+  height: 260px;
+  background: rgba(255, 255, 255, 0.06);
+  top: -90px;
+  right: -80px;
+}
+
+.hero::after {
+  width: 180px;
+  height: 180px;
+  background: rgba(255, 255, 255, 0.05);
+  bottom: -70px;
+  left: -60px;
+}
+
+.hero > * {
+  position: relative;
+}
+
+.hero__bar {
   display: flex;
   align-items: center;
   gap: var(--s3);
-  padding: 14px var(--gutter) 10px;
-  min-height: 58px;
+  min-height: 44px;
 }
 
-.navbar__back {
+.hero__title {
+  font-family: var(--display);
+  font-size: var(--t-title);
+  line-height: 30px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+}
+
+.hero__spacer {
+  flex: 1;
+}
+
+/* A circular control on the hero: back arrow, avatar. */
+.hero__btn {
   position: relative;
-  width: 42px;
-  height: 42px;
-  border-radius: var(--radius-sm);
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: var(--r-pill);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
   display: grid;
   place-items: center;
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: var(--shadow);
-  flex: none;
-  transition: transform var(--dur-press) var(--ease-out);
+  transition: background var(--dur) ease;
 }
 
-/* Visual size stays 42px for balance; the tap area is padded out to 48. */
-.navbar__back::after,
-.avatar-btn::after,
-.toggle::before,
-.stepper__btn::after {
+.hero__btn:active {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+/* Visual size stays 44px; the tap area is padded out to 48. */
+.hero__btn::after,
+.stepper__btn::after,
+.toggle::before {
   content: '';
   position: absolute;
   top: 50%;
@@ -346,236 +428,228 @@ button {
   transform: translate(-50%, -50%);
 }
 
-.navbar__back:active {
-  transform: scale(0.92);
+/* The white app tile on the hero, with its hard drop. */
+.hero__tile {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--f-ink);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 0 var(--f-halo);
 }
 
-.navbar__title {
+.hero__greet {
+  font-size: var(--t-caption);
+  line-height: 18px;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.hero__name {
+  font-family: var(--display);
   font-size: var(--t-heading);
+  line-height: 26px;
   font-weight: 600;
-  letter-spacing: -0.015em;
 }
 
-.navbar__spacer {
-  flex: 1;
-}
-
-.brand {
+.hero__centre {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 11px;
+  gap: var(--s2);
+  text-align: center;
 }
 
-.brand__mark {
-  width: 42px;
-  height: 42px;
-  border-radius: var(--radius-sm);
-  background: var(--gradient);
-  display: grid;
-  place-items: center;
-  color: var(--on-brand);
-  font-weight: 700;
-  font-size: var(--t-heading);
-  box-shadow: 0 5px 14px var(--brand-glow);
-}
-
-.brand__name {
-  font-size: var(--t-title);
+.hero__h1 {
+  font-family: var(--display);
+  font-size: var(--t-hero);
+  line-height: 32px;
   font-weight: 600;
-  letter-spacing: -0.025em;
-}
-
-.greeting {
-  font-size: var(--t-label);
-  color: var(--ink-soft);
-  margin-top: -2px;
-}
-
-.avatar-btn {
-  position: relative;
-  width: 42px;
-  height: 42px;
-  border-radius: var(--radius-full);
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: var(--shadow);
-  display: grid;
-  place-items: center;
-  flex: none;
-}
-
-/* ---------- feature cards (the home screen) ---------- */
-
-.feature {
-  display: block;
-  width: 100%;
-  text-align: left;
-  border-radius: var(--radius-xl);
-  padding: var(--s5);
-  margin-bottom: 14px;
-  position: relative;
-  overflow: hidden;
-  transition: transform var(--dur-fast) var(--ease-spring);
-}
-
-.feature:active {
-  transform: scale(0.97);
-}
-
-.feature--mint {
-  background: var(--mint);
-  color: var(--mint-ink);
-}
-
-.feature--lilac {
-  background: var(--lilac);
-  color: var(--lilac-ink);
-}
-
-.feature--peach {
-  background: var(--peach);
-  color: var(--peach-ink);
-}
-
-.feature__head {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-}
-
-.feature__icon {
-  width: 56px;
-  height: 56px;
-  border-radius: var(--radius);
-  display: grid;
-  place-items: center;
-  background: var(--tint-raise);
-  flex: none;
-  font-size: 26px;
-}
-
-.feature__icon--live {
-  animation: breathe 2.6s var(--ease-spring-soft) infinite;
-}
-
-@keyframes breathe {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.07);
-  }
-}
-
-.feature__title {
-  font-size: var(--t-heading);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  margin: 2px 0 3px;
-}
-
-.feature__sub {
-  font-size: var(--t-label);
-  opacity: 0.86;
+  color: #fff;
   margin: 0;
 }
 
-.feature__foot {
+.hero__sub {
+  font-size: var(--t-body);
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.92);
+  margin: 0;
+}
+
+/* The status pill that sits on the hero. */
+.hero__status {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-family: var(--display);
+  font-size: var(--t-chip);
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.hero__step {
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: var(--t-label);
+  line-height: 18px;
+  font-weight: 600;
+  flex: none;
+}
+
+/* The live equaliser inside a status pill. */
+.bars {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: var(--s4);
+  gap: 2px;
+  height: 14px;
 }
 
-.feature__state {
-  font-size: var(--t-caption);
-  font-weight: 600;
-  background: var(--tint-raise);
-  border-radius: var(--radius-full);
-  padding: 6px var(--s3);
+.bars span {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: #7dffb0;
+  transform-origin: center;
+  animation: bar 0.9s ease-in-out infinite;
 }
 
-.feature__spacer {
-  flex: 1;
+.bars span:nth-child(2) {
+  animation-delay: 0.2s;
 }
 
-/* Same pill as .feature__state, but it is a real button, so it carries the
-   48px touch target the status label does not need. */
-.feature__action {
+.bars span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes bar {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+/* A round emblem on the hero, with expanding rings when something is live. */
+.emblem {
+  width: 92px;
+  height: 92px;
+  flex: none;
   position: relative;
-  font-size: var(--t-caption);
-  font-weight: 600;
-  color: inherit;
-  background: var(--tint-raise);
-  border-radius: var(--radius-full);
-  padding: 8px var(--s4);
+  display: grid;
+  place-items: center;
 }
 
-.feature__action::after {
-  content: '';
+.emblem__disc {
+  width: 68px;
+  height: 68px;
+  border-radius: var(--r-pill);
+  background: #fff;
+  color: var(--f-ink);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 5px 0 var(--f-halo);
+  position: relative;
+}
+
+.emblem__ring {
   position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: var(--tap);
-  transform: translateY(-50%);
+  inset: 0;
+  border-radius: var(--r-pill);
+  border: 3px solid rgba(255, 255, 255, 0.5);
+  animation: ripple 2.6s ease-out infinite;
 }
 
-/* ---------- cards, rows ---------- */
+.emblem__ring:nth-of-type(2) {
+  animation-delay: 1.3s;
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0.62);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+
+/* ---------- cards ---------- */
 
 .card {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: var(--s4) var(--s5);
-  box-shadow: var(--shadow);
-  margin-bottom: 14px;
+  background: var(--f-card);
+  border: 2px solid var(--f-line);
+  border-bottom: var(--edge-card) solid var(--f-line-edge);
+  border-radius: var(--r-card);
+  padding: var(--s4);
+  margin-bottom: var(--s4);
 }
 
 .card--flush {
-  padding: var(--s1) var(--s5);
-}
-
-.card--tint-sky {
-  background: var(--sky);
-  box-shadow: none;
+  padding: var(--s1) var(--s2);
 }
 
 .card__title {
-  font-size: var(--t-body-lg);
+  font-family: var(--display);
+  font-size: var(--t-row);
+  line-height: 22px;
   font-weight: 600;
-  letter-spacing: -0.01em;
-  margin: 0 0 5px;
+  margin: 0 0 var(--s1);
 }
 
 .card__text {
-  color: var(--ink-soft);
-  font-size: var(--t-body);
+  color: var(--ink-muted);
+  font-size: var(--t-caption);
+  line-height: 19px;
   margin: 0;
 }
 
 .section-label {
-  font-size: var(--t-micro);
+  font-size: var(--t-label);
+  line-height: 16px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--ink-faint);
-  margin: var(--s6) 6px 10px;
+  color: var(--ink-muted);
+  padding: var(--s2) 0 0 6px;
+  margin-bottom: var(--s2);
 }
+
+/* ---------- rows ---------- */
 
 .row {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 15px 0;
-  min-height: var(--tap);
-  border-bottom: 1px solid var(--line);
+  gap: var(--s3);
+  min-height: 60px;
+  padding: var(--s2);
+  border-radius: var(--r-sm);
   width: 100%;
   text-align: left;
+  color: var(--ink);
+  position: relative;
 }
 
-.row:last-child {
-  border-bottom: 0;
+.row + .row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: var(--s2);
+  right: var(--s2);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--f-divider);
 }
 
 .row__main {
@@ -584,13 +658,15 @@ button {
 }
 
 .row__label {
-  font-size: var(--t-body);
+  font-size: var(--t-row);
+  line-height: 22px;
   font-weight: 500;
 }
 
 .row__sub {
   font-size: var(--t-caption);
-  color: var(--ink-soft);
+  line-height: 18px;
+  color: var(--ink-muted);
   margin-top: 2px;
 }
 
@@ -599,149 +675,41 @@ button {
   flex: none;
 }
 
+/* The solid icon circle. Each carries its own hard drop. */
 .row__icon {
-  width: 38px;
-  height: 38px;
-  border-radius: var(--radius-xs);
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--r-pill);
   display: grid;
   place-items: center;
-  flex: none;
+  color: var(--on-accent);
 }
 
 .row__icon--mint {
-  background: var(--mint);
-  color: var(--mint-ink);
+  background: var(--green);
+  box-shadow: 0 var(--edge-chip) 0 var(--green-edge);
 }
 
 .row__icon--lilac {
-  background: var(--lilac);
-  color: var(--lilac-ink);
-}
-
-.row__icon--peach {
-  background: var(--peach);
-  color: var(--peach-ink);
+  background: var(--f-solid);
+  box-shadow: 0 var(--edge-chip) 0 var(--f-solid-edge);
 }
 
 .row__icon--sky {
-  background: var(--sky);
-  color: var(--sky-ink);
+  background: var(--indigo);
+  box-shadow: 0 var(--edge-chip) 0 var(--indigo-edge);
 }
 
-/* ---------- controls ---------- */
-
-.toggle {
-  position: relative;
-  width: 52px;
-  height: 32px;
-  border-radius: var(--radius-full);
-  background: var(--surface-3);
-  flex: none;
-  transition: background var(--dur-fast) var(--ease-out);
+.row__icon--peach {
+  background: var(--yellow);
+  color: var(--yellow-ink);
+  box-shadow: 0 var(--edge-chip) 0 var(--yellow-edge);
 }
 
-.toggle[aria-checked='true'] {
-  background: var(--mint-solid);
-}
-
-.toggle--lilac[aria-checked='true'] {
-  background: var(--lilac-solid);
-}
-
-.toggle::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius-full);
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-  transition: transform var(--dur-fast) var(--ease-spring);
-}
-
-.toggle[aria-checked='true']::after {
-  transform: translateX(20px);
-}
-
-.toggle:disabled {
-  opacity: 0.45;
-}
-
-.segmented {
-  display: flex;
-  gap: var(--s1);
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
-  padding: var(--s1);
-}
-
-.segmented__opt {
-  flex: 1;
-  padding: 13px var(--s1);
-  min-height: var(--tap);
-  border-radius: var(--radius-xs);
-  font-size: var(--t-body);
-  font-weight: 500;
-  color: var(--ink-soft);
-  transition: background var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out);
-}
-
-.segmented__opt[aria-pressed='true'] {
-  background: var(--raised);
-  color: var(--ink);
-  font-weight: 600;
-  box-shadow: var(--shadow);
-}
-
-.stepper {
-  display: flex;
-  align-items: center;
-  gap: var(--s1);
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
-  padding: var(--s1);
-  flex: none;
-}
-
-.stepper__btn {
-  position: relative;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-xs);
-  background: var(--raised);
-  display: grid;
-  place-items: center;
-  font-size: 19px;
-  font-weight: 500;
-  color: var(--brand);
-  box-shadow: var(--shadow);
-}
-
-.stepper__btn:disabled {
-  opacity: 0.35;
-  box-shadow: none;
-}
-
-.stepper__value {
-  min-width: 48px;
-  text-align: center;
-  font-size: var(--t-body);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.select {
-  border: 1px solid var(--line-strong);
-  background: var(--surface);
-  border-radius: var(--radius-xs);
-  padding: 12px var(--s3);
-  min-height: var(--tap);
-  font-size: var(--t-body);
-  font-weight: 500;
-  color: var(--ink);
+.row__icon--danger {
+  background: var(--red);
+  box-shadow: 0 var(--edge-chip) 0 var(--red-edge);
 }
 
 /* ---------- buttons ---------- */
@@ -753,294 +721,520 @@ button {
   gap: var(--s2);
   width: 100%;
   min-height: 56px;
-  border-radius: var(--radius-full);
-  font-size: 15.5px;
+  border-radius: var(--r-pill);
+  font-family: var(--display);
+  font-size: var(--t-btn);
+  line-height: 24px;
   font-weight: 600;
-  letter-spacing: -0.01em;
-  transition: transform var(--dur-press) var(--ease-spring),
-    opacity var(--dur-press) var(--ease-out);
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--dur-press) ease, box-shadow var(--dur-press) ease;
 }
 
 .btn:active:not(:disabled) {
-  transform: scale(0.96);
-}
-
-.btn:disabled {
-  opacity: 0.4;
+  transform: translateY(var(--press));
 }
 
 .btn--primary {
-  background: var(--gradient);
-  color: var(--on-brand);
-  box-shadow: 0 8px 22px var(--brand-glow);
+  background: var(--f-btn);
+  color: #fff;
+  box-shadow: 0 var(--edge-btn) 0 var(--f-btn-edge);
+}
+
+.btn--primary:active:not(:disabled) {
+  box-shadow: 0 calc(var(--edge-btn) - var(--press)) 0 var(--f-btn-edge);
 }
 
 .btn--mint {
-  background: var(--mint-solid);
-  color: var(--on-mint);
-  box-shadow: 0 8px 22px var(--mint-glow);
+  background: var(--green);
+  color: #fff;
+  box-shadow: 0 var(--edge-btn) 0 var(--green-edge);
 }
 
+.btn--mint:active:not(:disabled) {
+  box-shadow: 0 calc(var(--edge-btn) - var(--press)) 0 var(--green-edge);
+}
+
+/* Kept as an alias so the voice-lock screens need no edit: on the purple flow
+   --f-btn already is the purple gradient. */
 .btn--lilac {
-  background: var(--lilac-solid);
-  color: var(--on-lilac);
-  box-shadow: 0 8px 22px var(--lilac-glow);
+  background: var(--f-btn);
+  color: #fff;
+  box-shadow: 0 var(--edge-btn) 0 var(--f-btn-edge);
+}
+
+.btn--lilac:active:not(:disabled) {
+  box-shadow: 0 calc(var(--edge-btn) - var(--press)) 0 var(--f-btn-edge);
 }
 
 .btn--ghost {
-  background: var(--surface);
-  color: var(--brand);
-  box-shadow: var(--shadow);
+  background: var(--f-card);
+  color: var(--f-ink);
+  border: 2px solid var(--f-line);
+  box-shadow: 0 var(--edge-btn) 0 var(--f-line-edge);
+}
+
+.btn--ghost:active:not(:disabled) {
+  box-shadow: 0 calc(var(--edge-btn) - var(--press)) 0 var(--f-line-edge);
 }
 
 .btn--quiet {
   min-height: var(--tap);
-  background: var(--surface-2);
+  background: var(--f-track);
   color: var(--ink);
-  font-size: var(--t-body);
+  border: 2px solid var(--f-line);
+  font-size: var(--t-chip);
 }
 
 .btn--danger {
   background: var(--red-wash);
-  color: var(--red);
+  color: var(--red-ink);
+  border: 2px solid var(--red-line);
+  box-shadow: 0 var(--edge-btn) 0 var(--red-line-edge);
+}
+
+.btn--danger:active:not(:disabled) {
+  box-shadow: 0 calc(var(--edge-btn) - var(--press)) 0 var(--red-line-edge);
+}
+
+.btn:disabled {
+  background: var(--f-line);
+  color: var(--ink-muted);
+  box-shadow: 0 var(--edge-btn) 0 var(--f-line-edge);
+  cursor: not-allowed;
 }
 
 .btn-pair {
   display: flex;
-  gap: 10px;
+  gap: var(--s3);
 }
 
 .text-btn {
   display: block;
   width: 100%;
   text-align: center;
-  padding: 14px;
+  padding: var(--s3);
   min-height: var(--tap);
   font-size: var(--t-body);
   font-weight: 600;
-  color: var(--ink-soft);
+  color: var(--ink-muted);
 }
 
-/* ---------- chips, notes ---------- */
+/* The sweep of light that crosses a primary button. Decorative only. */
+.btn--primary::after,
+.btn--lilac::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateX(-140px) skewX(-20deg);
+  animation: shine 3.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes shine {
+  0%,
+  55% {
+    transform: translateX(-140px) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(460px) skewX(-20deg);
+  }
+}
+
+/* ---------- chips, banners ---------- */
 
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 7px 14px;
-  border-radius: var(--radius-full);
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  font-family: var(--display);
   font-size: var(--t-caption);
   font-weight: 600;
 }
 
 .chip--on {
-  background: var(--mint);
-  color: var(--mint-ink);
+  background: var(--green);
+  color: #fff;
+  box-shadow: 0 var(--edge-chip) 0 var(--green-edge);
 }
 
 .chip--off {
-  background: var(--surface-2);
-  color: var(--ink-soft);
+  background: var(--f-track);
+  color: var(--ink-muted);
+  border: 2px solid var(--f-line);
 }
 
 .chip--warn {
-  background: var(--peach);
-  color: var(--peach-ink);
+  background: var(--yellow);
+  color: var(--yellow-ink);
+  box-shadow: 0 var(--edge-chip) 0 var(--yellow-edge);
 }
 
 .chip__dot {
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-full);
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
   background: currentColor;
 }
 
 .chip--on .chip__dot {
-  animation: pulse 1.9s var(--ease-out) infinite;
+  background: #7dffb0;
+  animation: pulse 1.6s ease-out infinite;
 }
 
 @keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
+  0% {
+    box-shadow: 0 0 0 0 rgba(125, 255, 176, 0.8);
   }
-  50% {
-    opacity: 0.25;
+  100% {
+    box-shadow: 0 0 0 7px rgba(125, 255, 176, 0);
   }
 }
 
+/* The yellow note. */
 .note {
   display: flex;
-  gap: 10px;
-  border-radius: var(--radius-sm);
-  padding: 14px;
+  gap: var(--s3);
+  align-items: flex-start;
+  background: var(--yellow-wash);
+  border: 2px solid var(--yellow-line);
+  border-bottom: var(--edge-card) solid var(--yellow-line-edge);
+  border-radius: var(--r-md);
+  padding: 14px var(--s4);
   font-size: var(--t-caption);
-  line-height: 1.55;
-  background: var(--sky);
-  color: var(--sky-ink);
-  margin-bottom: 14px;
+  line-height: 19px;
+  color: var(--yellow-ink);
+  margin-bottom: var(--s4);
+}
+
+[data-theme='dark'] .note {
+  color: #ffd98a;
 }
 
 .note--warn {
-  background: var(--peach);
-  color: var(--peach-ink);
+  background: var(--red-wash);
+  border-color: var(--red-line);
+  border-bottom-color: var(--red-line-edge);
+  color: var(--red-ink);
 }
 
 .note__icon {
+  width: 32px;
+  height: 32px;
   flex: none;
-  font-size: var(--t-body);
-  line-height: 1.35;
+  border-radius: var(--r-pill);
+  background: var(--yellow);
+  color: var(--yellow-ink);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 var(--edge-chip) 0 var(--yellow-edge);
+  font-size: var(--t-caption);
 }
 
-/* ---------- onboarding / steps ---------- */
+.note--warn .note__icon {
+  background: var(--red);
+  color: #fff;
+  box-shadow: 0 var(--edge-chip) 0 var(--red-edge);
+}
+
+/* ---------- controls ---------- */
+
+.toggle {
+  position: relative;
+  width: 56px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  background: var(--f-line);
+  box-shadow: inset 0 2px 0 var(--f-line-edge);
+  flex: none;
+  transition: background var(--dur) ease;
+}
+
+.toggle[aria-checked='true'],
+.toggle--lilac[aria-checked='true'] {
+  background: var(--green);
+  box-shadow: inset 0 2px 0 var(--green-edge);
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-pill);
+  background: #fff;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.22);
+  transition: transform var(--dur) cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.toggle[aria-checked='true']::after {
+  transform: translateX(24px);
+}
+
+.toggle:disabled {
+  opacity: 0.45;
+}
+
+.segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 6px;
+  padding: 5px;
+  border-radius: var(--r-pill);
+  background: var(--f-track);
+  border: 2px solid var(--f-line);
+}
+
+.segmented__opt {
+  min-height: 44px;
+  min-width: 0;
+  border-radius: var(--r-pill);
+  font-family: var(--display);
+  font-size: var(--t-chip);
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background var(--dur) ease, color var(--dur) ease;
+}
+
+.segmented__opt[aria-pressed='true'] {
+  background: var(--f-solid);
+  color: #fff;
+  box-shadow: 0 var(--edge-chip) 0 var(--f-solid-edge);
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  border-radius: var(--r-pill);
+  background: var(--f-track);
+  border: 2px solid var(--f-line);
+  flex: none;
+}
+
+.stepper__btn {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-pill);
+  background: var(--f-solid);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 600;
+  box-shadow: 0 var(--edge-chip) 0 var(--f-solid-edge);
+  transition: transform var(--dur-press) ease, box-shadow var(--dur-press) ease;
+}
+
+.stepper__btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--f-solid-edge);
+}
+
+.stepper__btn:disabled {
+  background: var(--f-line);
+  color: var(--ink-muted);
+  box-shadow: none;
+}
+
+.stepper__value {
+  min-width: 44px;
+  text-align: center;
+  font-family: var(--display);
+  font-size: var(--t-chip);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.select {
+  border: 2px solid var(--f-line);
+  background: var(--f-card);
+  border-radius: var(--r-sm);
+  padding: var(--s3);
+  min-height: var(--tap);
+  font-size: var(--t-body);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* ---------- steps ---------- */
 
 .steps {
-  display: flex;
-  gap: 6px;
-  padding: 0 var(--gutter) var(--s2);
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--s2);
 }
 
 .steps__pip {
-  height: 4px;
-  flex: 1;
-  border-radius: var(--radius-full);
-  background: var(--line-strong);
-  transition: background var(--dur) var(--ease-out);
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .steps__pip--done {
-  background: var(--lilac-solid);
-}
-
-.hero-illo {
-  width: 112px;
-  height: 112px;
-  border-radius: 38px;
-  display: grid;
-  place-items: center;
-  font-size: 46px;
-  margin: var(--s3) auto var(--s5);
-}
-
-.hero-illo--mint {
-  background: var(--mint);
-}
-
-.hero-illo--lilac {
-  background: var(--lilac);
-}
-
-.hero-illo--peach {
-  background: var(--peach);
-}
-
-.page-title {
-  font-size: var(--t-title-lg);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  text-align: center;
-  margin: 0 0 var(--s2);
-  line-height: 1.25;
-}
-
-.page-sub {
-  font-size: var(--t-body);
-  color: var(--ink-soft);
-  text-align: center;
-  margin: 0 0 var(--s6);
+  background: var(--yellow);
+  box-shadow: 0 2px 0 var(--yellow-edge);
 }
 
 /* ---------- mic capture ---------- */
 
+.mic-field {
+  width: 180px;
+  height: 180px;
+  margin: var(--s5) auto var(--s2);
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.mic-field::before {
+  content: '';
+  position: absolute;
+  inset: 14px;
+  border-radius: var(--r-pill);
+  background: var(--f-wash);
+}
+
+.mic-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-pill);
+  border: 3px solid var(--f-solid);
+  opacity: 0.45;
+  animation: ripple 2.4s ease-out infinite;
+}
+
+.mic-ring:nth-of-type(2) {
+  animation-delay: 1.2s;
+}
+
 .mic-btn {
   width: 128px;
   height: 128px;
-  border-radius: var(--radius-full);
-  margin: var(--s2) auto var(--s1);
+  border-radius: var(--r-pill);
+  background: linear-gradient(160deg, #9b82f7, #6a4be0);
+  color: #fff;
+  box-shadow: 0 8px 0 var(--f-btn-edge);
+  position: relative;
   display: grid;
   place-items: center;
-  background: var(--lilac);
-  color: var(--lilac-ink);
-  position: relative;
-  transition: transform var(--dur-fast) var(--ease-spring);
+  transition: transform var(--dur-press) ease, box-shadow var(--dur-press) ease;
+}
+
+/* The highlight across the top of the mic. */
+.mic-btn::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: 30px;
+  width: 44px;
+  height: 18px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.28);
+  transform: rotate(-20deg);
 }
 
 .mic-btn:active {
-  transform: scale(0.94);
+  transform: translateY(4px);
+  box-shadow: 0 4px 0 var(--f-btn-edge);
 }
 
 .mic-btn--listening {
-  background: var(--lilac-solid);
-  color: var(--on-lilac);
+  animation: mic-live 1.4s ease-in-out infinite;
 }
 
-.mic-btn--listening::before,
-.mic-btn--listening::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-full);
-  border: 2px solid var(--lilac-solid);
-  animation: ripple 1.8s var(--ease-out) infinite;
-}
-
-.mic-btn--listening::after {
-  animation-delay: 0.9s;
-}
-
-@keyframes ripple {
-  from {
-    opacity: 0.55;
+@keyframes mic-live {
+  0%,
+  100% {
     transform: scale(1);
   }
-  to {
-    opacity: 0;
-    transform: scale(1.45);
+  50% {
+    transform: scale(1.04);
   }
 }
 
 .mic-btn--captured {
-  background: var(--mint);
-  color: var(--mint-ink);
+  background: var(--green);
+  box-shadow: 0 8px 0 var(--green-edge);
 }
 
 .mic-hint {
   text-align: center;
-  font-size: var(--t-label);
-  color: var(--ink-soft);
-  margin-top: 10px;
+  font-size: var(--t-body);
+  line-height: 20px;
+  color: var(--ink-muted);
 }
 
+/* The captured phrase, as a pill card. */
 .transcript {
-  min-height: 56px;
+  min-height: 62px;
   display: grid;
   place-items: center;
-  margin: var(--s4) 0 var(--s1);
+  margin: var(--s4) 0;
 }
 
 .transcript__chip {
-  background: var(--surface);
-  border-radius: var(--radius-sm);
+  width: 100%;
+  background: var(--f-card);
+  border: 2px solid var(--f-line);
+  border-bottom: var(--edge-card) solid var(--f-line-edge);
+  border-radius: var(--r-pill);
   padding: var(--s3) var(--s5);
-  font-size: var(--t-body-lg);
-  font-weight: 500;
-  box-shadow: var(--shadow);
+  font-family: var(--display);
+  font-size: var(--t-heading);
+  line-height: 28px;
+  font-weight: 600;
   text-align: center;
-  max-width: 100%;
   word-break: break-word;
+  animation: pop 260ms ease-out;
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .transcript__chip--partial {
-  color: var(--ink-faint);
+  color: var(--ink-muted);
   font-style: italic;
+  background: none;
+  border: 2px dashed var(--f-line-edge);
+  border-bottom-width: 2px;
+  font-family: var(--body);
+  font-size: var(--t-body);
+  font-weight: 400;
 }
 
 .field-error {
-  color: var(--red);
-  font-size: var(--t-label);
-  font-weight: 500;
+  color: var(--red-ink);
+  font-size: var(--t-caption);
+  font-weight: 600;
   text-align: center;
-  margin-top: 10px;
+  margin-top: var(--s2);
   min-height: 19px;
 }
 
@@ -1050,21 +1244,23 @@ button {
   display: flex;
   justify-content: center;
   gap: var(--s3);
-  margin: var(--s5) 0 6px;
+  margin: var(--s5) 0 var(--s2);
 }
 
 .pin-dot {
-  width: 15px;
-  height: 15px;
-  border-radius: var(--radius-full);
-  background: var(--line-strong);
-  transition: transform var(--dur-fast) var(--ease-spring),
-    background var(--dur-fast) var(--ease-out);
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-pill);
+  background: var(--f-line);
+  box-shadow: inset 0 2px 0 var(--f-line-edge);
+  transition: transform var(--dur) cubic-bezier(0.34, 1.4, 0.64, 1),
+    background var(--dur) ease;
 }
 
 .pin-dot--filled {
-  background: var(--lilac-solid);
-  transform: scale(1.14);
+  background: var(--f-solid);
+  box-shadow: 0 2px 0 var(--f-solid-edge);
+  transform: scale(1.15);
 }
 
 .pin-pad {
@@ -1076,23 +1272,27 @@ button {
 }
 
 .pin-key {
-  height: 66px;
-  border-radius: var(--radius);
-  background: var(--surface);
-  font-size: 23px;
-  font-weight: 500;
-  box-shadow: var(--shadow);
+  height: 64px;
+  border-radius: var(--r-md);
+  background: var(--f-card);
+  border: 2px solid var(--f-line);
+  box-shadow: 0 var(--edge-btn) 0 var(--f-line-edge);
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 600;
   display: grid;
   place-items: center;
-  transition: transform var(--dur-press) var(--ease-spring);
+  transition: transform var(--dur-press) ease, box-shadow var(--dur-press) ease;
 }
 
 .pin-key:active {
-  transform: scale(0.92);
+  transform: translateY(var(--press));
+  box-shadow: 0 2px 0 var(--f-line-edge);
 }
 
 .pin-key--blank {
   background: none;
+  border: 0;
   box-shadow: none;
 }
 
@@ -1112,68 +1312,84 @@ button {
 .paywall__video {
   width: 100%;
   aspect-ratio: 16 / 10;
-  border-radius: var(--radius);
-  background: var(--lilac);
+  border-radius: var(--r-card);
+  border: 2px solid var(--f-line);
+  background: var(--f-wash);
   object-fit: cover;
   display: block;
 }
 
-/* Only shown when the platform refused autoplay with sound. */
 .paywall__unmute {
   position: absolute;
   left: 50%;
   bottom: var(--s3);
   transform: translateX(-50%);
-  background: rgba(15, 14, 26, 0.86);
-  color: #fff;
-  border-radius: var(--radius-full);
-  padding: 11px var(--s5);
+  background: var(--yellow);
+  color: var(--yellow-ink);
+  box-shadow: 0 var(--edge-chip) 0 var(--yellow-edge);
+  border-radius: var(--r-pill);
+  padding: 10px var(--s5);
   min-height: 40px;
-  font-size: var(--t-label);
+  font-family: var(--display);
+  font-size: var(--t-caption);
   font-weight: 600;
-  backdrop-filter: blur(6px);
 }
 
 .paywall__video-fallback {
   width: 100%;
   aspect-ratio: 16 / 10;
-  border-radius: var(--radius);
-  background: var(--gradient);
+  border-radius: var(--r-card);
+  background: var(--f-hero);
   display: grid;
   place-items: center;
-  color: var(--on-brand);
+  color: #fff;
   font-size: 46px;
   margin-bottom: var(--s5);
 }
 
+.trial-tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+  background: var(--yellow);
+  color: var(--yellow-ink);
+  box-shadow: 0 var(--edge-chip) 0 var(--yellow-edge);
+  font-family: var(--display);
+  font-size: var(--t-caption);
+  line-height: 18px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
 .price {
   text-align: center;
-  margin: var(--s1) 0 6px;
+  margin: var(--s2) 0;
 }
 
 .price__big {
-  font-size: 44px;
-  font-weight: 700;
-  letter-spacing: -0.035em;
-  line-height: 1.1;
+  font-family: var(--display);
+  font-size: 48px;
+  line-height: 52px;
+  font-weight: 600;
+  color: var(--f-ink);
 }
 
 .price__then {
   font-size: var(--t-body);
-  color: var(--ink-soft);
+  color: var(--ink-muted);
   margin-top: var(--s1);
 }
 
 .price__terms {
-  font-size: var(--t-caption);
-  color: var(--ink-faint);
+  font-size: var(--t-label);
+  color: var(--ink-muted);
   text-align: center;
-  margin-top: 10px;
+  margin-top: var(--s2);
   line-height: 1.5;
 }
 
 .bullets {
-  margin: var(--s5) 0 6px;
+  margin: var(--s5) 0 var(--s2);
   display: grid;
   gap: var(--s3);
 }
@@ -1183,48 +1399,50 @@ button {
   gap: var(--s3);
   align-items: flex-start;
   font-size: var(--t-body);
+  line-height: 20px;
 }
 
 .bullet__tick {
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-full);
-  background: var(--mint);
-  color: var(--mint-ink);
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-pill);
+  background: var(--green);
+  color: #fff;
+  box-shadow: 0 2px 0 var(--green-edge);
   display: grid;
   place-items: center;
-  font-size: var(--t-label);
+  font-size: var(--t-caption);
   font-weight: 700;
   flex: none;
 }
 
 .payer-picker {
   display: flex;
-  gap: 10px;
+  gap: var(--s3);
   margin: var(--s5) 0 var(--s1);
 }
 
 .payer {
   flex: 1;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-sm);
   padding: var(--s3) var(--s2);
   text-align: center;
-  font-size: var(--t-caption);
+  font-size: var(--t-label);
   font-weight: 600;
-  background: var(--surface);
+  background: var(--f-card);
   color: var(--ink);
-  box-shadow: var(--shadow);
-  border: 2px solid transparent;
+  border: 2px solid var(--f-line);
+  box-shadow: 0 var(--edge-chip) 0 var(--f-line-edge);
 }
 
 .payer[aria-pressed='true'] {
-  border-color: var(--lilac-solid);
-  color: var(--lilac-ink);
+  border-color: var(--f-solid);
+  color: var(--f-ink);
 }
 
 .payer__logo {
   display: block;
-  font-size: var(--t-title);
+  font-size: var(--t-heading);
   margin-bottom: var(--s1);
 }
 
@@ -1233,24 +1451,25 @@ button {
 .phone-field {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: var(--s1) var(--s4);
-  box-shadow: var(--shadow);
-  margin-top: 6px;
-  border: 2px solid transparent;
-  transition: border-color var(--dur-fast) var(--ease-out);
+  gap: var(--s3);
+  background: var(--f-card);
+  border: 2px solid var(--f-line);
+  border-bottom: var(--edge-card) solid var(--f-line-edge);
+  border-radius: var(--r-pill);
+  padding: var(--s1) var(--s5);
+  margin-top: var(--s2);
+  transition: border-color var(--dur) ease;
 }
 
 .phone-field:focus-within {
-  border-color: var(--brand-solid);
+  border-color: var(--f-solid);
 }
 
 .phone-field__cc {
-  font-size: 17px;
+  font-family: var(--display);
+  font-size: 18px;
   font-weight: 600;
-  color: var(--ink-soft);
+  color: var(--ink-muted);
 }
 
 .phone-field input {
@@ -1258,12 +1477,57 @@ button {
   min-width: 0;
   border: 0;
   outline: none;
-  padding: 17px 0;
-  font-size: 19px;
+  padding: 16px 0;
+  font-family: var(--display);
+  font-size: 20px;
   font-weight: 600;
   letter-spacing: 0.06em;
   background: none;
   color: var(--ink);
+}
+
+/* ---------- OTP ---------- */
+
+.otp-row {
+  position: relative;
+  display: flex;
+  gap: var(--s3);
+  justify-content: center;
+  margin: var(--s2) 0;
+}
+
+.otp-box {
+  width: 58px;
+  height: 66px;
+  border-radius: var(--r-md);
+  background: var(--f-card);
+  border: 2px solid var(--f-line);
+  border-bottom: var(--edge-card) solid var(--f-line-edge);
+  display: grid;
+  place-items: center;
+  font-family: var(--display);
+  font-size: 26px;
+  font-weight: 600;
+  transition: border-color var(--dur) ease, transform var(--dur) ease;
+}
+
+.otp-box--active {
+  border-color: var(--f-solid);
+  border-bottom-color: var(--f-solid-edge);
+  transform: scale(1.04);
+}
+
+/* The real field sits invisibly over the boxes so SMS autofill and the numeric
+   keypad keep working — per-digit inputs break both. */
+.otp-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  border: 0;
+  background: none;
+  font-size: 16px;
+  letter-spacing: 3em;
 }
 
 /* ---------- calibrate meter ---------- */
@@ -1274,8 +1538,9 @@ button {
   gap: 3px;
   height: 148px;
   padding: var(--s3);
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
+  background: var(--f-track);
+  border: 2px solid var(--f-line);
+  border-radius: var(--r-sm);
   overflow: hidden;
 }
 
@@ -1283,12 +1548,12 @@ button {
   flex: 1;
   min-width: 2px;
   border-radius: 2px;
-  background: linear-gradient(180deg, var(--brand-solid), var(--brand));
+  background: var(--f-solid);
   transition: height 60ms linear;
 }
 
 .meter__bar--peak {
-  background: linear-gradient(180deg, var(--peach-solid), var(--amber));
+  background: var(--yellow);
 }
 
 .meter-head {
@@ -1299,25 +1564,123 @@ button {
 }
 
 .meter-head__count {
-  font-size: var(--t-display);
-  font-weight: 700;
+  font-family: var(--display);
+  font-size: 34px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
 }
 
 .heard {
   text-align: center;
-  font-size: var(--t-label);
+  font-family: var(--display);
+  font-size: var(--t-body);
   font-weight: 600;
   color: var(--green);
   min-height: 20px;
-  margin-top: 10px;
+  margin-top: var(--s2);
   opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease-out);
+  transition: opacity var(--dur) ease;
 }
 
 .heard--show {
   opacity: 1;
+}
+
+/* ---------- hero illustration (setup screens) ---------- */
+
+.hero-illo {
+  width: 96px;
+  height: 96px;
+  border-radius: 30px;
+  background: #fff;
+  color: var(--f-ink);
+  display: grid;
+  place-items: center;
+  font-size: 44px;
+  margin: 0 auto;
+  box-shadow: 0 6px 0 var(--f-halo);
+  animation: float 3.2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.hero-illo--mint,
+.hero-illo--lilac,
+.hero-illo--peach {
+  background: #fff;
+}
+
+.page-title {
+  font-family: var(--display);
+  font-size: var(--t-title);
+  line-height: 30px;
+  font-weight: 600;
+  text-align: center;
+  margin: 0 0 var(--s2);
+}
+
+.page-sub {
+  font-size: var(--t-body);
+  line-height: 20px;
+  color: var(--ink-muted);
+  text-align: center;
+  margin: 0 0 var(--s5);
+}
+
+/* ---------- numbered list (voice-lock intro) ---------- */
+
+.numbered {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.numbered li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  font-size: var(--t-body);
+  line-height: 20px;
+}
+
+.numbered__n {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: var(--r-pill);
+  color: #fff;
+  font-family: var(--display);
+  font-size: var(--t-chip);
+  line-height: 20px;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+}
+
+.numbered li:nth-child(1) .numbered__n {
+  background: var(--f-solid);
+  box-shadow: 0 var(--edge-chip) 0 var(--f-solid-edge);
+}
+
+.numbered li:nth-child(2) .numbered__n {
+  background: var(--indigo);
+  box-shadow: 0 var(--edge-chip) 0 var(--indigo-edge);
+}
+
+.numbered li:nth-child(3) .numbered__n {
+  background: var(--green);
+  box-shadow: 0 var(--edge-chip) 0 var(--green-edge);
 }
 
 /* ---------- misc ---------- */
@@ -1328,28 +1691,29 @@ button {
   place-items: center;
   gap: var(--s5);
   align-content: center;
-  background: var(--bg);
+  background: var(--f-bg);
 }
 
 .splash__mark {
-  width: 88px;
-  height: 88px;
+  width: 96px;
+  height: 96px;
   border-radius: 30px;
-  background: var(--gradient);
+  background: var(--f-hero);
   display: grid;
   place-items: center;
-  color: var(--on-brand);
-  font-size: 35px;
-  font-weight: 700;
-  box-shadow: var(--shadow-lift);
+  color: #fff;
+  font-family: var(--display);
+  font-size: 38px;
+  font-weight: 600;
+  box-shadow: 0 8px 0 var(--f-btn-edge);
 }
 
 .spinner {
   width: 22px;
   height: 22px;
-  border: 2.5px solid var(--line-strong);
-  border-top-color: var(--brand);
-  border-radius: var(--radius-full);
+  border: 3px solid var(--f-line);
+  border-top-color: var(--f-solid);
+  border-radius: var(--r-pill);
   animation: spin 800ms linear infinite;
 }
 
@@ -1365,55 +1729,75 @@ button {
 }
 
 .allow-link {
-  color: var(--brand);
+  color: var(--f-ink);
+  font-family: var(--display);
   font-weight: 600;
   font-size: var(--t-body);
 }
 
 .required-tag {
-  font-size: var(--t-micro);
-  font-weight: 700;
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--red);
+  color: var(--red-ink);
 }
 
+/* The premium card — the one place that keeps a warm cream fill. */
 .plan-card {
-  background: var(--gradient);
-  border-radius: var(--radius);
-  padding: var(--s5);
-  color: var(--on-brand);
-  box-shadow: var(--shadow-lift);
-  margin-bottom: 14px;
+  background: linear-gradient(180deg, #fffaec, #ffffff 60%);
+  border: 2px solid var(--yellow-line);
+  border-bottom: var(--edge-card) solid var(--yellow-line-edge);
+  border-radius: var(--r-card);
+  padding: var(--s4);
+  color: var(--ink);
+  margin-bottom: var(--s4);
+}
+
+[data-theme='dark'] .plan-card {
+  background: linear-gradient(180deg, #3a2c10, #2a2008 60%);
+  color: #ffe6b0;
 }
 
 .plan-card__row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: var(--t-body);
+  font-size: var(--t-caption);
   padding: 5px 0;
+  color: var(--ink-muted);
+}
+
+[data-theme='dark'] .plan-card__row {
+  color: #e2c48a;
 }
 
 .plan-card__row strong {
+  font-family: var(--display);
   font-weight: 600;
+  color: var(--ink);
+}
+
+[data-theme='dark'] .plan-card__row strong {
+  color: #ffe6b0;
 }
 
 .version-foot {
   text-align: center;
-  font-size: var(--t-caption);
-  color: var(--ink-faint);
-  padding: var(--s6) 0 6px;
+  font-size: var(--t-label);
+  color: var(--ink-muted);
+  padding: var(--s6) 0 var(--s2);
 }
 
 .sheet-backdrop {
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: var(--scrim);
+  background: rgba(7, 17, 33, 0.55);
   display: flex;
   align-items: flex-end;
-  animation: fade-in var(--dur-fast) var(--ease-out) both;
+  animation: fade-in 180ms ease both;
 }
 
 @keyframes fade-in {
@@ -1429,10 +1813,10 @@ button {
   width: 100%;
   max-width: 520px;
   margin: 0 auto;
-  background: var(--bg);
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: var(--f-bg);
+  border-radius: var(--r-hero) var(--r-hero) 0 0;
   padding: var(--s6) var(--gutter) calc(var(--s5) + var(--safe-bottom));
-  animation: sheet-up var(--dur) var(--ease-spring-soft) both;
+  animation: sheet-up 260ms cubic-bezier(0.22, 1.1, 0.36, 1) both;
 }
 
 @keyframes sheet-up {
@@ -1446,27 +1830,29 @@ button {
 
 .policy-body {
   font-size: var(--t-body);
-  color: var(--ink-soft);
+  color: var(--ink-muted);
   line-height: 1.65;
 }
 
 .policy-body h3 {
   color: var(--ink);
-  font-size: 15px;
+  font-family: var(--display);
+  font-size: var(--t-row);
   font-weight: 600;
-  margin: var(--s6) 0 6px;
+  margin: var(--s6) 0 var(--s2);
 }
 
 .policy-body p {
   margin: 0 0 var(--s3);
 }
 
-/* Web-mock stand-in for the native AlertActivity. */
+/* Web-mock stand-ins for the native AlertActivity and LockOverlay. Both are
+   always dark on device, so they do not follow the theme. */
 .mock-alert {
   position: fixed;
   inset: 0;
   z-index: 999;
-  background: var(--gradient);
+  background: linear-gradient(180deg, #124682 0%, #1663bd 50%, #0f2f55 100%);
   color: #fff;
   display: grid;
   place-content: center;
@@ -1478,52 +1864,54 @@ button {
 
 .mock-alert__bell {
   font-size: 58px;
-  animation: shake 600ms var(--ease-out) infinite;
+  animation: bob 2.8s ease-in-out infinite;
 }
 
-@keyframes shake {
+@keyframes bob {
   0%,
   100% {
-    transform: rotate(-10deg);
+    transform: rotate(-8deg);
   }
   50% {
-    transform: rotate(10deg);
+    transform: rotate(8deg);
   }
 }
 
 .mock-alert__title {
-  font-size: 27px;
+  font-family: var(--display);
+  font-size: 28px;
   font-weight: 700;
 }
 
 .mock-alert__note {
-  font-size: var(--t-label);
+  font-size: var(--t-body);
   opacity: 0.85;
 }
 
 .mock-alert__stop {
-  margin-top: 10px;
+  margin-top: var(--s2);
   background: #fff;
-  color: #2f45ad;
-  border-radius: var(--radius-full);
+  color: #07509d;
+  border-radius: var(--r-pill);
   min-height: 56px;
   padding: 0 44px;
-  font-size: 15.5px;
+  font-family: var(--display);
+  font-size: var(--t-btn);
   font-weight: 600;
+  box-shadow: 0 var(--edge-btn) 0 rgba(0, 0, 0, 0.3);
 }
 
 .mock-alert__count {
-  font-size: var(--t-label);
+  font-size: var(--t-caption);
   opacity: 0.85;
   font-variant-numeric: tabular-nums;
 }
 
-/* Web-mock stand-in for the native LockOverlay. */
 .mock-lock {
   position: fixed;
   inset: 0;
   z-index: 998;
-  background: linear-gradient(160deg, #221f3d 0%, #100e20 100%);
+  background: linear-gradient(160deg, #1d1840 0%, #0e0b1e 100%);
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -1535,50 +1923,383 @@ button {
 }
 
 .mock-lock__clock {
+  font-family: var(--display);
   font-size: 54px;
-  font-weight: 300;
-  letter-spacing: -0.03em;
+  font-weight: 500;
 }
 
-/* ---------- OTP ---------- */
+/* ---------- motion ---------- */
 
-.otp-row {
-  position: relative;
-  display: flex;
+@media (prefers-reduced-motion: reduce) {
+  .screen--enter,
+  .hero-illo,
+  .emblem__ring,
+  .mic-ring,
+  .mic-btn--listening,
+  .bars span,
+  .chip--on .chip__dot,
+  .btn--primary::after,
+  .btn--lilac::after,
+  .transcript__chip,
+  .mock-alert__bell {
+    animation: none;
+  }
+}
+
+/* ============================================================================
+   Home
+   ---------------------------------------------------------------------------
+   Two feature tiles side by side, each carrying its own on/off state in its
+   fill, its edge and its action button. A tile is the whole status display for
+   that feature — there is no separate label saying "on".
+   ========================================================================== */
+
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--s3);
-  justify-content: center;
-  margin: var(--s2) 0 var(--s1);
+  margin-bottom: var(--s5);
 }
 
-.otp-box {
-  width: 58px;
-  height: 66px;
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  box-shadow: var(--shadow);
+.tile {
+  position: relative;
+  background: var(--f-card);
+  border: 2px solid var(--f-line);
+  border-bottom: var(--edge-card) solid var(--f-line-edge);
+  border-radius: var(--r-card);
+  padding: 18px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  transition: background var(--dur) ease, border-color var(--dur) ease;
+}
+
+/* A live tile warms up: a wash of its own hue falling away to the card colour,
+   and an edge in the same hue. This is the main "it is on" signal. */
+.tile--on.tile--clap {
+  background: linear-gradient(180deg, #e6f2fe 0%, #ffffff 55%);
+  border-color: #b9dafb;
+  border-bottom-color: #8cc2f5;
+}
+
+.tile--on.tile--lock {
+  background: linear-gradient(180deg, #efeafe 0%, #ffffff 55%);
+  border-color: #d3c7fb;
+  border-bottom-color: #b5a3f5;
+}
+
+[data-theme='dark'] .tile--on.tile--clap {
+  background: linear-gradient(180deg, #1b3a5e 0%, #17223a 55%);
+  border-color: #2b557f;
+  border-bottom-color: #1b3a5e;
+}
+
+[data-theme='dark'] .tile--on.tile--lock {
+  background: linear-gradient(180deg, #2e2358 0%, #221b3d 55%);
+  border-color: #42357a;
+  border-bottom-color: #2e2358;
+}
+
+/* The settings gear, parked in the corner with a full 44px target. */
+.tile__gear {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
-  font-size: 26px;
+  color: var(--ink-muted);
+}
+
+.tile__gear span {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-pill);
+  background: var(--f-card);
+  border: 2px solid var(--f-line);
+  box-shadow: 0 2px 0 var(--f-line-edge);
+  display: grid;
+  place-items: center;
+}
+
+.tile__disc {
+  width: 64px;
+  height: 64px;
+  position: relative;
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  /* Off is a muted slate. The canvas draws #b8c4d3, but a white glyph on that
+     is 1.8:1 and effectively vanishes; this is the same idea, readable. */
+  background: #7d8b9f;
+  box-shadow: 0 5px 0 #5d6a7d;
+  transition: background var(--dur) ease;
+}
+
+/* The highlight across the top of the disc. */
+.tile__disc::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 14px;
+  width: 24px;
+  height: 11px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.35);
+  transform: rotate(-18deg);
+}
+
+.tile--on.tile--clap .tile__disc {
+  background: #2188e4;
+  box-shadow: 0 5px 0 #1257a8;
+}
+
+.tile--on.tile--lock .tile__disc {
+  background: #7a5af0;
+  box-shadow: 0 5px 0 #5236c2;
+}
+
+.tile__name {
+  font-family: var(--display);
+  font-size: 19px;
+  line-height: 24px;
   font-weight: 600;
-  border: 2px solid transparent;
-  transition: border-color var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-spring);
 }
 
-.otp-box--active {
-  border-color: var(--lilac-solid);
-  transform: scale(1.04);
+.tile__sub {
+  font-size: var(--t-label);
+  line-height: 17px;
+  color: var(--ink-muted);
 }
 
-/* The real field sits invisibly over the boxes so SMS autofill and the numeric
-   keypad keep working — per-digit inputs break both. */
-.otp-input {
+.tile__action {
+  width: 100%;
+  min-height: 44px;
+  border-radius: var(--r-pill);
+  font-family: var(--display);
+  font-size: var(--t-chip);
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  background: #e3eaf4;
+  color: #44505e;
+  box-shadow: 0 4px 0 #c6d3e3;
+  transition: transform var(--dur-press) ease, box-shadow var(--dur-press) ease;
+}
+
+[data-theme='dark'] .tile__action {
+  background: #2a3a55;
+  color: #cfdcef;
+  box-shadow: 0 4px 0 #1a2740;
+}
+
+.tile__action:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #c6d3e3;
+}
+
+.tile--on.tile--clap .tile__action {
+  background: #1669c5;
+  color: #fff;
+  box-shadow: 0 4px 0 #0f4f98;
+}
+
+.tile--on.tile--lock .tile__action {
+  background: #5f3fd6;
+  color: #fff;
+  box-shadow: 0 4px 0 #4228a8;
+}
+
+.tile__action .bars span {
+  background: #fff;
+  height: 16px;
+}
+
+/* The pulsing dot on an armed tile. */
+.tile__pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: #fff;
+  animation: pulse-white 1.6s ease-out infinite;
+}
+
+@keyframes pulse-white {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 0 7px rgba(255, 255, 255, 0);
+  }
+}
+
+/* The big yellow call to action under the grid. */
+.action-strip {
+  width: 100%;
+  min-height: 64px;
+  border-radius: var(--r-md);
+  background: var(--yellow);
+  color: var(--yellow-ink);
+  box-shadow: 0 var(--edge-btn) 0 var(--yellow-edge);
+  padding: 10px var(--s4) 10px 10px;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: var(--s4);
+  transition: transform var(--dur-press) ease, box-shadow var(--dur-press) ease;
+}
+
+.action-strip:active {
+  transform: translateY(var(--press));
+  box-shadow: 0 2px 0 var(--yellow-edge);
+}
+
+.action-strip::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  background: rgba(255, 255, 255, 0.45);
+  transform: translateX(-140px) skewX(-20deg);
+  animation: shine 3.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.action-strip__tile {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--yellow-ink);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 var(--edge-chip) 0 var(--yellow-edge);
+  position: relative;
+}
+
+.action-strip__main {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.action-strip__name {
+  font-family: var(--display);
+  font-size: 18px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+.action-strip__sub {
+  font-size: var(--t-label);
+  line-height: 17px;
+  color: #5c4100;
+}
+
+/* The hero's two feature pips. */
+.hero__pips {
+  display: flex;
+  gap: var(--s2);
+  justify-content: center;
+}
+
+.hero__pip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+  background: rgba(7, 40, 90, 0.3);
+  color: #fff;
+  font-size: var(--t-label);
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.hero__pip--on {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.hero__pip::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.hero__pip--on::before {
+  background: #7dffb0;
+}
+
+/* The big emblem at the centre of the Home hero. */
+.hero__emblem {
+  width: 150px;
+  height: 150px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin: 0 auto;
+}
+
+.hero__emblem::before,
+.hero__emblem::after {
+  content: '';
+  position: absolute;
+  border-radius: var(--r-pill);
+}
+
+.hero__emblem::before {
+  inset: 0;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.hero__emblem::after {
+  inset: 18px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.hero__emblem > * {
+  position: relative;
+}
+
+.hero__emblem-ring {
   position: absolute;
   inset: 0;
-  width: 100%;
-  opacity: 0;
-  border: 0;
-  background: none;
-  font-size: 16px;
-  letter-spacing: 3em;
+  border-radius: var(--r-pill);
+  border: 3px solid rgba(255, 255, 255, 0.55);
+  animation: ripple 2.6s ease-out infinite;
+}
+
+.hero__emblem-ring:nth-of-type(2) {
+  animation-delay: 1.3s;
+}
+
+.hero__emblem-mark {
+  font-size: 54px;
+  line-height: 1;
+  animation: float 3.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero__emblem-ring,
+  .hero__emblem-mark,
+  .action-strip::after,
+  .tile__pulse {
+    animation: none;
+  }
 }

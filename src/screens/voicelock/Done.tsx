@@ -10,7 +10,7 @@ export function VoiceLockDone() {
   const settings = useSettings((s) => s.settings);
 
   return (
-    <Screen
+    <Screen flow="purple"
       dock={
         <>
           <button className="btn btn--lilac" type="button" onClick={() => void Listener.lock()}>

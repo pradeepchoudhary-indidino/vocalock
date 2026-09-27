@@ -87,38 +87,62 @@ android/vosk/   local Vosk build — see "Vosk is built here" below
 
 ## Theming
 
-`src/theme.css` is the only place colour, spacing, type size, radius or easing is
-decided. Everything below the token blocks reads a `var(--…)`; nothing hardcodes a
-colour. That is what lets the dark theme be a palette swap rather than a second
-stylesheet.
+`src/theme.css` is the whole design system. It is built from the design canvas
+(`claude.ai/artifact/ES5Mc2wHui9CkPMqF8xchF`), and two ideas hold it together:
 
-There is deliberately **no `prefers-color-scheme` block in the CSS**. `src/lib/theme.ts`
-resolves the preference (Auto / Light / Dark, set in Profile → Appearance, stored in
-the WebView's `localStorage`) and always writes an explicit `data-theme` onto `<html>`,
-so the dark palette is declared exactly once. `index.html` runs the same few lines
-inline before the bundle loads, or a dark-mode user gets a white flash; `MainActivity`
-repaints the WebView background for the same reason, since `capacitor.config.ts` can
-only name one.
+**Hard edges, not shadows.** A card is a 2px border with a 6px *bottom* border; a
+button is a flat fill with `0 5px 0` under it and drops `--press` on tap so it
+looks pushed into the page. Nothing uses a soft blur. Change one of these and
+the whole thing stops reading as a single idea.
 
-Three tokens exist because a flat surface colour is not enough in both themes:
+**Flow colour.** Each flow owns a hue — blue for Home/Clap/Paywall/Profile,
+purple for Voice Lock. `<Screen flow="purple">` puts `data-flow` on the root and
+`theme.css` sets the `--f-*` tokens from it; every hero gradient, card edge,
+button, icon circle and pin dot below reads only those, never a raw hue. That is
+why adding a third flow is a ten-line block rather than a sweep of the file.
 
-- `--tint-raise` — a chip sitting **on** a tinted card. Translucent white, so it
-  lightens whatever tint is under it. `--surface` would be *darker* than the tint in
-  dark mode and read as a hole.
-- `--raised` — a control lifted out of an inset track (`--surface-2`), e.g. the
-  selected segment. Same reason.
-- `--on-mint` / `--on-lilac` — a saturated fill has to be bright to read on a
-  near-black ground, so in dark mode the text on it flips dark. White on the dark
-  theme's green is 3.1:1 and fails.
+Note the canvas also ships a `tokens.json`, but its own metadata says it
+documents reference-app screenshots and it describes a flatter design than the
+artboards draw. **The artboards are the source of truth**; the token file is not.
 
-Every text/background pair in both themes clears WCAG AA, and every interactive
-element is at least 48×48 (some visually smaller, with the hit area padded out by a
-transparent pseudo-element — see `.navbar__back::after`). Both were checked against
-the rendered DOM across all 17 routes, not by eye.
+### Fonts
 
-`ui/Palette.kt` mirrors the dark tokens by hand for `LockOverlay` and `AlertActivity`,
-which run with no WebView alive and so cannot read the CSS. Keep the two in step —
-they had already drifted a redesign apart once.
+Fredoka is the display face (headings, buttons, status chips, numbers), Poppins
+the body. Both are bundled as local `.woff2` — the app never fetches a font at
+runtime (spec section 5). Fredoka ships as a single 29 KB variable file covering
+500–700. Google publishes no Devanagari cut of Fredoka, so **Hindi headings fall
+back to Poppins**; that is a property of the font, not a choice, and `:lang(hi)`
+gets extra line-height so the matras do not clip.
+
+### Dark
+
+The canvas has no dark artboards, but its Profile screen ships an
+Auto / Light / Dark control, so the theme is meant to exist. It is derived in the
+same language: grounds go near-black, heroes keep their gradient (it is the
+flow's identity), and hard edges get *darker* rather than lighter so a card still
+reads as a solid object with weight under it.
+
+There is deliberately **no `prefers-color-scheme` block**. `src/lib/theme.ts`
+resolves the preference and always writes an explicit `data-theme` onto `<html>`,
+so each palette is declared exactly once. `index.html` runs the same few lines
+inline before the bundle loads, and `MainActivity` repaints the WebView ground —
+otherwise a dark-mode user gets a white flash on the way in.
+
+### What was changed from the canvas, and why
+
+- **The primary blue button.** The canvas draws `linear-gradient(90deg, #2188e4,
+  #1669c5)` under white 18px/600 text. 18px at weight 600 is not "large text"
+  (that needs 18.66px **and** 700), so it needs 4.5:1, and white on `#2188e4` is
+  3.68:1. The gradient starts at `#1b75cb` instead — visually the same, 4.72:1.
+- **The off-state feature disc.** The canvas uses `#b8c4d3` behind a white glyph,
+  which is 1.77:1 and effectively invisible. It is `#7d8b9f` here, 3.46:1.
+- **The Voice Lock intro copy.** It said the app "cannot replace your Android
+  lock screen". That stopped being true when device-admin locking shipped, so it
+  now describes both modes.
+
+`ui/Palette.kt` mirrors the dark tokens by hand for `LockOverlay` and
+`AlertActivity`, which run with no WebView alive and so cannot read the CSS. Keep
+the two in step — they had already drifted a redesign apart once.
 
 ## How detection works
 

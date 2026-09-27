@@ -36,6 +36,15 @@ export function Paywall() {
 
   return (
     <Screen
+      hero={
+        <div className="hero__centre">
+          <div className="hero-illo">&#128274;</div>
+          <span className="trial-tag">
+            {PRICING.trialDays}-DAY TRIAL
+          </span>
+          <h1 className="hero__h1">Unlock VocaLock Premium</h1>
+        </div>
+      }
       dock={
         <>
           <button className="btn btn--primary" type="button" disabled={busy} onClick={unlock}>
@@ -48,8 +57,6 @@ export function Paywall() {
       }
     >
       <PaywallVideo remoteUrl={PRICING.paywallVideoUrl} />
-
-      <h1 className="page-title">Unlock VocaLock Premium</h1>
 
       <div className="price">
         <div className="price__big">

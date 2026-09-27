@@ -34,7 +34,7 @@ export function Splash() {
   }, [hydrateSettings, hydrateAccount, navigate]);
 
   return (
-    <div className="splash">
+    <div className="splash" data-flow="blue">
       <div className="splash__mark">V</div>
       <div className="spinner" />
     </div>

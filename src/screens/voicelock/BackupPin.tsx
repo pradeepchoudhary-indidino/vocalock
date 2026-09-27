@@ -84,8 +84,8 @@ export function BackupPin() {
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'back'];
 
   return (
-    <Screen
-      nav={
+    <Screen flow="purple"
+      hero={
         <>
           <NavBar title="Backup PIN" />
           <StepPips total={3} done={3} />

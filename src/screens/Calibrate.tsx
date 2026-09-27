@@ -50,7 +50,7 @@ export function Calibrate() {
 
   return (
     <Screen
-      nav={<NavBar title="Calibrate" />}
+      hero={<NavBar title="Calibrate" />}
       dock={
         <button className="btn btn--mint" type="button" onClick={() => void Listener.testAlert()}>
           Test alert

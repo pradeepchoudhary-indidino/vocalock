@@ -46,14 +46,18 @@ export function UnlockPhrase() {
 
   const nav = (
     <>
-      <NavBar title="Unlock phrase" />
+      <NavBar title="Unlock phrase" right={<span className="hero__step">Step 2 of 3</span>} />
       <StepPips total={3} done={2} />
+      <div className="hero__centre">
+        <h1 className="hero__h1">Say your unlock phrase</h1>
+        <p className="hero__sub">This is what gets you back in. Make it different from your lock phrase.</p>
+      </div>
     </>
   );
 
   if (checking) {
     return (
-      <Screen nav={nav}>
+      <Screen flow="purple" hero={nav}>
         <PhraseCheck
           phrase={unlockPhrase}
           language={language}
@@ -68,8 +72,8 @@ export function UnlockPhrase() {
   }
 
   return (
-    <Screen
-      nav={nav}
+    <Screen flow="purple"
+      hero={nav}
       dock={
         <button
           className="btn btn--lilac"
@@ -81,8 +85,6 @@ export function UnlockPhrase() {
         </button>
       }
     >
-      <h1 className="page-title">Now your unlock phrase</h1>
-      <p className="page-sub">Saying this clears the lock. Make it different from the first.</p>
 
       <PhraseCapture
         captured={unlockPhrase}

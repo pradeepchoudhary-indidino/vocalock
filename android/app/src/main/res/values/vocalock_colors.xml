@@ -4,9 +4,10 @@
      (XML comments cannot contain a double hyphen, so the token names below are
      written without their leading dashes.) -->
 <resources>
-    <color name="vl_brand">#4A6AE0</color>      <!-- gradient, light stop -->
-    <color name="vl_brand_deep">#2F45AD</color> <!-- gradient, dark stop -->
-    <color name="vl_ink">#1D1B34</color>        <!-- ink -->
-    <color name="vl_bg">#F7F6FB</color>         <!-- bg, light -->
-    <color name="vl_bg_dark">#12111C</color>    <!-- bg, dark -->
+    <color name="vl_brand">#2188E4</color>      <!-- f-solid, blue flow -->
+    <color name="vl_brand_deep">#1257A8</color> <!-- f-solid-edge, blue flow -->
+    <color name="vl_alert">#124682</color>      <!-- top of the alert gradient -->
+    <color name="vl_ink">#10243D</color>        <!-- ink -->
+    <color name="vl_bg">#EEF4FC</color>         <!-- f-bg, blue flow, light -->
+    <color name="vl_bg_dark">#0D1526</color>    <!-- f-bg, blue flow, dark -->
 </resources>

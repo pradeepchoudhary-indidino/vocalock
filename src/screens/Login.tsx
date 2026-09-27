@@ -31,6 +31,13 @@ export function Login() {
 
   return (
     <Screen
+      hero={
+        <div className="hero__centre">
+          <div className="hero-illo">&#128241;</div>
+          <h1 className="hero__h1">What&rsquo;s your number?</h1>
+          <p className="hero__sub">We&rsquo;ll text you a 4-digit code.</p>
+        </div>
+      }
       dock={
         <>
           <button
@@ -47,10 +54,6 @@ export function Login() {
         </>
       }
     >
-      <div className="hero-illo hero-illo--lilac">&#128241;</div>
-      <h1 className="page-title">What&rsquo;s your number?</h1>
-      <p className="page-sub">We&rsquo;ll text you a 4-digit code.</p>
-
       <div className="phone-field">
         <span className="phone-field__cc">+91</span>
         <input

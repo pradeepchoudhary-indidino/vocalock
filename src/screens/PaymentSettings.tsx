@@ -24,7 +24,7 @@ export function PaymentSettings() {
   const canCancel = entitlement.status === 'trial' || entitlement.status === 'active';
 
   return (
-    <Screen nav={<NavBar title="Payment Settings" />}>
+    <Screen hero={<NavBar title="Payment Settings" />}>
       <Card>
         <div className="row">
           <div className="row__main">

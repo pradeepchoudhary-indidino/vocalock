@@ -18,8 +18,8 @@ const KEY = 'vocalock.theme';
 
 /** Status-bar backgrounds, kept in step with --bg in theme.css. */
 export const THEME_BG: Record<Resolved, string> = {
-  light: '#F7F6FB',
-  dark: '#12111C',
+  light: '#EEF4FC',
+  dark: '#0D1526',
 };
 
 export function readPref(): ThemePref {
