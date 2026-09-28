@@ -76,11 +76,15 @@ class PhraseSpotter(
         unlockPhrase = normalize(unlock)
         checkPhrase = ""
         checking = false
-        if (lockPhrase.isEmpty() || unlockPhrase.isEmpty()) {
+        if (lockPhrase.isEmpty()) {
             release()
             return false
         }
-        return build(language, listOf(lockPhrase, unlockPhrase))
+        // The unlock phrase is optional. Device-lock mode has none — Android's
+        // credential unlocks instead — so the grammar is just the lock phrase.
+        val phrases =
+            if (unlockPhrase.isEmpty()) listOf(lockPhrase) else listOf(lockPhrase, unlockPhrase)
+        return build(language, phrases)
     }
 
     /**
@@ -184,6 +188,8 @@ class PhraseSpotter(
         // near-miss of "unlock now" and then do nothing, because there was
         // nothing to unlock.
         if (lockedMode) {
+            // Nothing to unlock by voice when no unlock phrase was recorded.
+            if (unlockPhrase.isEmpty()) return false
             if (!matches(heard, unlockPhrase)) return false
             lastFiredAt = nowMs
             onMatch(Target.UNLOCK)

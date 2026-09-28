@@ -387,9 +387,7 @@ class ListenerService : Service() {
         // it would cancel the very thing the user is being asked to confirm.
         if (phraseSpotter?.checking == true) return
 
-        val wanted = settings.voiceLockEnabled &&
-            settings.lockPhrase.isNotEmpty() &&
-            settings.unlockPhrase.isNotEmpty()
+        val wanted = settings.voiceLockEnabled && settings.lockPhrase.isNotEmpty()
 
         if (!wanted) {
             phraseSpotter?.release()
@@ -572,12 +570,11 @@ class ListenerService : Service() {
         if (calibrating) return true
         if (phraseSpotter?.checking == true) return true
         if (LockController.isLocked) return true
-        if (settings.voiceLockEnabled &&
-            settings.lockPhrase.isNotEmpty() &&
-            settings.unlockPhrase.isNotEmpty()
-        ) {
-            return true
-        }
+        // No unlock phrase is required: in device-lock mode there is none by
+        // design, because Android's own credential is what gets you back in.
+        // Demanding one here meant the mic never opened in that mode and saying
+        // the lock phrase did nothing at all.
+        if (settings.voiceLockEnabled && settings.lockPhrase.isNotEmpty()) return true
         if (settings.clapEnabled && !(settings.onlyWhenScreenOff && screenOn)) return true
         return false
     }

@@ -51,6 +51,19 @@ object LockController {
             return
         }
 
+        // Never raise a cover the user cannot lift. Device-lock mode records no
+        // unlock phrase and no PIN, because Android's own credential is the way
+        // back in — so if admin is revoked later and we fell through to here,
+        // the overlay would have no exit at all and would trap them on their own
+        // phone. Refusing to lock is the safe failure.
+        val settings = SettingsStore.read(app)
+        val canUnlockByVoice = settings.unlockPhrase.isNotEmpty()
+        val canUnlockByPin = SecureStore.pinLength(app) in 4..6
+        if (!canUnlockByVoice && !canUnlockByPin) {
+            Log.w(TAG, "refusing to show the overlay: no unlock phrase and no PIN")
+            return
+        }
+
         if (Settings.canDrawOverlays(app)) {
             val view = overlay ?: LockOverlay(app).also { overlay = it }
             view.onUnlocked = { how -> clear(app, how) }
