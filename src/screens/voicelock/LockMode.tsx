@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { App as CapApp } from '@capacitor/app';
 import { Screen } from '../../components/Screen';
 import { NavBar } from '../../components/NavBar';
 import { EyeOffIcon, LockIcon } from '../../components/Icons';
@@ -22,6 +23,7 @@ export function LockMode() {
   const { lockPhrase, language } = useVoiceSetup();
   const { patch, syncService } = useSettings();
   const [asking, setAsking] = useState(false);
+  const [declined, setDeclined] = useState(false);
 
   useEffect(() => {
     if (!lockPhrase) navigate('/voice-lock/lock-phrase', { replace: true });
@@ -32,24 +34,60 @@ export function LockMode() {
    * the user comes back to us. Re-check on resume rather than trusting the
    * request to have succeeded.
    */
-  const checkOnReturn = useCallback(async () => {
+  const checkOnReturn = useCallback(async (): Promise<boolean> => {
     const { active } = await Listener.isDeviceLockAvailable();
-    if (!active) return;
+    if (!active) return false;
     // Real lock screen: no unlock phrase and no backup PIN, because Android's
     // own credential is both.
     await patch({ language, lockPhrase, unlockPhrase: '', voiceLockEnabled: true });
     await syncService();
     track('voice_setup_done', { mode: 'device' });
     navigate('/voice-lock/done', { replace: true });
+    return true;
   }, [language, lockPhrase, patch, syncService, navigate]);
 
+  /**
+   * The consent screen is a separate Activity, so the answer only arrives when
+   * we come back. `visibilitychange` is not reliable for that in a Capacitor
+   * WebView — another Activity covering us does not always fire it, which is
+   * why granting admin could leave this screen sitting there as though the
+   * button had done nothing. Capacitor's own appStateChange is the supported
+   * signal; visibilitychange stays as a backstop.
+   */
   useEffect(() => {
     if (!asking) return;
+    let done = false;
+    const settle = async () => {
+      if (done) return;
+      const granted = await checkOnReturn();
+      // Back without granting: stop waiting and say so, rather than leaving the
+      // button looking dead.
+      if (!granted) {
+        setAsking(false);
+        setDeclined(true);
+      } else {
+        done = true;
+      }
+    };
+
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void checkOnReturn();
+      if (document.visibilityState === 'visible') void settle();
     };
     document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
+
+    let handle: { remove: () => Promise<void> } | undefined;
+    void CapApp.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) void settle();
+    }).then((h) => {
+      if (done) void h.remove();
+      else handle = h;
+    });
+
+    return () => {
+      done = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      void handle?.remove();
+    };
   }, [asking, checkOnReturn]);
 
   return (
@@ -97,17 +135,33 @@ export function LockMode() {
         <button
           className="btn btn--lilac"
           type="button"
-          onClick={() => {
+          disabled={asking}
+          onClick={async () => {
+            setDeclined(false);
             setAsking(true);
             track('voice_setup_step', { step: 2, choice: 'device' });
-            void Listener.requestDeviceLock();
+            try {
+              await Listener.requestDeviceLock();
+            } catch {
+              // The consent screen could not be opened at all — say so instead
+              // of waiting for a return that will never come.
+              setAsking(false);
+              setDeclined(true);
+            }
           }}
         >
-          Use my phone&rsquo;s lock
+          {asking ? 'Waiting for Android\u2026' : "Use my phone's lock"}
         </button>
-        <p className="price__terms" style={{ marginTop: 10 }}>
-          Android will ask you to confirm. You can turn it off any time.
-        </p>
+        {declined ? (
+          <p className="field-error" style={{ textAlign: 'left', marginTop: 10 }}>
+            Android did not enable it. Tap again and choose{' '}
+            <strong>Activate</strong> on the screen it shows.
+          </p>
+        ) : (
+          <p className="price__terms" style={{ marginTop: 10 }}>
+            Android will ask you to confirm. You can turn it off any time.
+          </p>
+        )}
       </div>
 
       <div className="option">

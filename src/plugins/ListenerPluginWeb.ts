@@ -136,8 +136,9 @@ export class ListenerPluginWeb extends WebPlugin implements ListenerPlugin {
     return { active: localStorage.getItem('vocalock.mock.deviceAdmin') === 'true' };
   }
 
-  async requestDeviceLock(): Promise<void> {
+  async requestDeviceLock(): Promise<{ opened: boolean }> {
     localStorage.setItem('vocalock.mock.deviceAdmin', 'true');
+    return { opened: true };
   }
 
   async releaseDeviceLock(): Promise<void> {

@@ -137,7 +137,7 @@ export interface ListenerPlugin {
    */
   isDeviceLockAvailable(): Promise<{ active: boolean }>;
   /** Opens the system consent screen. Re-check availability on resume. */
-  requestDeviceLock(): Promise<void>;
+  requestDeviceLock(): Promise<{ opened: boolean }>;
   releaseDeviceLock(): Promise<void>;
 
   /** Raises the lock; used by "Try it" in the setup flow. */

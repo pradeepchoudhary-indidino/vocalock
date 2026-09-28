@@ -203,9 +203,12 @@ class ListenerPlugin : Plugin() {
             call.reject("No activity to show the consent screen")
             return
         }
+        // Resolve only when the screen actually opened: the old version called
+        // reject() and then resolve() regardless, so a failure to launch still
+        // looked like success to the caller and the button seemed to do nothing.
         runCatching { target.startActivity(DeviceLock.consentIntent(context)) }
+            .onSuccess { call.resolve(JSObject().put("opened", true)) }
             .onFailure { call.reject(it.message ?: "Could not open the consent screen") }
-        call.resolve()
     }
 
     @PluginMethod
