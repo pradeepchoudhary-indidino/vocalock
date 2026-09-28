@@ -2860,3 +2860,57 @@ button {
   margin-top: 2px;
   word-break: break-word;
 }
+
+/* ---------- voice lock: the two saved phrases ----------
+   Shown on the Done step and in Voice Lock settings. Side by side, because
+   they are a pair the user reads together: what locks, and what unlocks. */
+
+.phrase-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+
+.phrase-card {
+  background: var(--f-card);
+  border: 2px solid var(--f-line);
+  border-bottom: var(--edge-card) solid var(--f-line-edge);
+  border-radius: var(--r-md);
+  padding: var(--s3) 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.phrase-card__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  background: var(--f-solid-ink);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 var(--edge-chip) 0 var(--f-solid-edge);
+  margin-bottom: var(--s2);
+}
+
+.phrase-card__icon--alt {
+  background: var(--green-ink);
+  box-shadow: 0 var(--edge-chip) 0 var(--green-edge);
+}
+
+.phrase-card__label {
+  font-size: var(--t-label);
+  line-height: 16px;
+  color: var(--ink-muted);
+}
+
+.phrase-card__value {
+  font-family: var(--display);
+  font-size: var(--t-row);
+  line-height: 22px;
+  font-weight: 600;
+  word-break: break-word;
+}

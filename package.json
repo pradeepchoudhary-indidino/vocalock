@@ -11,7 +11,7 @@
     "sync": "npm run build && npx cap sync android",
     "android": "npm run sync && npx cap open android",
     "deadcode": "knip",
-    "check": "tsc -b && oxlint && knip"
+    "check": "tsc -b && oxlint && knip && node scripts/check-classes.mjs"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^7.0.3",
