@@ -52,6 +52,20 @@ export function App() {
     void StatusBar.setBackgroundColor({ color: THEME_BG[mode] });
   }, [mode]);
 
+  // With the keyboard up the screen is much shorter, so bring whatever was
+  // tapped back into view. The delay lets the IME finish animating first,
+  // otherwise the scroll is computed against the old height.
+  useEffect(() => {
+    const onFocus = (e: FocusEvent) => {
+      const el = e.target;
+      if (!(el instanceof HTMLElement)) return;
+      if (!el.matches('input, textarea, select')) return;
+      setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 280);
+    };
+    document.addEventListener('focusin', onFocus);
+    return () => document.removeEventListener('focusin', onFocus);
+  }, []);
+
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     let handle: { remove: () => Promise<void> } | undefined;

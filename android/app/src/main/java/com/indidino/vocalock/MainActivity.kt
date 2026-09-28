@@ -24,18 +24,21 @@ class MainActivity : BridgeActivity() {
     }
 
     /**
-     * Feed the real window insets to CSS as --safe-top / --safe-bottom.
+     * Feed the real window insets to CSS as --safe-top, --safe-bottom and --kb.
      *
-     * `env(safe-area-inset-*)` is the obvious way to do this and it does not
-     * work here: since Android 15 every app targeting SDK 35+ is forced
+     * `env(safe-area-inset-*)` is the obvious way to do the first two and it
+     * does not work here: since Android 15 every app targeting SDK 35+ is forced
      * edge-to-edge, `overlaysWebView: false` and StatusBar.setBackgroundColor
      * became no-ops, and the WebView reports zero for env() anyway. The result
-     * was the status bar sitting on top of the screen's content — very visible
-     * now that each screen opens with a gradient hero.
+     * was the status bar sitting on top of the screen's content.
      *
-     * So take the insets from the platform, convert to CSS px, and set the two
-     * custom properties theme.css already reads. Registered on the WebView so
-     * it re-runs on rotation, on a cutout change, and when the keyboard opens.
+     * --kb is the keyboard's own height. The WebView is not resized when the IME
+     * opens, so without it a docked button — "Send code", "Verify" — sits behind
+     * the keyboard exactly when it is needed. theme.css subtracts it from the
+     * screen so the dock lands above the keys.
+     *
+     * Registered on the WebView, so it re-runs on rotation, on a cutout change,
+     * and every time the keyboard opens or closes.
      */
     private fun publishInsets() {
         val web = bridge?.webView ?: return
@@ -43,13 +46,18 @@ class MainActivity : BridgeActivity() {
             val bars = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
             )
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
             val d = resources.displayMetrics.density
             val top = (bars.top / d).toInt()
             val bottom = (bars.bottom / d).toInt()
+            // The keyboard already covers the navigation bar, so only the part
+            // of it above that counts as extra.
+            val keyboard = ((ime.bottom - bars.bottom).coerceAtLeast(0) / d).toInt()
             view.post {
                 web.evaluateJavascript(
                     "document.documentElement.style.setProperty('--safe-top','" + top + "px');" +
-                        "document.documentElement.style.setProperty('--safe-bottom','" + bottom + "px');",
+                        "document.documentElement.style.setProperty('--safe-bottom','" + bottom + "px');" +
+                        "document.documentElement.style.setProperty('--kb','" + keyboard + "px');",
                     null,
                 )
             }

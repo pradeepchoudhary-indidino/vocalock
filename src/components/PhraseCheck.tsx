@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { PluginListenerHandle } from '@capacitor/core';
 import { Listener, type Language } from '../plugins';
-import { MicIcon } from './Icons';
+import { Note } from './Controls';
+import { CheckIcon, MicIcon } from './Icons';
 
 type Verdict = 'listening' | 'heard' | 'missed';
 
@@ -55,51 +56,55 @@ export function PhraseCheck({ phrase, language, onPassed, onRejected }: PhraseCh
   if (verdict === 'missed') {
     return (
       <>
-        <div className="hero-illo hero-illo--peach">&#128533;</div>
-        <h1 className="page-title">Couldn&rsquo;t hear that one</h1>
-        <p className="page-sub">
-          VocaLock listens offline, and its offline vocabulary is smaller than your
-          keyboard&rsquo;s. Pick a phrase with more everyday words, or switch the language.
-        </p>
-        <div className="card">
-          <div className="row" style={{ borderBottom: 0 }}>
-            <div className="row__main">
-              <div className="row__sub">You said</div>
-              <div className="row__label">&ldquo;{phrase}&rdquo;</div>
-            </div>
-          </div>
+        <div className="heard-box">
+          <div className="heard-box__label">The phrase you recorded</div>
+          <div className="heard-box__value">&ldquo;{phrase}&rdquo;</div>
         </div>
+
+        <Note tone="warn">
+          VocaLock listens <strong>offline</strong>, and its offline vocabulary is smaller
+          than your keyboard&rsquo;s. Everyday words work best &mdash; try something like
+          &ldquo;lock my phone&rdquo; or &ldquo;good night now&rdquo;.
+        </Note>
+
         <button className="btn btn--lilac" type="button" onClick={onRejected}>
-          Try a different phrase
+          Pick a different phrase
         </button>
       </>
     );
   }
 
   return (
-    <>
-      <h1 className="page-title">
-        {verdict === 'heard' ? 'Got it' : 'Say it once more'}
-      </h1>
-      <p className="page-sub">
-        {verdict === 'heard'
-          ? 'VocaLock can hear that phrase.'
-          : 'Checking VocaLock can really hear it when it is listening offline.'}
-      </p>
-
-      <div
-        className={`mic-btn${verdict === 'listening' ? ' mic-btn--listening' : ' mic-btn--captured'}`}
-        style={{ pointerEvents: 'none' }}
-      >
-        <MicIcon size={46} />
+    <div className="verify">
+      {/* The same mic the user just recorded with, so the two steps read as one
+          flow rather than as a test that appeared from nowhere. */}
+      <div className="mic-field">
+        {verdict === 'listening' ? (
+          <>
+            <span className="mic-ring" />
+            <span className="mic-ring" />
+          </>
+        ) : null}
+        <div
+          className={`mic-btn${verdict === 'listening' ? ' mic-btn--listening' : ' mic-btn--captured'}`}
+          style={{ pointerEvents: 'none' }}
+        >
+          {verdict === 'heard' ? <CheckIcon size={52} /> : <MicIcon size={46} />}
+        </div>
       </div>
-      <div className="mic-hint">&ldquo;{phrase}&rdquo;</div>
+
+      <div className="verify__phrase">&ldquo;{phrase}&rdquo;</div>
 
       {verdict === 'heard' ? (
-        <div className="heard heard--show" style={{ marginTop: 18 }}>
-          Heard it &#10003;
-        </div>
-      ) : null}
-    </>
+        <span className="verify__ok">
+          <CheckIcon size={18} />
+          VocaLock heard it
+        </span>
+      ) : (
+        <p className="verify__state">
+          Say it out loud now, the way you normally would.
+        </p>
+      )}
+    </div>
   );
 }

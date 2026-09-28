@@ -87,8 +87,18 @@ export function BackupPin() {
     <Screen flow="purple"
       hero={
         <>
-          <NavBar title="Backup PIN" />
+          <NavBar title="Backup PIN" right={<span className="hero__step">Step 3 of 3</span>} />
           <StepPips total={3} done={3} />
+          <div className="hero__centre">
+            <h1 className="hero__h1">
+              {stage === 'enter' ? 'Pick a backup PIN' : 'Enter it once more'}
+            </h1>
+            <p className="hero__sub">
+              {stage === 'enter'
+                ? `${MIN} to ${MAX} digits. This always unlocks, even if your voice does not.`
+                : 'Just to be sure you will remember it.'}
+            </p>
+          </div>
         </>
       }
       dock={
@@ -102,15 +112,6 @@ export function BackupPin() {
         </button>
       }
     >
-      <h1 className="page-title">
-        {stage === 'enter' ? 'Pick a backup PIN' : 'Enter it once more'}
-      </h1>
-      <p className="page-sub">
-        {stage === 'enter'
-          ? `${MIN} to ${MAX} digits. This always unlocks, even if your voice does not.`
-          : 'Just to be sure you will remember it.'}
-      </p>
-
       <div className="pin-dots">
         {Array.from({ length: MAX }, (_, i) => (
           <span key={i} className={`pin-dot${i < current.length ? ' pin-dot--filled' : ''}`} />

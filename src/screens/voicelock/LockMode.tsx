@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Screen } from '../../components/Screen';
 import { NavBar } from '../../components/NavBar';
-import { Bullet, Note, StepPips } from '../../components/Controls';
+import { EyeOffIcon, LockIcon } from '../../components/Icons';
+import { StepPips } from '../../components/Controls';
 import { Listener } from '../../plugins';
 import { useSettings } from '../../store/settings';
 import { useVoiceSetup } from '../../store/voiceSetup';
@@ -52,29 +53,47 @@ export function LockMode() {
   }, [asking, checkOnReturn]);
 
   return (
-    <Screen flow="purple"
+    <Screen
+      flow="purple"
       hero={
         <>
-          <NavBar title="How should it lock?" />
+          <NavBar title="Lock type" right={<span className="hero__step">Step 2 of 3</span>} />
           <StepPips total={3} done={2} />
+          <div className="hero__centre">
+            <h1 className="hero__h1">How should it lock?</h1>
+            <p className="hero__sub">You can change this later in settings.</p>
+          </div>
         </>
       }
     >
-      <div className="hero-illo hero-illo--lilac">&#128274;</div>
-      <h1 className="page-title">Lock your phone, or cover it?</h1>
-      <p className="page-sub">You can change this later.</p>
-
-      <div className="card">
-        <h2 className="card__title">Lock my phone properly</h2>
-        <p className="card__text">
-          Saying your phrase locks your phone with its own lock screen.
-        </p>
-        <div className="bullets" style={{ marginTop: 14 }}>
-          <Bullet>Stays locked even if VocaLock is force-stopped</Bullet>
-          <Bullet>Unlock with your fingerprint or PIN, as you always do</Bullet>
-          <Bullet>No second phrase to remember</Bullet>
+      {/* Both options are laid out the same way so they can be compared. The
+          difference that actually matters — whether it survives a force-stop —
+          is the first line of each. */}
+      <div className="option option--pick">
+        <span className="option__badge">Recommended</span>
+        <div className="option__head">
+          <span className="option__icon">
+            <LockIcon size={22} />
+          </span>
+          <h2 className="option__title">Use my phone&rsquo;s lock</h2>
         </div>
-        <div style={{ height: 16 }} />
+        <p className="option__text">
+          Your phrase locks the phone for real, with its own lock screen.
+        </p>
+        <ul className="option__list">
+          <li>
+            <span className="option__mark">&#10003;</span>
+            Stays locked even if VocaLock is force-stopped
+          </li>
+          <li>
+            <span className="option__mark">&#10003;</span>
+            Unlock with your fingerprint or PIN, as you always do
+          </li>
+          <li>
+            <span className="option__mark">&#10003;</span>
+            No second phrase to remember
+          </li>
+        </ul>
         <button
           className="btn btn--lilac"
           type="button"
@@ -91,18 +110,33 @@ export function LockMode() {
         </p>
       </div>
 
-      <div className="card">
-        <h2 className="card__title">Just cover my screen</h2>
-        <p className="card__text">
-          A screen VocaLock draws over your phone, lifted by a second phrase you
+      <div className="option">
+        <div className="option__head">
+          <span className="option__icon option__icon--quiet">
+            <EyeOffIcon size={22} />
+          </span>
+          <h2 className="option__title">Just cover my screen</h2>
+        </div>
+        <p className="option__text">
+          VocaLock draws a screen over your phone, lifted by a second phrase you
           record next.
         </p>
-        <Note tone="warn">
-          A focus tool, not a lock. It can be got past by force-stopping VocaLock
-          in Android settings.
-        </Note>
+        <ul className="option__list">
+          <li>
+            <span className="option__mark">&#10003;</span>
+            Unlocks with your voice, no PIN needed
+          </li>
+          <li>
+            <span className="option__mark option__mark--warn">!</span>
+            A focus tool, not a lock &mdash; force-stopping VocaLock gets past it
+          </li>
+          <li>
+            <span className="option__mark option__mark--warn">!</span>
+            One more phrase to remember
+          </li>
+        </ul>
         <button
-          className="btn btn--quiet"
+          className="btn btn--ghost"
           type="button"
           onClick={() => {
             track('voice_setup_step', { step: 2, choice: 'overlay' });

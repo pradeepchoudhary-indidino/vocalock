@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ChevronRight } from './Icons';
+import { ChevronRight, InfoIcon, WarnIcon } from './Icons';
 
 export function Card({
   children,
@@ -204,7 +204,7 @@ export function Note({
 }) {
   return (
     <div className={`note${tone === 'warn' ? ' note--warn' : ''}`}>
-      <span className="note__icon">{tone === 'warn' ? '⚠' : 'ℹ'}</span>
+      <span className="note__icon">{tone === 'warn' ? <WarnIcon /> : <InfoIcon />}</span>
       <span>{children}</span>
     </div>
   );
@@ -235,14 +235,6 @@ export function Sheet({
   );
 }
 
-export function Bullet({ children }: { children: ReactNode }) {
-  return (
-    <div className="bullet">
-      <span className="bullet__tick">&#10003;</span>
-      <span>{children}</span>
-    </div>
-  );
-}
 
 export function StepPips({ total, done }: { total: number; done: number }) {
   return (

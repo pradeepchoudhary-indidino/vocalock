@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Screen } from '../../components/Screen';
+import { LockIcon, MicIcon } from '../../components/Icons';
 import { Note } from '../../components/Controls';
 import { Listener } from '../../plugins';
 import { useSettings } from '../../store/settings';
@@ -10,7 +11,15 @@ export function VoiceLockDone() {
   const settings = useSettings((s) => s.settings);
 
   return (
-    <Screen flow="purple"
+    <Screen
+      flow="purple"
+      hero={
+        <div className="hero__centre">
+          <div className="hero-illo">&#127881;</div>
+          <h1 className="hero__h1">Voice Lock is armed</h1>
+          <p className="hero__sub">Your phrases are saved on this phone.</p>
+        </div>
+      }
       dock={
         <>
           <button className="btn btn--lilac" type="button" onClick={() => void Listener.lock()}>
@@ -22,32 +31,27 @@ export function VoiceLockDone() {
         </>
       }
     >
-      <div className="hero-illo hero-illo--mint">&#127881;</div>
-      <h1 className="page-title">Voice Lock is armed</h1>
-      <p className="page-sub">Your phrases are saved on this phone.</p>
-
-      <div className="card">
-        <div className="row">
-          <div className="row__main">
-            <div className="row__sub">Lock phrase</div>
-            <div className="row__label">&ldquo;{settings.lockPhrase}&rdquo;</div>
-          </div>
+      <div className="phrase-pair">
+        <div className="phrase-card">
+          <span className="phrase-card__icon">
+            <LockIcon size={17} />
+          </span>
+          <span className="phrase-card__label">Lock phrase</span>
+          <span className="phrase-card__value">&ldquo;{settings.lockPhrase}&rdquo;</span>
         </div>
-        {settings.unlockPhrase ? (
-          <div className="row">
-            <div className="row__main">
-              <div className="row__sub">Unlock phrase</div>
-              <div className="row__label">&ldquo;{settings.unlockPhrase}&rdquo;</div>
-            </div>
-          </div>
-        ) : (
-          <div className="row">
-            <div className="row__main">
-              <div className="row__sub">To unlock</div>
-              <div className="row__label">Your fingerprint or PIN</div>
-            </div>
-          </div>
-        )}
+        <div className="phrase-card">
+          <span className="phrase-card__icon phrase-card__icon--alt">
+            <MicIcon size={17} />
+          </span>
+          <span className="phrase-card__label">
+            {settings.unlockPhrase ? 'Unlock phrase' : 'To unlock'}
+          </span>
+          <span className="phrase-card__value">
+            {settings.unlockPhrase
+              ? `\u201c${settings.unlockPhrase}\u201d`
+              : 'Fingerprint or PIN'}
+          </span>
+        </div>
       </div>
 
       <Note>

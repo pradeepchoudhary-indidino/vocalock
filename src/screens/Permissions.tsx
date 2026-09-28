@@ -74,7 +74,15 @@ export function Permissions() {
 
   return (
     <Screen
-      hero={<NavBar title="Permissions" />}
+      hero={
+        <>
+          <NavBar title="Permissions" />
+          <p className="hero__sub">
+            VocaLock needs these to hear you and to reach you. Nothing here leaves
+            your phone.
+          </p>
+        </>
+      }
       dock={
         <button className="btn btn--primary" type="button" onClick={() => navigate(-1)}>
           Done

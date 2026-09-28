@@ -50,7 +50,15 @@ export function Calibrate() {
 
   return (
     <Screen
-      hero={<NavBar title="Calibrate" />}
+      hero={
+        <>
+          <NavBar title="Calibrate" />
+          <p className="hero__sub">
+            Clap the way you would when looking for your phone, and watch the meter
+            spike. If it misses, raise the sensitivity.
+          </p>
+        </>
+      }
       dock={
         <button className="btn btn--mint" type="button" onClick={() => void Listener.testAlert()}>
           Test alert
