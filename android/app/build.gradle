@@ -78,6 +78,13 @@ android {
             // on a device after any dependency bump — this is the classic
             // "fine in debug, crashes in release" failure.
             minifyEnabled true
+            ndk {
+                // Ship native debug symbols with the bundle. Without them a
+                // crash inside libvosk.so arrives as bare hex addresses and
+                // cannot be read. Play strips these before delivery, so this
+                // grows the upload, never the user's download.
+                debugSymbolLevel 'SYMBOL_TABLE'
+            }
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
