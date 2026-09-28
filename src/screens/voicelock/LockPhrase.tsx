@@ -78,13 +78,13 @@ export function LockPhrase() {
       }
     >
 
-
-
-      <PhraseCapture
-        captured={lockPhrase}
-        onCaptured={onCaptured}
-        onStartOver={startOver}
-      />
+      <div className="capture">
+        <PhraseCapture
+          captured={lockPhrase}
+          onCaptured={onCaptured}
+          onStartOver={startOver}
+        />
+      </div>
 
       <div className="field-error">
         {tooShort ? 'Use at least two words so it is not triggered by accident.' : ''}

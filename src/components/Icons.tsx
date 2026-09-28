@@ -125,3 +125,70 @@ export function GearIcon({ size = 15 }: IconProps) {
     </svg>
   );
 }
+
+/**
+ * The VocaLock mark: a microphone between two sound waves, with the level bars
+ * knocked out of its head. Traced from the canvas's Logo artboard, and the same
+ * artwork as the launcher icon in res/drawable/ic_launcher_foreground.xml —
+ * keep the two in step.
+ *
+ * `tone` is the colour of the bars inside the head; the mark itself is drawn in
+ * currentColor so it works on a gradient tile or a flat one.
+ */
+export function LogoMark({ size = 40, tone = '#1669C5' }: IconProps & { tone?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 120 120" aria-hidden="true">
+      <g fill="none" stroke="currentColor" strokeWidth={6} strokeLinecap="round">
+        <path d="M20 28Q6 50 20 72" opacity={0.55} />
+        <path d="M100 28Q114 50 100 72" opacity={0.55} />
+        <path d="M32 36Q22 50 32 64" />
+        <path d="M88 36Q98 50 88 64" />
+      </g>
+      <circle cx="60" cy="50" r="22" fill="currentColor" />
+      <path d="M51 64H69l6 30q0.6 4-3 4H48q-3.6 0-3-4Z" fill="currentColor" />
+      <rect x="50" y="45" width="4" height="10" rx="2" fill={tone} />
+      <rect x="58" y="39" width="4" height="22" rx="2" fill={tone} />
+      <rect x="66" y="43" width="4" height="14" rx="2" fill={tone} />
+    </svg>
+  );
+}
+
+/** The Home emblem: a shield, ticked when everything is armed. */
+export function ShieldStatus({ size = 64, armed = true }: IconProps & { armed?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 2.2 4.6 5v6.3c0 4.6 3.1 8.4 7.4 9.5 4.3-1.1 7.4-4.9 7.4-9.5V5z"
+        fill="currentColor"
+      />
+      {armed ? (
+        <path
+          d="M8.4 11.9 11 14.5l4.6-4.7"
+          fill="none"
+          stroke="#1669c5"
+          strokeWidth={2.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : null}
+    </svg>
+  );
+}
+
+export function CheckIcon({ size = 24 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} strokeWidth={3} aria-hidden="true">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+export function BulbIcon({ size = 15 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" {...stroke} strokeWidth={2.4} aria-hidden="true">
+      <path d="M9 18h6" />
+      <path d="M10 22h4" />
+      <path d="M15.1 14c.2-1 .7-1.7 1.4-2.5A6 6 0 1 0 7.5 11.5c.7.8 1.2 1.5 1.4 2.5" />
+    </svg>
+  );
+}

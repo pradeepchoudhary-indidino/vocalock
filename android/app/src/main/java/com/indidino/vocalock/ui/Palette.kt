@@ -29,6 +29,9 @@ internal object Palette {
     /** Supporting white on the alert gradient. */
     val alertSub = Color.parseColor("#DCE4FB")
 
+    /** The hard edge under a white tile or pill on the alert gradient. */
+    val tileEdge = Color.parseColor("#0A2E5C")
+
     /* ---- the lock overlay ---------------------------------------------
        The purple flow, since Voice Lock is what raises it. */
     val lockFrom = Color.parseColor("#1D1840")

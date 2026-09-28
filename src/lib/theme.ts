@@ -29,7 +29,9 @@ export function readPref(): ThemePref {
   } catch {
     /* private mode or storage blocked — fall through to the default */
   }
-  return 'auto';
+  // Light, not 'auto': the design is drawn light, and following the system
+  // would show most people on night-mode phones a theme nobody designed.
+  return 'light';
 }
 
 function systemIsDark(): boolean {

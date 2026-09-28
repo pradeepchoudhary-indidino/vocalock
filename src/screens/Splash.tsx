@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../store/settings';
 import { isPremium, usePremium } from '../store/account';
 import { track } from '../lib/analytics';
+import { LogoMark } from '../components/Icons';
 
 /**
  * Screen 1. Loads settings, session and entitlement, then routes:
@@ -35,7 +36,9 @@ export function Splash() {
 
   return (
     <div className="splash" data-flow="blue">
-      <div className="splash__mark">V</div>
+      <div className="splash__mark">
+        <LogoMark size={56} tone="#1669C5" />
+      </div>
       <div className="spinner" />
     </div>
   );

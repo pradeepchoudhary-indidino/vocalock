@@ -2,7 +2,15 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Screen } from '../components/Screen';
 import { FeatureTile } from '../components/FeatureCard';
-import { BoltIcon, ChevronRight, ClapIcon, LockIcon, UserIcon } from '../components/Icons';
+import {
+  BoltIcon,
+  ChevronRight,
+  ClapIcon,
+  LockIcon,
+  LogoMark,
+  ShieldStatus,
+  UserIcon,
+} from '../components/Icons';
 import { Listener } from '../plugins';
 import { missingPermissionCount, useSettings } from '../store/settings';
 import { daysLeft, usePremium } from '../store/account';
@@ -48,7 +56,7 @@ export function Home() {
     <>
       <div className="hero__bar">
         <span className="hero__tile">
-          <LockIcon size={22} />
+          <LogoMark size={30} tone="#1669C5" />
         </span>
         <div>
           <div className="hero__greet">{greeting()}</div>
@@ -66,15 +74,15 @@ export function Home() {
       </div>
 
       <div className="hero__centre">
-        <div className="hero__emblem">
+        <div className={`hero__emblem${liveCount === 0 ? ' hero__emblem--idle' : ''}`}>
           {liveCount > 0 ? (
             <>
               <span className="hero__emblem-ring" />
               <span className="hero__emblem-ring" />
             </>
           ) : null}
-          <span className="hero__emblem-mark" aria-hidden="true">
-            {liveCount === 2 ? '\u{1F6E1}' : liveCount === 1 ? '\u{1F441}' : '\u{1F4A4}'}
+          <span className="hero__emblem-mark">
+            <ShieldStatus size={62} armed={liveCount === 2} />
           </span>
         </div>
         <div className="hero__h1">{heroTitle}</div>

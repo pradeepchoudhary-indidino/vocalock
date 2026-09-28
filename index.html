@@ -12,9 +12,9 @@
          gets a white flash while the bundle loads. Mirrors src/lib/theme.ts. -->
     <script>
       (function () {
-        var pref = 'auto';
+        var pref = 'light';
         try {
-          pref = localStorage.getItem('vocalock.theme') || 'auto';
+          pref = localStorage.getItem('vocalock.theme') || 'light';
         } catch (e) {}
         var dark =
           pref === 'dark' ||

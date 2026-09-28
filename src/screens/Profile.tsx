@@ -41,38 +41,39 @@ export function Profile() {
     >
 
       <div className="plan-card">
-        <div style={{ fontSize: 13, opacity: 0.85 }}>Your plan</div>
-        <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', margin: '2px 0 10px' }}>
-          {PLAN_LABEL[entitlement.status]}
+        <div className="plan-card__head">
+          <span className="plan-card__tile">&#128081;</span>
+          <span style={{ minWidth: 0 }}>
+            <span className="plan-card__eyebrow" style={{ display: 'block' }}>
+              Your plan
+            </span>
+            <span className="plan-card__name" style={{ display: 'block' }}>
+              {PLAN_LABEL[entitlement.status]}
+            </span>
+            <span className="plan-card__note" style={{ display: 'block' }}>
+              {premium
+                ? `${entitlement.status === 'cancelled' ? 'Access until' : 'Renews in'} ${left} day${
+                    left === 1 ? '' : 's'
+                  }`
+                : 'Premium features are locked'}
+            </span>
+          </span>
         </div>
-        {premium ? (
-          <div className="plan-card__row">
-            <span>{entitlement.status === 'cancelled' ? 'Access until' : 'Renews in'}</span>
-            <strong>
-              {left} day{left === 1 ? '' : 's'}
-            </strong>
-          </div>
-        ) : (
-          <div className="plan-card__row">
-            <span>Premium features are locked</span>
-          </div>
-        )}
+
+        {!premium ? (
+          <button
+            className="btn btn--primary"
+            type="button"
+            style={{ minHeight: 52, marginTop: 14 }}
+            onClick={() => navigate('/paywall')}
+          >
+            &#11088; Unlock Premium
+          </button>
+        ) : null}
       </div>
-
-      {!premium ? (
-        <button className="btn btn--primary" type="button" onClick={() => navigate('/paywall')}>
-          Unlock Premium
-        </button>
-      ) : null}
-
-      <div style={{ height: 14 }} />
 
       <SectionLabel>Appearance</SectionLabel>
       <Card>
-        <p className="card__text" style={{ marginBottom: 12 }}>
-          Dark keeps the screen easy on the eyes at night and uses less battery on
-          OLED phones.
-        </p>
         <Segmented<ThemePref>
           value={themePref}
           onChange={setThemePref}
@@ -82,6 +83,9 @@ export function Profile() {
             { value: 'dark', label: 'Dark' },
           ]}
         />
+        <p className="card__text" style={{ marginTop: 12 }}>
+          Dark is easy on the eyes at night and uses less battery on OLED phones.
+        </p>
       </Card>
 
       <Card flush>

@@ -86,11 +86,13 @@ export function UnlockPhrase() {
       }
     >
 
-      <PhraseCapture
-        captured={unlockPhrase}
-        onCaptured={onCaptured}
-        onStartOver={startOver}
-      />
+      <div className="capture">
+        <PhraseCapture
+          captured={unlockPhrase}
+          onCaptured={onCaptured}
+          onStartOver={startOver}
+        />
+      </div>
 
       <div className="field-error">
         {same

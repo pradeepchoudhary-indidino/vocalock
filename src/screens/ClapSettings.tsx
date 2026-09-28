@@ -76,10 +76,10 @@ export function ClapSettings() {
       }
       dock={
         <div className="btn-pair">
-          <button className="btn btn--ghost" type="button" onClick={() => void Listener.testAlert()}>
+          <button className="btn btn--yellow" type="button" onClick={() => void Listener.testAlert()}>
             Test alert
           </button>
-          <button className="btn btn--mint" type="button" onClick={() => navigate('/calibrate')}>
+          <button className="btn btn--primary" type="button" onClick={() => navigate('/calibrate')}>
             Calibrate
           </button>
         </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { PluginListenerHandle } from '@capacitor/core';
-import { MicIcon } from './Icons';
+import { BulbIcon, CheckIcon, MicIcon } from './Icons';
 import { VoiceSetup } from '../plugins';
 import { deviceSpeechTag } from '../lib/language';
 
@@ -87,41 +87,62 @@ export function PhraseCapture({
 
   return (
     <>
-      <button
-        type="button"
-        className={`mic-btn${phase === 'listening' ? ' mic-btn--listening' : ''}${
-          phase === 'captured' ? ' mic-btn--captured' : ''
-        }`}
-        aria-label={phase === 'listening' ? 'Stop listening' : 'Start listening'}
-        onClick={start}
-      >
-        <MicIcon size={46} />
-      </button>
+      {/* The mic sits in a ring of its own: a pale disc behind it, and two
+          expanding rings while it is idle so it reads as "tap me". */}
+      <div className="mic-field">
+        {phase === 'idle' ? (
+          <>
+            <span className="mic-ring" />
+            <span className="mic-ring" />
+          </>
+        ) : null}
+        <button
+          type="button"
+          className={`mic-btn${phase === 'listening' ? ' mic-btn--listening' : ''}${
+            phase === 'captured' ? ' mic-btn--captured' : ''
+          }`}
+          aria-label={phase === 'listening' ? 'Stop listening' : 'Start listening'}
+          onClick={start}
+        >
+          {phase === 'captured' ? <CheckIcon size={52} /> : <MicIcon size={46} />}
+        </button>
+      </div>
+
       <div className="mic-hint">{hint}</div>
 
       <div className="transcript">
-        {partial ? (
-          <div className="transcript__chip transcript__chip--partial">{partial}</div>
-        ) : captured ? (
-          <div className="transcript__chip">&ldquo;{captured}&rdquo;</div>
-        ) : null}
+        {captured ? (
+          <div className="transcript__chip">
+            <span className="transcript__text">&ldquo;{captured}&rdquo;</span>
+            <button
+              className="transcript__redo"
+              type="button"
+              onClick={() => {
+                setPartial('');
+                setPhase('idle');
+                onStartOver();
+              }}
+            >
+              Start over
+            </button>
+          </div>
+        ) : (
+          <div
+            className={`transcript__empty${partial ? ' transcript__empty--partial' : ''}`}
+          >
+            {partial || 'Your phrase will show here'}
+          </div>
+        )}
       </div>
 
       {error ? <div className="field-error">{error}</div> : null}
 
-      {captured ? (
-        <button
-          className="text-btn"
-          type="button"
-          onClick={() => {
-            setPartial('');
-            setPhase('idle');
-            onStartOver();
-          }}
-        >
-          Start over
-        </button>
-      ) : null}
+      <span className="tip">
+        <span className="tip__icon">
+          <BulbIcon size={15} />
+        </span>
+        Two or three words work best
+      </span>
     </>
   );
 }

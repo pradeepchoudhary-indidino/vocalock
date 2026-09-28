@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import { Screen } from '../../components/Screen';
 import { NavBar } from '../../components/NavBar';
-import { LockIcon } from '../../components/Icons';
+import { LockIcon, MicIcon } from '../../components/Icons';
 import { Card, Note, Sheet, ToggleRow } from '../../components/Controls';
 import { Listener } from '../../plugins';
 import { useSettings } from '../../store/settings';
@@ -111,32 +111,33 @@ export function VoiceLockManage() {
         />
       </Card>
 
-      <Card>
-        <div className="row">
-          <div className="row__main">
-            <div className="row__sub">Lock phrase</div>
-            <div className="row__label">&ldquo;{settings.lockPhrase}&rdquo;</div>
-          </div>
+      {/* The canvas shows the two saved phrases as a pair of small cards rather
+          than as rows — they are the thing people come here to check. */}
+      <div className="phrase-pair">
+        <div className="phrase-card">
+          <span className="phrase-card__icon">
+            <LockIcon size={17} />
+          </span>
+          <span className="phrase-card__label">Lock phrase</span>
+          <span className="phrase-card__value">&ldquo;{settings.lockPhrase}&rdquo;</span>
         </div>
-        {!deviceLock && settings.unlockPhrase ? (
-          <div className="row">
-            <div className="row__main">
-              <div className="row__sub">Unlock phrase</div>
-              <div className="row__label">&ldquo;{settings.unlockPhrase}&rdquo;</div>
-            </div>
-          </div>
-        ) : (
-          <div className="row">
-            <div className="row__main">
-              <div className="row__sub">To unlock</div>
-              <div className="row__label">Your fingerprint or PIN</div>
-            </div>
-          </div>
-        )}
-      </Card>
+        <div className="phrase-card">
+          <span className="phrase-card__icon phrase-card__icon--alt">
+            <MicIcon size={17} />
+          </span>
+          <span className="phrase-card__label">
+            {!deviceLock && settings.unlockPhrase ? 'Unlock phrase' : 'To unlock'}
+          </span>
+          <span className="phrase-card__value">
+            {!deviceLock && settings.unlockPhrase
+              ? `\u201c${settings.unlockPhrase}\u201d`
+              : 'Fingerprint or PIN'}
+          </span>
+        </div>
+      </div>
 
       <button
-        className="btn btn--quiet"
+        className="btn btn--ghost"
         type="button"
         onClick={() => navigate('/voice-lock/intro')}
       >
