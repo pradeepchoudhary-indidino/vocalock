@@ -34,6 +34,11 @@ export class ListenerPluginWeb extends WebPlugin implements ListenerPlugin {
     return { running: this.running };
   }
 
+  async getInsets(): Promise<{ top: number; bottom: number; keyboard: number }> {
+    // The browser resizes the viewport itself, so there is no inset to report.
+    return { top: 0, bottom: 0, keyboard: 0 };
+  }
+
   async setSettings(settings: Partial<ListenerSettings>): Promise<void> {
     const merged = { ...(await this.getSettings()), ...settings };
     localStorage.setItem(MOCK_SETTINGS_KEY, JSON.stringify(merged));

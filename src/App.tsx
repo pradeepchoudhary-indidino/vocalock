@@ -44,6 +44,22 @@ export function App() {
   const { mode } = useTheme();
   useEffect(initTheme, []);
 
+  // Pull the window insets once the page exists.
+  //
+  // MainActivity also pushes these whenever they change, but that push can fire
+  // before the WebView has a document — the values are then lost and every
+  // screen renders under the status bar. Pulling here is what makes the first
+  // paint correct; the push only has to carry later changes like the keyboard.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    void Listener.getInsets().then(({ top, bottom, keyboard }) => {
+      const root = document.documentElement.style;
+      root.setProperty('--safe-top', `${top}px`);
+      root.setProperty('--safe-bottom', `${bottom}px`);
+      root.setProperty('--kb', `${keyboard}px`);
+    });
+  }, []);
+
   // Match the native status bar to the web theme, or its icons end up invisible.
   // Capacitor's Style.Dark means a dark bar with light icons.
   useEffect(() => {

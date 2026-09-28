@@ -7,6 +7,8 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -71,6 +73,36 @@ class ListenerPlugin : Plugin() {
     @PluginMethod
     fun isRunning(call: PluginCall) {
         call.resolve(JSObject().put("running", ListenerService.isRunning))
+    }
+
+    /**
+     * The window insets, in CSS pixels.
+     *
+     * MainActivity pushes these whenever they change, but that push can land
+     * before the WebView has a document — in which case the values are lost and
+     * the layout ends up under the status bar. So the web layer pulls them once
+     * on mount, when the page definitely exists, and the push only has to handle
+     * later changes like the keyboard opening.
+     */
+    @PluginMethod
+    fun getInsets(call: PluginCall) {
+        val view = bridge?.webView
+        val insets = view?.let { ViewCompat.getRootWindowInsets(it) }
+        val d = context.resources.displayMetrics.density
+        if (insets == null) {
+            call.resolve(JSObject().put("top", 0).put("bottom", 0).put("keyboard", 0))
+            return
+        }
+        val bars = insets.getInsets(
+            WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+        )
+        val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+        call.resolve(
+            JSObject()
+                .put("top", (bars.top / d).toInt())
+                .put("bottom", (bars.bottom / d).toInt())
+                .put("keyboard", ((ime.bottom - bars.bottom).coerceAtLeast(0) / d).toInt()),
+        )
     }
 
     // ----- settings -----

@@ -102,6 +102,9 @@ export interface ListenerPlugin {
   stop(): Promise<void>;
   isRunning(): Promise<{ running: boolean }>;
 
+  /** Window insets in CSS px. See ListenerPlugin.getInsets for why this is a pull. */
+  getInsets(): Promise<{ top: number; bottom: number; keyboard: number }>;
+
   setSettings(settings: Partial<ListenerSettings>): Promise<void>;
   getSettings(): Promise<ListenerSettings>;
 

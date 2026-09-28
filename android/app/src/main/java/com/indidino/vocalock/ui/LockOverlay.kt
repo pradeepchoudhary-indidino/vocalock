@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -14,7 +15,9 @@ import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import com.indidino.vocalock.R
 import com.indidino.vocalock.service.SecureStore
@@ -41,7 +44,7 @@ class LockOverlay(private val context: Context) {
     private val windowManager =
         context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-    private var root: LinearLayout? = null
+    private var root: View? = null
     private var clockView: TextView? = null
     private var statusView: TextView? = null
     private var pinPad: View? = null
@@ -157,86 +160,113 @@ class LockOverlay(private val context: Context) {
         }
     }
 
+    /**
+     * A rounded fill with the hard edge under it that the rest of the app uses.
+     * Two stacked rounded rects, the lower one offset down, rather than a blur.
+     */
+    private fun pill(fill: Int, edge: Int, radius: Int, drop: Int): LayerDrawable {
+        val under = GradientDrawable().apply {
+            setColor(edge)
+            cornerRadius = radius.toFloat()
+        }
+        val over = GradientDrawable().apply {
+            setColor(fill)
+            cornerRadius = radius.toFloat()
+        }
+        return LayerDrawable(arrayOf(under, over)).apply {
+            setLayerInset(0, 0, drop, 0, 0)
+            setLayerInset(1, 0, 0, 0, drop)
+        }
+    }
+
     @SuppressLint("SetTextI18n")
-    private fun buildView(): LinearLayout {
+    private fun buildView(): View {
         val density = context.resources.displayMetrics.density
         fun dp(value: Int) = (value * density).toInt()
 
-        val root = LinearLayout(context).apply {
+        // Key size is derived from the screen rather than fixed, so the pad fits
+        // on a small phone instead of pushing the rest of the screen off it.
+        val screenW = context.resources.displayMetrics.widthPixels
+        val keyW = ((screenW - dp(56) - dp(24)) / 3).coerceIn(dp(64), dp(96))
+        val keyH = (keyW * 0.82f).toInt().coerceAtMost(dp(68))
+
+        val column = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(dp(28), dp(40), dp(28), dp(40))
-            background = GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                intArrayOf(Palette.lockFrom, Palette.lockTo),
-            )
-            // Swallow every touch so nothing underneath reacts.
-            isClickable = true
-            isFocusable = true
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(28), dp(48), dp(28), dp(40))
         }
 
         clockView = TextView(context).apply {
             text = SimpleDateFormat("h:mm", Locale.getDefault()).format(Date())
-            setTextColor(Color.WHITE)
-            textSize = 52f
+            setTextColor(Palette.lockInk)
+            textSize = 56f
+            includeFontPadding = false
             gravity = Gravity.CENTER
         }
-        root.addView(clockView)
+        column.addView(clockView)
 
-        root.addView(
+        column.addView(
             TextView(context).apply {
                 text = context.getString(R.string.vl_locked_by)
                 setTextColor(Palette.lockInkFaint)
                 textSize = 13f
                 gravity = Gravity.CENTER
-                setPadding(0, dp(6), 0, dp(34))
+                setPadding(0, dp(8), 0, dp(28))
             },
         )
 
+        // The mic indicator and the instruction sit together in one pill, so
+        // there is a single thing to read rather than three stacked lines.
+        val statusBox = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            background = pill(Palette.lockSurface, Palette.lockSurfaceEdge, dp(22), dp(4))
+            setPadding(dp(20), dp(14), dp(20), dp(16))
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            )
+        }
+        statusBox.addView(
+            TextView(context).apply {
+                text = context.getString(R.string.vl_mic_live)
+                setTextColor(Palette.accent)
+                textSize = 12f
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dp(4))
+            },
+        )
         statusView = TextView(context).apply {
             text = context.getString(R.string.vl_say_unlock)
             setTextColor(Palette.lockInkSoft)
             textSize = 15f
             gravity = Gravity.CENTER
         }
-        root.addView(statusView)
-
-        // A quiet, always-on indication that the mic is live, so the user is
-        // never listened to without a visible sign of it.
-        root.addView(
-            TextView(context).apply {
-                text = context.getString(R.string.vl_mic_live)
-                setTextColor(Palette.accent)
-                textSize = 12f
-                gravity = Gravity.CENTER
-                setPadding(0, dp(8), 0, dp(26))
-            },
-        )
+        statusBox.addView(statusView)
+        column.addView(statusBox)
 
         dotsRow = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             visibility = View.GONE
+            setPadding(0, dp(26), 0, dp(6))
         }
-        root.addView(dotsRow)
+        column.addView(dotsRow)
 
-        pinPad = buildPinPad(::dp).apply { visibility = View.GONE }
-        root.addView(pinPad)
+        pinPad = buildPinPad(::dp, keyW, keyH).apply { visibility = View.GONE }
+        column.addView(pinPad)
 
         val usePin = TextView(context).apply {
             text = context.getString(R.string.vl_use_pin)
-            setTextColor(Color.WHITE)
-            textSize = 15f
+            setTextColor(Palette.lockInk)
+            textSize = 16f
             gravity = Gravity.CENTER
-            setPadding(dp(28), dp(14), dp(28), dp(14))
-            background = GradientDrawable().apply {
-                setColor(Palette.lockSurface)
-                cornerRadius = dp(24).toFloat()
-            }
+            setPadding(dp(30), dp(15), dp(30), dp(17))
+            background = pill(Palette.lockSurface, Palette.lockSurfaceEdge, dp(26), dp(4))
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = dp(10) }
+            ).apply { topMargin = dp(26) }
             setOnClickListener {
                 visibility = View.GONE
                 dotsRow?.visibility = View.VISIBLE
@@ -244,12 +274,41 @@ class LockOverlay(private val context: Context) {
                 refreshDots()
             }
         }
-        root.addView(usePin)
+        column.addView(usePin)
 
-        return root
+        // Everything scrolls. Without this the PIN pad pushes the clock and the
+        // status off the top on a short screen, and the two collide on the way.
+        val scroller = ScrollView(context).apply {
+            isFillViewport = true
+            overScrollMode = View.OVER_SCROLL_NEVER
+            addView(
+                column,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ).apply { gravity = Gravity.CENTER_VERTICAL },
+            )
+        }
+
+        return FrameLayout(context).apply {
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(Palette.lockFrom, Palette.lockTo),
+            )
+            // Swallow every touch so nothing underneath reacts.
+            isClickable = true
+            isFocusable = true
+            addView(
+                scroller,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                ),
+            )
+        }
     }
 
-    private fun buildPinPad(dp: (Int) -> Int): View {
+    private fun buildPinPad(dp: (Int) -> Int, keyW: Int, keyH: Int): View {
         val grid = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -258,7 +317,7 @@ class LockOverlay(private val context: Context) {
             listOf("1", "2", "3"),
             listOf("4", "5", "6"),
             listOf("7", "8", "9"),
-            listOf("", "0", "⌫"),
+            listOf("", "0", "\u232B"),
         )
         rows.forEach { row ->
             val line = LinearLayout(context).apply {
@@ -266,34 +325,31 @@ class LockOverlay(private val context: Context) {
                 gravity = Gravity.CENTER
             }
             row.forEach { key ->
-                line.addView(buildKey(key, dp))
+                line.addView(buildKey(key, dp, keyW, keyH))
             }
             grid.addView(line)
         }
         return grid
     }
 
-    private fun buildKey(key: String, dp: (Int) -> Int): View {
+    private fun buildKey(key: String, dp: (Int) -> Int, keyW: Int, keyH: Int): View {
         val view = TextView(context).apply {
             text = key
-            setTextColor(Color.WHITE)
-            textSize = 22f
+            setTextColor(Palette.lockInk)
+            textSize = 23f
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(dp(72), dp(62)).apply {
-                setMargins(dp(6), dp(6), dp(6), dp(6))
+            layoutParams = LinearLayout.LayoutParams(keyW, keyH).apply {
+                setMargins(dp(5), dp(5), dp(5), dp(5))
             }
             if (key.isNotEmpty()) {
-                background = GradientDrawable().apply {
-                    setColor(Palette.lockSurface)
-                    cornerRadius = dp(20).toFloat()
-                }
+                background = pill(Palette.lockSurface, Palette.lockSurfaceEdge, dp(22), dp(4))
             }
         }
         if (key.isEmpty()) return view
 
         view.setOnClickListener {
             if (System.currentTimeMillis() < lockedOutUntil) return@setOnClickListener
-            if (key == "⌫") {
+            if (key == "\u232B") {
                 if (pin.isNotEmpty()) pin.setLength(pin.length - 1)
             } else if (pin.length < 6) {
                 pin.append(key)
