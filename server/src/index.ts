@@ -536,4 +536,6 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
 
 process.on('unhandledRejection', (reason) => console.error('[unhandledRejection]', reason));
 
-app.listen(PORT, () => console.log(`vocalock api on :${PORT}`));
+// 127.0.0.1 behind a reverse proxy on the same machine; 0.0.0.0 in a container.
+const HOST = process.env.HOST ?? '0.0.0.0';
+app.listen(PORT, HOST, () => console.log(`vocalock api on ${HOST}:${PORT}`));

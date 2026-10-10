@@ -293,6 +293,28 @@ reach the device.
    events, and a secret → `RAZORPAY_WEBHOOK_SECRET`.
 4. App: `VITE_API_BASE` in `.env.local`.
 
+## Hosting
+
+The API, its database and the public policy pages run on one DigitalOcean
+droplet (Ubuntu 24.04, 1 vCPU / 1 GB, Bangalore) at **vocalock.indidino.com**:
+
+| URL | What |
+|---|---|
+| `https://vocalock.indidino.com/privacy.html` | Privacy policy (Play, Razorpay) |
+| `https://vocalock.indidino.com/delete-account.html` | Account deletion (Play) |
+| `https://vocalock.indidino.com/api/…` | The API; nginx strips `/api` |
+| `https://vocalock.indidino.com/api/webhooks/razorpay` | Razorpay webhook |
+
+On the droplet: nginx (TLS by Let's Encrypt, renewed by `certbot.timer`) proxies
+to Node 22 on `127.0.0.1:8080`, run by the `vocalock-api` systemd unit as the
+unprivileged `vocalock` user; Postgres 16 listens on localhost only; ufw allows
+22, 80 and 443; 2 GB of swap. Production config is
+`/opt/vocalock/server/.env` (mode 600), not in git.
+
+- Redeploy: `scripts/deploy.sh` (ships code and pages, migrates, restarts).
+- Logs: `ssh -i ~/.ssh/vocalock_deploy root@143.110.190.26 journalctl -u vocalock-api -f`
+- The app's release build needs `VITE_API_BASE=https://vocalock.indidino.com/api`.
+
 ## Sign-in (Google)
 
 "Continue with Google" opens Android's own account picker (Credential Manager,
