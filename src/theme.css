@@ -1324,60 +1324,101 @@ button {
 
 /* ---------- PIN ---------- */
 
+/* The card rides over the hero's curved edge like every other screen's
+   content, so the dots always sit on a light ground; the keypad is centred in
+   whatever height is left above the dock. */
+/* The scrolling body becomes a column here so the keypad's auto margins have
+   height to centre in; elsewhere it stays a plain block. */
+.screen__body:has(> .pin-layout) {
+  display: flex;
+  flex-direction: column;
+}
+
+.pin-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.pin-card {
+  background: var(--f-card);
+  border: 2px solid var(--f-line);
+  border-bottom: var(--edge-card) solid var(--f-line-edge);
+  border-radius: var(--r-card);
+  padding: var(--s5) var(--s4) var(--s4);
+  text-align: center;
+}
+
 .pin-dots {
   display: flex;
   justify-content: center;
-  gap: var(--s3);
-  margin: var(--s5) 0 var(--s2);
+  gap: 14px;
 }
 
+/* Empty slots are rings, filled ones solid: readable at a glance. */
 .pin-dot {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: var(--r-pill);
-  background: var(--f-line);
-  box-shadow: inset 0 2px 0 var(--f-line-edge);
+  /* The flow's hue at half strength reads on the white card and the dark one. */
+  border: 2px solid color-mix(in srgb, var(--f-solid) 55%, transparent);
+  background: transparent;
   transition: transform var(--dur) cubic-bezier(0.34, 1.4, 0.64, 1),
-    background var(--dur) ease;
+    background var(--dur) ease, border-color var(--dur) ease;
 }
 
 .pin-dot--filled {
   background: var(--f-solid);
+  border-color: var(--f-solid);
   box-shadow: 0 2px 0 var(--f-solid-edge);
-  transform: scale(1.15);
+  transform: scale(1.12);
+}
+
+.pin-caption {
+  margin-top: var(--s3);
+  min-height: 19px;
+  font-size: var(--t-caption);
+  line-height: 19px;
+  color: var(--ink-muted);
+}
+
+.pin-card .field-error {
+  margin-top: var(--s3);
 }
 
 .pin-pad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--s3);
-  max-width: 300px;
-  margin: var(--s5) auto 0;
+  width: 100%;
+  max-width: 320px;
+  margin: auto;
+  padding: var(--s5) 0;
 }
 
 .pin-key {
-  height: 64px;
+  height: 68px;
   border-radius: var(--r-md);
   background: var(--f-card);
+  color: var(--ink);
   border: 2px solid var(--f-line);
   box-shadow: 0 var(--edge-btn) 0 var(--f-line-edge);
   font-family: var(--display);
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 600;
   display: grid;
   place-items: center;
   transition: transform var(--dur-press) ease, box-shadow var(--dur-press) ease;
 }
 
+.pin-key--text {
+  font-family: var(--body);
+  font-size: var(--t-body);
+}
+
 .pin-key:active {
   transform: translateY(var(--press));
   box-shadow: 0 2px 0 var(--f-line-edge);
-}
-
-.pin-key--blank {
-  background: none;
-  border: 0;
-  box-shadow: none;
 }
 
 /* ---------- paywall ---------- */

@@ -33,6 +33,8 @@ export function BackupPin() {
 
   const current = stage === 'enter' ? first : second;
   const setCurrent = stage === 'enter' ? setFirst : setSecond;
+  // Confirming, the length is known, so show exactly that many slots.
+  const slots = stage === 'confirm' ? first.length : MAX;
 
   const press = (digit: string) => {
     setError('');
@@ -81,6 +83,13 @@ export function BackupPin() {
     }
   };
 
+  // The confirmation finishes itself once it is as long as the PIN.
+  useEffect(() => {
+    if (stage === 'confirm' && second.length === first.length && !busy) void advance();
+    // advance reads the latest state; only the length change should trigger it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, second.length]);
+
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'back'];
 
   return (
@@ -112,25 +121,29 @@ export function BackupPin() {
         </button>
       }
     >
-      <div className="pin-dots">
-        {Array.from({ length: MAX }, (_, i) => (
-          <span key={i} className={`pin-dot${i < current.length ? ' pin-dot--filled' : ''}`} />
-        ))}
-      </div>
+      <div className="pin-layout">
+        <div className="pin-card" aria-live="polite">
+          <div className="pin-dots" aria-label={`${current.length} digits entered`}>
+            {Array.from({ length: slots }, (_, i) => (
+              <span key={i} className={`pin-dot${i < current.length ? ' pin-dot--filled' : ''}`} />
+            ))}
+          </div>
+          {error ? (
+            <div className="field-error">{error}</div>
+          ) : (
+            <div className="pin-caption">
+              {stage === 'enter'
+                ? `${MIN} to ${MAX} digits`
+                : `${current.length} of ${first.length}`}
+            </div>
+          )}
+        </div>
 
-      <div className="field-error">{error}</div>
-
-      <div className="pin-pad">
+        <div className="pin-pad">
         {keys.map((key) => {
           if (key === 'clear') {
             return (
-              <button
-                key={key}
-                type="button"
-                className="pin-key"
-                style={{ fontSize: 14, fontWeight: 600 }}
-                onClick={() => setCurrent('')}
-              >
+              <button key={key} type="button" className="pin-key pin-key--text" onClick={() => setCurrent('')}>
                 Clear
               </button>
             );
@@ -148,6 +161,7 @@ export function BackupPin() {
             </button>
           );
         })}
+        </div>
       </div>
     </Screen>
   );
