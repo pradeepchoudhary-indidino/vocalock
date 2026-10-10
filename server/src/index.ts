@@ -1,4 +1,5 @@
 import express from 'express';
+import { rateLimit } from 'express-rate-limit';
 import { randomBytes } from 'crypto';
 import { bearerToken, createSession, deleteSession, requireSession, verifyGoogleIdToken } from './auth';
 import { query, transaction } from './db';
@@ -7,6 +8,22 @@ import * as razorpay from './razorpay';
 const app = express();
 
 const PORT = Number(process.env.PORT ?? 8080);
+
+/**
+ * Origins allowed to call the API from a browser context. The Android app's
+ * WebView is the origin https://localhost, so every call it makes is
+ * cross-origin; without these headers the WebView blocks them all.
+ */
+const CORS_ORIGINS = new Set(
+  (process.env.CORS_ORIGINS ?? 'https://localhost,http://localhost:5173')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean),
+);
+
+// Behind a load balancer the client IP is in X-Forwarded-For; the rate limits
+// below key on it, so tell Express how many proxies to trust.
+app.set('trust proxy', Number(process.env.TRUST_PROXY ?? 0));
 const RUPEE = 100;
 /** ₹1 for a 1-day trial, then ₹199 every 30 days (the Razorpay plan's period). */
 const PRICING = { trialPaise: 1 * RUPEE, renewalPaise: 199 * RUPEE, trialDays: 1 };
@@ -15,6 +32,23 @@ const SUBSCRIPTION_CYCLES = 60;
 
 const iso = (ms = Date.now()) => new Date(ms).toISOString();
 const newId = (prefix: string) => `${prefix}_${randomBytes(8).toString('hex')}`;
+
+app.use((req, res, next) => {
+  const origin = req.header('origin');
+  if (origin && CORS_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Max-Age', '86400');
+  }
+  // Preflights carry no token, so they must be answered before requireSession.
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+});
 
 // Razorpay calls this, not the app, so it authenticates by signature rather
 // than the bearer token. It needs the raw body for that, so it is registered
@@ -41,7 +75,19 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 
 // ---------------------------------------------------------------- auth
 
-app.post('/auth/google', async (req, res) => {
+// Per IP. Generous for a person, tight for a script.
+const authLimit = rateLimit({ windowMs: 15 * 60_000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false });
+// Per user. Each call creates a real Razorpay subscription, so a loop here
+// would litter the dashboard with abandoned ones.
+const purchaseLimit = rateLimit({
+  windowMs: 60 * 60_000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  keyGenerator: (_req, res) => res.locals.uid as string,
+});
+
+app.post('/auth/google', authLimit, async (req, res) => {
   let identity;
   try {
     identity = await verifyGoogleIdToken(String(req.body?.idToken ?? ''));
@@ -88,7 +134,7 @@ app.post('/auth/signOut', async (req, res) => {
 
 // ------------------------------------------------------- subscriptions
 
-app.post('/startSubscription', async (req, res) => {
+app.post('/startSubscription', purchaseLimit, async (req, res) => {
   const uid = res.locals.uid as string;
   if (razorpay.razorpayConfigured) {
     await startRazorpaySubscription(uid, res);
@@ -346,6 +392,25 @@ async function handleRazorpayEvent(event: RazorpayEvent): Promise<void> {
   }
 }
 
+/**
+ * Stops future debits at Razorpay for the user's live subscription, if it has
+ * one. Returns false only when Razorpay could not be reached and the mandate
+ * may still be live — the caller must then not claim it is stopped.
+ */
+async function stopMandate(mandateId: string): Promise<boolean> {
+  try {
+    await razorpay.cancelSubscription(mandateId);
+    return true;
+  } catch (error) {
+    const current = await razorpay.fetchSubscription(mandateId).catch(() => null);
+    if (current && ['cancelled', 'completed', 'expired', 'halted'].includes(current.status)) {
+      return true; // already stopped
+    }
+    console.error('[razorpay cancel]', error);
+    return false;
+  }
+}
+
 app.post('/cancelSubscription', async (req, res) => {
   const uid = res.locals.uid as string;
   const [live] = await query<{ id: string; provider: string | null; mandate_id: string | null }>(
@@ -359,17 +424,9 @@ app.post('/cancelSubscription', async (req, res) => {
   }
 
   // Stop the debits before telling the user they are stopped.
-  if (live.provider === 'razorpay' && live.mandate_id) {
-    try {
-      await razorpay.cancelSubscription(live.mandate_id);
-    } catch (error) {
-      const current = await razorpay.fetchSubscription(live.mandate_id).catch(() => null);
-      if (!current || !['cancelled', 'completed', 'expired', 'halted'].includes(current.status)) {
-        console.error('[razorpay cancel]', error);
-        res.status(502).send('Could not cancel right now. Try again.');
-        return;
-      }
-    }
+  if (live.provider === 'razorpay' && live.mandate_id && !(await stopMandate(live.mandate_id))) {
+    res.status(502).send('Could not cancel right now. Try again.');
+    return;
   }
 
   // Access continues until valid_until, which is what the paywall promises.
@@ -379,6 +436,43 @@ app.post('/cancelSubscription', async (req, res) => {
     [live.id, iso()],
   );
   res.json({ cancelled: true });
+});
+
+/**
+ * Play's account-deletion requirement. Personal data goes: name, email, the
+ * Google id, every session. The subscription and payment rows stay, attached to
+ * an id that no longer leads to a person, because payment records must be kept
+ * for tax purposes. The mandate is stopped first so nothing is charged after.
+ */
+app.post('/deleteAccount', async (req, res) => {
+  const uid = res.locals.uid as string;
+  const [live] = await query<{ provider: string | null; mandate_id: string | null }>(
+    `SELECT provider, mandate_id FROM subscriptions
+     WHERE user_id = $1 AND status IN ('trial','active');`,
+    [uid],
+  );
+  if (live?.provider === 'razorpay' && live.mandate_id && !(await stopMandate(live.mandate_id))) {
+    res.status(502).send('Could not stop your subscription, so the account was not deleted. Try again.');
+    return;
+  }
+
+  const now = iso();
+  await transaction(async (q) => {
+    await q(
+      `UPDATE subscriptions SET status = 'expired', valid_until = $2,
+         cancelled_at = COALESCE(cancelled_at, $2)
+       WHERE user_id = $1 AND status IN ('trial','active','cancelled');`,
+      [uid, now],
+    );
+    await q(
+      `UPDATE users SET google_sub = NULL, email = NULL, name = NULL, phone = NULL,
+         app_version = NULL, device_model = NULL, last_seen_at = $2
+       WHERE id = $1;`,
+      [uid, now],
+    );
+    await q('DELETE FROM sessions WHERE user_id = $1;', [uid]);
+  });
+  res.json({ deleted: true });
 });
 
 app.post('/getEntitlement', async (req, res) => {
@@ -402,5 +496,14 @@ app.post('/listPayments', async (req, res) => {
     ),
   );
 });
+
+// Express 5 routes a rejected async handler here instead of crashing the
+// process. The detail goes to the log, never to the client.
+app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('[unhandled]', error);
+  if (!res.headersSent) res.status(500).send('Something went wrong. Try again.');
+});
+
+process.on('unhandledRejection', (reason) => console.error('[unhandledRejection]', reason));
 
 app.listen(PORT, () => console.log(`vocalock api on :${PORT}`));
