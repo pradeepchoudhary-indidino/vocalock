@@ -69,25 +69,43 @@ export function App() {
   // and voice lock off, since both keep running natively with the app closed.
   // A lock that is up stays answerable by phrase and PIN until it is lifted.
   useEffect(() => {
-    if (!accountLoaded || !signedIn || premium) return;
+    if (!accountLoaded || !signedIn) return;
+    if (premium) {
+      // A payment settled while the paywall was up (see the checkout effect below).
+      if (location.pathname === '/paywall') navigate('/home', { replace: true });
+      return;
+    }
     if (PREMIUM_ROUTES.test(location.pathname)) navigate('/paywall', { replace: true });
     if (settingsLoaded && listening) {
       void patch({ clapEnabled: false, voiceLockEnabled: false }).then(syncService);
     }
   }, [accountLoaded, signedIn, premium, location.pathname, settingsLoaded, listening, navigate, patch, syncService]);
 
-  // Coming back to the app is when a change made elsewhere — a cancel from a
-  // UPI app, a renewal or a failed one — reaches the screen.
+  // Payments, wherever the app is when they finish. Checkout runs in Chrome and
+  // the UPI app, and meanwhile Android may freeze VocaLock or kill it outright,
+  // taking the screen that started checkout with it. So the app as a whole
+  // listens: the return link (delivered to a fresh process too — Capacitor
+  // holds it until a listener exists), and every return to the foreground,
+  // settles any pending checkout by asking the server, which asks Razorpay.
+  // Coming back is also when a change made elsewhere — a cancel from a UPI app,
+  // a renewal or a failed one — reaches the screen.
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-    let handle: { remove: () => Promise<void> } | undefined;
-    void CapApp.addListener('resume', () => {
-      if (usePremium.getState().session) void usePremium.getState().refresh().catch(() => undefined);
-    }).then((h) => {
-      handle = h;
-    });
-    return () => void handle?.remove();
-  }, []);
+    if (!Capacitor.isNativePlatform() || !accountLoaded) return;
+    const account = usePremium.getState;
+    const handles: Promise<{ remove: () => Promise<void> }>[] = [
+      CapApp.addListener('appUrlOpen', ({ url }) => {
+        if (url.startsWith('com.indidino.vocalock://payment-return')) {
+          void account().resumeCheckout(4).catch(() => undefined);
+        }
+      }),
+      CapApp.addListener('resume', () => {
+        if (!account().session) return;
+        void account().refresh().catch(() => undefined);
+        void account().resumeCheckout(3).catch(() => undefined);
+      }),
+    ];
+    return () => handles.forEach((h) => void h.then((l) => l.remove()));
+  }, [accountLoaded]);
 
   // Pull the window insets once the page exists.
   //

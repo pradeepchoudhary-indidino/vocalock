@@ -8,6 +8,7 @@ import {
   resumePendingCheckout,
   signOutRemote,
   startSubscription,
+  type PurchaseResult,
   type Session,
 } from '../lib/api';
 import type { PlanStatus } from '../db/types';
@@ -75,6 +76,13 @@ interface AccountState {
    * CheckoutDismissed or the failure.
    */
   subscribe: () => Promise<void>;
+  /**
+   * Settles a checkout this app started but never heard back from — Android
+   * may have frozen or killed the app while the user was paying. True if it
+   * turned out paid and Premium is now on.
+   */
+  resumeCheckout: (attempts: number) => Promise<boolean>;
+  applyPurchase: (result: PurchaseResult) => Promise<void>;
   /** Pulls the server's view, which is what sees renewals and failed debits. */
   refresh: () => Promise<void>;
   cancel: () => Promise<void>;
@@ -112,19 +120,7 @@ export const usePremium = create<AccountState>((set, get) => ({
       try {
         await get().refresh();
         // A payment the app lost track of when Android discarded it mid-checkout.
-        const recovered = await resumePendingCheckout(restored);
-        if (recovered) {
-          const entitlement: Entitlement = {
-            ...NO_ENTITLEMENT,
-            status: recovered.status,
-            startedAt: new Date().toISOString(),
-            validUntil: recovered.validUntil,
-            provider: recovered.provider,
-            trialEligible: false,
-          };
-          await Preferences.set({ key: KEY_ENTITLEMENT, value: JSON.stringify(entitlement) });
-          set({ entitlement });
-        }
+        await get().resumeCheckout(1);
       } catch (error) {
         // Revoked or expired on the server: back to Login. Anything else
         // (offline, server down) keeps the cached entitlement until next launch.
@@ -175,10 +171,15 @@ export const usePremium = create<AccountState>((set, get) => ({
     await get().signOut();
   },
 
-  subscribe: async () => {
+  resumeCheckout: async (attempts) => {
     const session = get().session;
-    if (!session) throw new Error('Sign in first.');
-    const result = await startSubscription(session, PRICING.trialDays);
+    if (!session) return false;
+    const recovered = await resumePendingCheckout(session, attempts);
+    if (recovered) await get().applyPurchase(recovered);
+    return Boolean(recovered);
+  },
+
+  applyPurchase: async (result) => {
     const entitlement: Entitlement = {
       ...NO_ENTITLEMENT,
       status: result.status,
@@ -189,6 +190,13 @@ export const usePremium = create<AccountState>((set, get) => ({
     };
     await Preferences.set({ key: KEY_ENTITLEMENT, value: JSON.stringify(entitlement) });
     set({ entitlement });
+  },
+
+  subscribe: async () => {
+    const session = get().session;
+    if (!session) throw new Error('Sign in first.');
+    const result = await startSubscription(session, PRICING.trialDays);
+    await get().applyPurchase(result);
   },
 
   cancel: async () => {

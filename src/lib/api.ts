@@ -180,11 +180,20 @@ export async function startSubscription(
   } catch (error) {
     if (!(error instanceof CheckoutDismissed)) throw error;
     // The redirect can be lost even when the payment went through.
-    const recovered = await resumePendingCheckout(session);
+    const recovered = await resumePendingCheckout(session, 3);
     if (recovered) return recovered;
     throw error;
   }
-  const result = await post<PurchaseResult>('/verifySubscription', session, paid);
+  let result: PurchaseResult;
+  try {
+    result = await post<PurchaseResult>('/verifySubscription', session, paid);
+  } catch (error) {
+    // Razorpay is the authority: if it says paid, the verify failure (a
+    // network drop, a mangled redirect) does not matter.
+    const settled = await resumePendingCheckout(session, 2).catch(() => null);
+    if (settled) return settled;
+    throw error;
+  }
   await clearPendingCheckout();
   return result;
 }
@@ -206,7 +215,24 @@ async function clearPendingCheckout(): Promise<void> {
  * Razorpay, whether it was paid. Returns the activated plan, or null if there
  * is nothing pending or it is still unpaid.
  */
-export async function resumePendingCheckout(session: Session): Promise<PurchaseResult | null> {
+export async function resumePendingCheckout(
+  session: Session,
+  /**
+   * How many times to ask. A UPI approval can take a few seconds to reach
+   * Razorpay after the user is already back in the app, so a return from
+   * checkout asks a few times; a cold start asks once.
+   */
+  attempts = 1,
+): Promise<PurchaseResult | null> {
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) await new Promise((r) => window.setTimeout(r, 2500));
+    const result = await syncPendingCheckout(session);
+    if (result !== 'pending') return result;
+  }
+  return null;
+}
+
+async function syncPendingCheckout(session: Session): Promise<PurchaseResult | null | 'pending'> {
   if (!backendConfigured || !session.token) return null;
   const raw = (await Preferences.get({ key: KEY_PENDING })).value;
   if (!raw) return null;
@@ -234,7 +260,7 @@ export async function resumePendingCheckout(session: Session): Promise<PurchaseR
     }
     return null;
   }
-  if (result.status === 'pending') return null;
+  if (result.status === 'pending') return 'pending';
   await clearPendingCheckout();
   return result;
 }
