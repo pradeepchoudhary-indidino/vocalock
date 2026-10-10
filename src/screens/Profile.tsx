@@ -151,7 +151,6 @@ export function Profile() {
             Your account and plan are cleared from this phone. Your voice lock phrases and
             clap settings stay as they are.
           </p>
-          <div style={{ height: 18 }} />
           <button
             className="btn btn--danger"
             type="button"
@@ -176,7 +175,6 @@ export function Profile() {
             end of the period. Your name, email and sign-in are erased. Payment records are kept,
             without your name, because the law requires it. This cannot be undone.
           </p>
-          <div style={{ height: 18 }} />
           <button
             className="btn btn--danger"
             type="button"

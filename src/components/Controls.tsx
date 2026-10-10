@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import { ChevronRight, InfoIcon, WarnIcon } from './Icons';
 
@@ -220,8 +221,15 @@ export function Sheet({
   children: ReactNode;
   onDismiss: () => void;
 }) {
-  return (
+  // Rendered into <body>, outside every screen: a transform, filter or
+  // contain on any ancestor would otherwise turn it into the frame the fixed
+  // backdrop measures against, and the sheet would open off the bottom.
+  // Outside the screen it also needs the screen's flow, which carries the
+  // colour tokens.
+  const flow = document.querySelector('.screen[data-flow]')?.getAttribute('data-flow') ?? 'blue';
+  return createPortal(
     <div
+      data-flow={flow}
       className="sheet-backdrop"
       role="dialog"
       aria-modal="true"
@@ -231,10 +239,10 @@ export function Sheet({
       }}
     >
       <div className="sheet">{children}</div>
-    </div>
+    </div>,
+    document.body,
   );
 }
-
 
 export function StepPips({ total, done }: { total: number; done: number }) {
   return (

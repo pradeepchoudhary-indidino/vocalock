@@ -337,12 +337,32 @@ button {
 .screen__dock {
   position: sticky;
   bottom: 0;
+  /* Above the body, which is raised (z-index 1) to ride over the hero's curve.
+     Without this, on a short screen the content painted over the dock and hid
+     the screen's main button — "Continue with Google" on a 360×640 phone. */
+  z-index: 2;
   padding: var(--s4) var(--gutter) calc(var(--s5) + var(--safe-bottom));
   background: var(--f-bg);
 }
 
+/* Content scrolling under the dock fades into it rather than being cut. */
+.screen__dock::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--s6) * -1);
+  height: var(--s6);
+  background: linear-gradient(to bottom, transparent, var(--f-bg));
+  pointer-events: none;
+}
+
 .screen--enter {
-  animation: slide-in 260ms cubic-bezier(0.22, 1.1, 0.36, 1) both;
+  /* backwards, not both: holding the end frame leaves an identity transform on
+     the screen, and any transform makes it the containing block for
+     position: fixed. Sheets then sized to the whole scrolled page and opened
+     below the bottom of the display. */
+  animation: slide-in 260ms cubic-bezier(0.22, 1.1, 0.36, 1) backwards;
 }
 
 @keyframes slide-in {
@@ -1503,6 +1523,7 @@ button {
   font-size: var(--t-body);
   color: var(--ink-muted);
   margin-top: var(--s1);
+  text-wrap: balance;
 }
 
 .price__terms {
@@ -1856,8 +1877,41 @@ button {
   margin: 0 auto;
   background: var(--f-bg);
   border-radius: var(--r-hero) var(--r-hero) 0 0;
-  padding: var(--s6) var(--gutter) calc(var(--s5) + var(--safe-bottom));
+  box-shadow: 0 -12px 32px rgba(7, 17, 33, 0.18);
+  padding: var(--s3) var(--gutter) calc(var(--s5) + var(--safe-bottom));
+  max-height: calc(100% - var(--safe-top) - var(--s6));
+  overflow-y: auto;
   animation: sheet-up 260ms cubic-bezier(0.22, 1.1, 0.36, 1) both;
+}
+
+/* The grab handle every bottom sheet carries. */
+.sheet::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 5px;
+  margin: 0 auto var(--s5);
+  border-radius: var(--r-pill);
+  background: var(--f-line-edge);
+}
+
+.sheet .card__title {
+  font-size: var(--t-heading);
+  line-height: 28px;
+  margin-bottom: var(--s2);
+}
+
+.sheet .card__text {
+  font-size: var(--t-body);
+  line-height: 21px;
+}
+
+.sheet .btn {
+  margin-top: var(--s5);
+}
+
+.sheet .text-btn {
+  margin-top: var(--s2);
 }
 
 @keyframes sheet-up {
@@ -2685,7 +2739,9 @@ button {
 
 .login-legal__link {
   display: inline;
-  padding: 0;
+  /* An 18px line is too small to tap; pad the hit area, not the layout. */
+  padding: 12px 4px;
+  margin: -12px -4px;
   font: inherit;
   font-weight: 600;
   color: var(--f-ink);

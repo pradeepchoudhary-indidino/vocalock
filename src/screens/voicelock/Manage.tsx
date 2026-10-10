@@ -119,7 +119,9 @@ export function VoiceLockManage() {
             <LockIcon size={17} />
           </span>
           <span className="phrase-card__label">Lock phrase</span>
-          <span className="phrase-card__value">&ldquo;{settings.lockPhrase}&rdquo;</span>
+          <span className="phrase-card__value">
+            {settings.lockPhrase ? `\u201c${settings.lockPhrase}\u201d` : 'Not set'}
+          </span>
         </div>
         <div className="phrase-card">
           <span className="phrase-card__icon phrase-card__icon--alt">
@@ -168,7 +170,6 @@ export function VoiceLockManage() {
             Your phrases and backup PIN are deleted from this phone. You can set it up again
             any time.
           </p>
-          <div style={{ height: 18 }} />
           <button className="btn btn--danger" type="button" onClick={remove}>
             Remove it
           </button>

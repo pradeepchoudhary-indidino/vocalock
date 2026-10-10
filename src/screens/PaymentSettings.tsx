@@ -39,7 +39,7 @@ export function PaymentSettings() {
           <div className="row__main">
             <div className="row__label">Plan</div>
           </div>
-          <div className="row__sub">Premium</div>
+          <div className="row__sub">VocaLock Premium</div>
         </div>
         <div className="row">
           <div className="row__main">
@@ -90,7 +90,6 @@ export function PaymentSettings() {
             Premium ends straight away and nothing further is charged. The rest of the
             current period is not refunded.
           </p>
-          <div style={{ height: 18 }} />
           <button
             className="btn btn--danger"
             type="button"
