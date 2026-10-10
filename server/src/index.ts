@@ -232,7 +232,7 @@ app.post('/verifySubscription', async (req, res) => {
     res.status(400).send('Unknown subscription.');
     return;
   }
-  if (razorpay.ownerOf(sub) !== uid) {
+  if (!razorpay.isOurs(sub) || razorpay.ownerOf(sub) !== uid) {
     res.status(403).send('That subscription belongs to someone else.');
     return;
   }
@@ -323,6 +323,7 @@ interface RazorpayEvent {
 async function handleRazorpayEvent(event: RazorpayEvent): Promise<void> {
   const sub = event.payload.subscription?.entity;
   if (!sub) return; // not a subscription event
+  if (!razorpay.isOurs(sub)) return; // another app on the shared account
   const payment = event.payload.payment?.entity ?? null;
 
   if (event.event === 'subscription.authenticated') {

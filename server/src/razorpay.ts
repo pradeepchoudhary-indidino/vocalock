@@ -74,7 +74,8 @@ export function createSubscription(opts: {
     addons: [
       { item: { name: `${opts.trialDays}-day trial`, amount: opts.trialPaise, currency: 'INR' } },
     ],
-    notes: { uid: opts.uid },
+    // `app` tells this account's other apps' webhooks the event is not theirs.
+    notes: { uid: opts.uid, app: 'vocalock' },
   });
 }
 
@@ -90,6 +91,17 @@ export function cancelSubscription(id: string): Promise<RzpSubscription> {
   return call('POST', `/subscriptions/${encodeURIComponent(id)}/cancel`, {
     cancel_at_cycle_end: false,
   });
+}
+
+/**
+ * Whether a subscription is VocaLock's. The Razorpay account is shared with
+ * other Indidino apps and every webhook receives every app's events, so the
+ * handler must ignore the rest — failing on them would make Razorpay retry and
+ * eventually disable the webhook. The plan is the reliable mark: only VocaLock
+ * subscribes people to it.
+ */
+export function isOurs(sub: RzpSubscription): boolean {
+  return Boolean(PLAN_ID) && sub.plan_id === PLAN_ID;
 }
 
 /** The uid we stamped on the subscription at creation, if any. */
