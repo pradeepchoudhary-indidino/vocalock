@@ -83,16 +83,21 @@ export function fetchSubscription(id: string): Promise<RzpSubscription> {
   return call('GET', `/subscriptions/${encodeURIComponent(id)}`);
 }
 
-/** The payment behind the subscription's first paid invoice (the trial charge). */
-export async function firstPaymentId(subscriptionId: string): Promise<string | null> {
-  const invoices = await call<{ items: { status: string; payment_id: string | null; date?: number }[] }>(
-    'GET',
-    `/invoices?subscription_id=${encodeURIComponent(subscriptionId)}`,
-  );
-  const paid = invoices.items
-    .filter((i) => i.status === 'paid' && i.payment_id)
+export interface PaidInvoice {
+  payment_id: string;
+  /** Paise. */
+  amount: number;
+  date?: number;
+}
+
+/** The subscription's paid invoices, oldest first: the trial charge, then each renewal. */
+export async function paidInvoices(subscriptionId: string): Promise<PaidInvoice[]> {
+  const invoices = await call<{
+    items: { status: string; payment_id: string | null; amount: number; date?: number }[];
+  }>('GET', `/invoices?subscription_id=${encodeURIComponent(subscriptionId)}`);
+  return invoices.items
+    .filter((i): i is PaidInvoice & { status: string } => i.status === 'paid' && Boolean(i.payment_id))
     .sort((a, b) => (a.date ?? 0) - (b.date ?? 0));
-  return paid[0]?.payment_id ?? null;
 }
 
 /**

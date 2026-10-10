@@ -74,8 +74,6 @@ interface AccountState {
   /** Pulls the server's view, which is what sees renewals and failed debits. */
   refresh: () => Promise<void>;
   cancel: () => Promise<void>;
-  /** Clears the local entitlement. M4 replaces this with a real sign-out. */
-  reset: () => Promise<void>;
 }
 
 export const usePremium = create<AccountState>((set, get) => ({
@@ -197,10 +195,6 @@ export const usePremium = create<AccountState>((set, get) => ({
     set({ entitlement });
   },
 
-  reset: async () => {
-    await Preferences.remove({ key: KEY_ENTITLEMENT });
-    set({ entitlement: NO_ENTITLEMENT });
-  },
 }));
 
 /** Cancelled still counts until validUntil passes. */

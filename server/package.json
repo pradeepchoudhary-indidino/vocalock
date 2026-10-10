@@ -10,7 +10,8 @@
     "dev": "tsc --watch",
     "migrate": "node dist/migrate.js",
     "start:local": "node --env-file=.env dist/index.js",
-    "migrate:local": "node --env-file=.env dist/migrate.js"
+    "migrate:local": "node --env-file=.env dist/migrate.js",
+    "test:e2e": "npm run build && node test/e2e.cjs"
   },
   "dependencies": {
     "express": "^5.3.0",

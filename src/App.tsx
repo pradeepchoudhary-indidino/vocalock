@@ -52,9 +52,8 @@ export function App() {
     if (!usePremium.getState().loaded && !['/', '/splash'].includes(currentPath())) {
       navigate('/splash', { replace: true });
     }
-    // Boot only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // navigate is stable, so this runs once, at boot.
+  }, [navigate]);
 
   // Pull the window insets once the page exists.
   //

@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     trial_price     INTEGER     NOT NULL,   -- paise
     price           INTEGER     NOT NULL,   -- paise
     currency        TEXT        NOT NULL DEFAULT 'INR',
-    provider        TEXT,                   -- 'phonepe' etc; NULL while unpaid
+    provider        TEXT,                   -- 'razorpay'; NULL while unpaid
     mandate_id      TEXT,                   -- gateway mandate; NULL until one exists
     started_at      TEXT        NOT NULL,
     valid_until     TEXT        NOT NULL,

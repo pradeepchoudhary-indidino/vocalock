@@ -10,7 +10,7 @@ import { CheckoutDismissed, openSubscriptionCheckout } from './razorpay';
  * Backend client.
  *
  * Every call goes through here so there is exactly one place to swap the stub
- * for the real Cloud Functions. When VITE_API_BASE is set the calls go over the
+ * for the Node API. When VITE_API_BASE is set the calls go over the
  * network; when it is not, they resolve locally so the app is still fully
  * usable — which is the state it ships in today.
  */

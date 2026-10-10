@@ -64,7 +64,8 @@ src/
                 Calibrate, Profile, PaymentSettings, Legal, voicelock/*
   components/   Screen shell, NavBar, controls, icons
   assets/fonts/ Poppins (woff2, bundled — never fetched at runtime)
-  lib/          Firebase app init, analytics, theme preference
+  lib/          API client, Razorpay checkout, crash reporting, analytics, theme
+  db/           the on-device SQLite stub, used when no API server is configured
   theme.css     the whole design system: tokens first, then the classes
 android/app/src/main/java/com/indidino/vocalock/
   plugins/      ListenerPlugin          the bridge, no detection logic
@@ -83,6 +84,11 @@ android/app/src/main/java/com/indidino/vocalock/
                 LockOverlay             the lock screen, an overlay window not an Activity
                 Palette                 the colours those two screens paint with
 android/vosk/   local Vosk build — see "Vosk is built here" below
+server/         Node + Express API: Google sign-in, Razorpay subscriptions, webhook
+  test/e2e.cjs  end-to-end API suite against a real Postgres (npm run test:e2e)
+db/migrations/  SQL shared by the server and the device schema
+docs/           public policy pages served at vocalock.indidino.com
+scripts/        deploy.sh (ship the API), razorpay-plan.sh, db inspection helpers
 ```
 
 ## Theming
@@ -158,9 +164,9 @@ with 150–600 ms gaps inside a 2 s window fire the alert, then a 3 s cooldown.
 
 ## Firebase
 
-`src/lib/firebase.ts` initialises from `.env.local` (copy `.env.example`). It stays a
-no-op until those values are filled in. Auth, Firestore and Remote Config are wired up
-in M4; no `google-services.json` is needed to build today.
+Firebase is used for Crashlytics only (see below), configured by
+`android/app/google-services.json`, which is gitignored. Sign-in is Google
+directly, not Firebase Auth, and data lives in Postgres, not Firestore.
 
 ## Why voice lock can refuse a phrase
 
@@ -347,8 +353,10 @@ local "Test user" so the UI still works in a plain `npm run dev`.
 
 ## Not built yet
 
-- **M5** — Crashlytics, publicly hosted policy pages, Play listing, closed testing.
-  Analytics events all fire (`src/lib/analytics.ts`) but log to console, not Firebase.
+- **Analytics** — events all fire (`src/lib/analytics.ts`) and double as Crashlytics
+  breadcrumbs, but are not sent to an analytics service.
+- **Remote Config** — prices and trial length are constants in `src/store/account.ts`
+  and `server/src/index.ts`; changing them needs a release (and a new Razorpay plan).
 - **M6** — voice match (only-my-voice unlock).
 
 ## Battery

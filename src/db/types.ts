@@ -1,6 +1,4 @@
 export type PlanStatus = 'trial' | 'active' | 'cancelled' | 'expired' | 'failed';
-export type PaymentType = 'trial' | 'renewal' | 'refund';
-export type PaymentStatus = 'pending' | 'success' | 'failed' | 'simulated';
 
 /** Column names match the SQL exactly, so rows map without a translation layer. */
 export interface UserRow {
@@ -33,20 +31,6 @@ export interface SubscriptionRow {
   cancelled_at: string | null;
 }
 
-export interface PaymentRow {
-  id: string;
-  user_id: string;
-  subscription_id: string | null;
-  /** Paise. */
-  amount: number;
-  currency: string;
-  type: PaymentType;
-  status: PaymentStatus;
-  provider: string | null;
-  provider_txn_id: string | null;
-  created_at: string;
-}
-
 export interface GoogleIdentity {
   sub: string;
   email: string | null;
@@ -62,9 +46,6 @@ export interface GoogleIdentity {
 export interface Repository {
   init(): Promise<void>;
   registerUser(identity: GoogleIdentity, meta: { appVersion: string; deviceModel: string }): Promise<UserRow>;
-  touchUser(userId: string): Promise<void>;
   startTrial(userId: string, days: number): Promise<SubscriptionRow>;
   cancelSubscription(userId: string): Promise<SubscriptionRow | null>;
-  currentSubscription(userId: string): Promise<SubscriptionRow | null>;
-  listPayments(userId: string, limit?: number): Promise<PaymentRow[]>;
 }

@@ -7,7 +7,6 @@ import {
 import { DB_NAME, MIGRATIONS, RUPEE } from './schema';
 import type {
   GoogleIdentity,
-  PaymentRow,
   Repository,
   SubscriptionRow,
   UserRow,
@@ -130,10 +129,6 @@ export class SqliteRepository implements Repository {
     return user;
   }
 
-  async touchUser(userId: string): Promise<void> {
-    await this.require().run('UPDATE users SET last_seen_at = ? WHERE id = ?;', [nowIso(), userId]);
-  }
-
   // ----- subscriptions -----
 
   async startTrial(userId: string, days: number): Promise<SubscriptionRow> {
@@ -202,7 +197,7 @@ export class SqliteRepository implements Repository {
     return { ...current, status: 'cancelled', cancelled_at: cancelledAt };
   }
 
-  async currentSubscription(userId: string): Promise<SubscriptionRow | null> {
+  private async currentSubscription(userId: string): Promise<SubscriptionRow | null> {
     const rows = await this.require().query(
       `SELECT * FROM subscriptions
        WHERE user_id = ? AND status IN ('trial','active','cancelled')
@@ -212,11 +207,4 @@ export class SqliteRepository implements Repository {
     return (rows.values?.[0] as SubscriptionRow) ?? null;
   }
 
-  async listPayments(userId: string, limit = 20): Promise<PaymentRow[]> {
-    const rows = await this.require().query(
-      'SELECT * FROM payments WHERE user_id = ? ORDER BY created_at DESC LIMIT ?;',
-      [userId, limit],
-    );
-    return (rows.values as PaymentRow[]) ?? [];
-  }
 }
