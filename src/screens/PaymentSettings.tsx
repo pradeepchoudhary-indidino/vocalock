@@ -19,6 +19,8 @@ export function PaymentSettings() {
   const navigate = useNavigate();
   const { entitlement, cancel } = usePremium();
   const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   const premium = isPremium(entitlement);
   const canCancel = entitlement.status === 'trial' || entitlement.status === 'active';
@@ -37,7 +39,7 @@ export function PaymentSettings() {
           <div className="row__main">
             <div className="row__label">Plan</div>
           </div>
-          <div className="row__sub">Monthly Premium</div>
+          <div className="row__sub">Premium</div>
         </div>
         <div className="row">
           <div className="row__main">
@@ -51,7 +53,7 @@ export function PaymentSettings() {
           </div>
           <div className="row__sub">
             {PRICING.currency}
-            {PRICING.monthlyPrice}/month
+            {PRICING.renewalPrice} / {PRICING.periodDays} days
           </div>
         </div>
         <div className="row">
@@ -99,14 +101,25 @@ export function PaymentSettings() {
           <button
             className="btn btn--danger"
             type="button"
+            disabled={busy}
             onClick={async () => {
-              await cancel();
+              setBusy(true);
+              setError('');
+              try {
+                await cancel();
+              } catch (failure) {
+                setError((failure as Error).message || 'Could not cancel. Try again.');
+                return;
+              } finally {
+                setBusy(false);
+              }
               track('cancel_confirmed');
               setConfirm(false);
             }}
           >
             Yes, cancel it
           </button>
+          {error ? <div className="field-error">{error}</div> : null}
           <button className="text-btn" type="button" onClick={() => setConfirm(false)}>
             Keep my subscription
           </button>

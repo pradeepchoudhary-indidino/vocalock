@@ -1,7 +1,15 @@
 import { Preferences } from '@capacitor/preferences';
 import { create } from 'zustand';
-import { cancelSubscription, startSubscription, type Session } from '../lib/api';
+import {
+  SessionExpired,
+  cancelSubscription,
+  getEntitlement,
+  signOutRemote,
+  startSubscription,
+  type Session,
+} from '../lib/api';
 import type { PlanStatus } from '../db/types';
+import { setCrashUser } from '../lib/crashlytics';
 
 const KEY_ENTITLEMENT = 'vocalock.entitlement';
 const KEY_SESSION = 'vocalock.session';
@@ -26,8 +34,10 @@ export interface Entitlement {
  */
 export const PRICING = {
   trialPrice: 1,
-  trialDays: 3,
-  monthlyPrice: 499,
+  trialDays: 1,
+  /** Charged every `periodDays` after the trial. */
+  renewalPrice: 199,
+  periodDays: 30,
   currency: '₹',
   paywallVideoUrl: '',
 };
@@ -36,7 +46,7 @@ const NO_ENTITLEMENT: Entitlement = {
   status: 'none',
   plan: 'monthly_premium',
   trialPrice: PRICING.trialPrice,
-  price: PRICING.monthlyPrice,
+  price: PRICING.renewalPrice,
   currency: 'INR',
   startedAt: null,
   validUntil: null,
@@ -52,17 +62,16 @@ interface AccountState {
   hydrate: () => Promise<void>;
   signIn: (session: Session) => Promise<void>;
   signOut: () => Promise<void>;
-  /** Paywall is UI-only for now: this grants the trial straight away. */
-  startTrial: (provider: string) => Promise<void>;
+  /**
+   * Takes payment when the server has Razorpay configured, otherwise grants
+   * the trial straight away. Throws CheckoutDismissed or the failure.
+   */
+  startTrial: () => Promise<void>;
+  /** Pulls the server's view, which is what sees renewals and failed debits. */
+  refresh: () => Promise<void>;
   cancel: () => Promise<void>;
   /** Clears the local entitlement. M4 replaces this with a real sign-out. */
   reset: () => Promise<void>;
-}
-
-function addDays(days: number): string {
-  const until = new Date();
-  until.setUTCDate(until.getUTCDate() + days);
-  return until.toISOString();
 }
 
 export const usePremium = create<AccountState>((set, get) => ({
@@ -92,34 +101,59 @@ export const usePremium = create<AccountState>((set, get) => ({
       }
     }
     set({ entitlement: parsed, session: restored, loaded: true });
+    setCrashUser(restored?.uid ?? null);
+    if (restored) {
+      try {
+        await get().refresh();
+      } catch (error) {
+        // Revoked or expired on the server: back to Login. Anything else
+        // (offline, server down) keeps the cached entitlement until next launch.
+        if (error instanceof SessionExpired) await get().signOut();
+      }
+    }
+  },
+
+  refresh: async () => {
+    const session = get().session;
+    if (!session) return;
+    const remote = await getEntitlement(session);
+    if (!remote) return;
+    const entitlement: Entitlement =
+      remote.status === 'none'
+        ? NO_ENTITLEMENT
+        : { ...get().entitlement, status: remote.status, validUntil: remote.validUntil };
+    await Preferences.set({ key: KEY_ENTITLEMENT, value: JSON.stringify(entitlement) });
+    set({ entitlement });
   },
 
   signIn: async (session) => {
     await Preferences.set({ key: KEY_SESSION, value: JSON.stringify(session) });
     set({ session });
+    setCrashUser(session.uid);
   },
 
   signOut: async () => {
+    const session = get().session;
+    // Best effort: an offline sign-out still clears this phone.
+    if (session) await signOutRemote(session).catch(() => undefined);
     await Promise.all([
       Preferences.remove({ key: KEY_SESSION }),
       Preferences.remove({ key: KEY_ENTITLEMENT }),
     ]);
     set({ session: null, entitlement: NO_ENTITLEMENT });
+    setCrashUser(null);
   },
 
-  startTrial: async (provider) => {
-    // With a backend configured this is where the real mandate is created; the
-    // local write below then just mirrors what the server returned.
+  startTrial: async () => {
     const session = get().session;
-    const remote = session
-      ? await startSubscription(session, PRICING.trialDays).catch(() => null)
-      : null;
+    if (!session) throw new Error('Sign in first.');
+    const result = await startSubscription(session, PRICING.trialDays);
     const entitlement: Entitlement = {
       ...NO_ENTITLEMENT,
-      status: 'trial',
+      status: result.status,
       startedAt: new Date().toISOString(),
-      validUntil: remote?.validUntil ?? addDays(PRICING.trialDays),
-      provider,
+      validUntil: result.validUntil,
+      provider: result.provider,
     };
     await Preferences.set({ key: KEY_ENTITLEMENT, value: JSON.stringify(entitlement) });
     set({ entitlement });
@@ -127,7 +161,9 @@ export const usePremium = create<AccountState>((set, get) => ({
 
   cancel: async () => {
     const session = get().session;
-    if (session) await cancelSubscription(session).catch(() => undefined);
+    // Not swallowed: showing "cancelled" while the mandate still debits would
+    // be the worst failure this screen could have.
+    if (session) await cancelSubscription(session);
     // Access is kept until validUntil, as the spec's cancel flow requires.
     const entitlement: Entitlement = {
       ...get().entitlement,

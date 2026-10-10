@@ -17,4 +17,7 @@ ext {
     // Vosk is built locally (see vosk/), not pulled from Maven — the released
     // AAR's libvosk.so is not 16 KB page aligned. JNA is what it binds through.
     jnaVersion = '5.18.1'
+    // Read by @capacitor-firebase/crashlytics too, so the Java and NDK halves
+    // of Crashlytics stay on one version.
+    firebaseCrashlyticsVersion = '19.4.0'
 }

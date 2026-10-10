@@ -5,7 +5,7 @@ Voice lock + clap-to-find utility for Android. Built to [`spec.md`](./spec.md).
 - **App name:** VocaLock
 - **Package id:** `com.indidino.vocalock`
 - **Launch languages:** English and Hindi (each ships its own Vosk model)
-- **Milestones done:** M0, M1, M2, M3, and M4's UI (paywall is UI-only — see below)
+- **Milestones done:** M0–M3, and M4 with Razorpay payments (see Payments)
 - **ABI:** arm64-v8a only — see the Vosk section
 
 ## Toolchain
@@ -229,22 +229,98 @@ released x86_64 libraries fail the very check being fixed here (JNA's x86_64
 emulators cannot install it; add `armeabi-v7a` to the arch loop in the build script if
 you decide you want them back.
 
-## What the paywall does today
+## Crash reporting (Crashlytics)
 
-By decision, the paywall is **UI only**. "Unlock Now" calls `startTrial()` in
-`src/store/account.ts`, which writes a trial entitlement to device storage and routes
-Home. No mandate is created, no money moves, and the payment-app picker is cosmetic.
+Optional at build time. Without `android/app/google-services.json` the app builds
+and runs with crash reporting off; drop the file in and it is on.
 
-Login is the same shape: `src/screens/Login.tsx` stores the phone number locally and
-sends no code.
+What gets reported:
+- **Kotlin crashes**, including in `ListenerService` while the UI is closed — by the SDK itself.
+- **Native crashes** in `libvosk.so` — via `firebase-crashlytics-ndk`.
+- **Uncaught JavaScript errors** and React render failures — `src/lib/crashlytics.ts`.
+- Each report carries the app's own `uid` (never email or name) and the last
+  analytics events as breadcrumbs.
 
-To make both real in M4, replace `startTrial` with the `createSubscription` callable
-and swap `Login` for the Capacitor Firebase native OTP flow. No other screen changes.
+**Setup:**
+
+1. [Firebase console](https://console.firebase.google.com) → Add project → pick the
+   **same Google Cloud project** as the sign-in OAuth clients. Analytics is optional.
+2. Add an Android app with package `com.indidino.vocalock`, download
+   `google-services.json` into `android/app/` (gitignored; keep it out of the repo).
+3. Crashlytics → Enable.
+4. `npm run sync` and install. Force one test crash so the dashboard leaves its
+   "waiting for first crash" state: open `chrome://inspect` on the computer, inspect
+   the app's WebView, and run
+   `Capacitor.Plugins.FirebaseCrashlytics.crash({ message: 'test' })` in the console.
+   Reopen the app — reports are sent on the next launch.
+5. After every release build, upload native symbols so Vosk frames are named:
+   `cd android && ./gradlew uploadCrashlyticsSymbolFileRelease`
+
+Play's Data Safety form must declare **Crash logs** and **Diagnostics**
+(collected, not shared, for app functionality / analytics).
+
+## Payments (Razorpay)
+
+The paywall takes real money once the server has Razorpay keys; without them it
+grants the trial for free, as before.
+
+**Flow.** ₹1 for a 1-day trial, then ₹199 every 30 days on a Razorpay Subscription (UPI
+AutoPay or card mandate):
+
+1. App → `POST /startSubscription`. The server creates a Razorpay subscription
+   with `start_at` 1 day out and the ₹1 trial as an addon, stamping `notes.uid`.
+2. App opens Razorpay Checkout (`src/lib/razorpay.ts`, Checkout.js in the WebView).
+   UPI apps open through `upi://` links, which Capacitor passes to Android.
+3. App → `POST /verifySubscription` with Checkout's response. The server checks the
+   subscription belongs to that uid, verifies the HMAC, then writes the `trial` row.
+4. `POST /webhooks/razorpay` takes everything after that: `authenticated` (in case
+   the app died before step 3), `charged` (renewal → `active`, extends
+   `valid_until`), `halted` (→ `failed`), `cancelled`, `completed`.
+5. Cancel calls Razorpay's cancel immediately; access runs to `valid_until`.
+
+The app re-reads `/getEntitlement` on every launch, so renewals and failed debits
+reach the device.
+
+**Setup.**
+
+1. Fill `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` in `server/.env` (test keys first).
+2. `scripts/razorpay-plan.sh` → put the returned `id` in `RAZORPAY_PLAN_ID`.
+3. Dashboard → Webhooks: URL `https://<api>/webhooks/razorpay`, the `subscription.*`
+   events, and a secret → `RAZORPAY_WEBHOOK_SECRET`.
+4. App: `VITE_API_BASE` in `.env.local`.
+
+## Sign-in (Google)
+
+"Continue with Google" opens Android's own account picker (Credential Manager,
+via `@capgo/capacitor-social-login`). The app sends Google's ID token to
+`POST /auth/google`; the server verifies Google's signature and that the token
+was issued for our client id, finds or creates the user by Google's `sub`, and
+returns **its own session token**.
+
+Every other route takes the user from that token (`server/src/auth.ts`,
+`requireSession`), never from the request body, so one user cannot act on
+another's account. Sessions last 180 days; only a SHA-256 of each token is
+stored. A 401 signs the app out and returns it to Login.
+
+**Setup** (Google Cloud Console → APIs & Services → Credentials):
+
+1. OAuth consent screen: External, app name VocaLock, scopes `email` and `profile`.
+2. Create a **Web application** client. Its id goes in `GOOGLE_WEB_CLIENT_ID`
+   (server) and `VITE_GOOGLE_WEB_CLIENT_ID` (app). Add `http://localhost:5173`
+   as an authorised JavaScript origin for `npm run dev`.
+3. Create an **Android** client for `com.indidino.vocalock` for each signing key:
+   - debug: `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`
+   - upload: the SHA-1 of `vocalock-release.jks`
+   - Play: Play Console → App integrity → *App signing key* SHA-1 (Play re-signs
+     the bundle, so without this sign-in fails only in the Play build).
+
+   The Android client's id is never put in code; Google matches it by package and SHA-1.
+
+Without `VITE_GOOGLE_WEB_CLIENT_ID` and without a server, the button signs in a
+local "Test user" so the UI still works in a plain `npm run dev`.
 
 ## Not built yet
 
-- **M4 proper** — Firestore, Cloud Functions, real PhonePe AutoPay, server-side
-  entitlement. Entitlement is device-local and trivially resettable today.
 - **M5** — Crashlytics, publicly hosted policy pages, Play listing, closed testing.
   Analytics events all fire (`src/lib/analytics.ts`) but log to console, not Firebase.
 - **M6** — voice match (only-my-voice unlock).

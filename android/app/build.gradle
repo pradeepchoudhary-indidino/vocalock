@@ -1,6 +1,18 @@
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
+// Firebase is optional at build time: without google-services.json the app
+// builds and runs, and Crashlytics simply never initialises. The two plugins
+// go together — Crashlytics with Firebase initialised but no build id (which
+// its Gradle plugin writes) crashes on launch.
+def hasFirebase = file('google-services.json').exists()
+if (hasFirebase) {
+    apply plugin: 'com.google.gms.google-services'
+    apply plugin: 'com.google.firebase.crashlytics'
+} else {
+    logger.lifecycle("google-services.json not found: Firebase and Crashlytics are off for this build")
+}
+
 // Release signing. Credentials live in android/keystore.properties, which is
 // gitignored and never committed — see README. Without that file the project
 // still builds; only assembleRelease/bundleRelease produce an unsigned output.
@@ -85,6 +97,12 @@ android {
                 // grows the upload, never the user's download.
                 debugSymbolLevel 'SYMBOL_TABLE'
             }
+            // Read only when Crashlytics is applied (google-services.json present).
+            // Upload with ./gradlew uploadCrashlyticsSymbolFileRelease after a
+            // release build so libvosk.so frames show function names.
+            if (hasFirebase) {
+                firebaseCrashlytics { nativeSymbolUploadEnabled true }
+            }
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
@@ -108,6 +126,9 @@ dependencies {
     implementation "androidx.security:security-crypto:$androidxSecurityCryptoVersion"
     // Offline phrase spotting, built locally for 16 KB page alignment.
     implementation project(':vosk')
+    // Native crash capture. Vosk runs as C++ inside the listener service, and a
+    // crash there never reaches the Java handler.
+    implementation "com.google.firebase:firebase-crashlytics-ndk:$firebaseCrashlyticsVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
@@ -116,12 +137,3 @@ dependencies {
 }
 
 apply from: 'capacitor.build.gradle'
-
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
-    }
-} catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
-}

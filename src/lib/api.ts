@@ -1,7 +1,9 @@
 import { Capacitor } from '@capacitor/core';
+import { SocialLogin } from '@capgo/capacitor-social-login';
 import { SqliteRepository } from '../db/sqlite';
 import type { Repository } from '../db/types';
 import { APP_VERSION } from './analytics';
+import { openSubscriptionCheckout } from './razorpay';
 
 /**
  * Backend client.
@@ -12,16 +14,22 @@ import { APP_VERSION } from './analytics';
  * usable — which is the state it ships in today.
  */
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
-
-/** Until a real SMS provider is wired up. See functions/src/otp.ts. */
-export const STATIC_OTP = '1234';
-export const OTP_LENGTH = 4;
+/** The "Web application" OAuth client. Android uses it too, as the token audience. */
+const GOOGLE_WEB_CLIENT_ID = import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID ?? '';
 
 export interface Session {
   uid: string;
-  phone: string;
-  /** Present once a real backend issues one; unused by the local stub. */
+  email: string | null;
+  name: string | null;
+  /** The server's session token. Absent in the local stub, which has no server. */
   token?: string;
+}
+
+/** The server no longer accepts this session; the user has to sign in again. */
+export class SessionExpired extends Error {
+  constructor() {
+    super('Please sign in again.');
+  }
 }
 
 const backendConfigured = API_BASE !== '';
@@ -39,12 +47,20 @@ function db(): Promise<void> {
   return ready;
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
+/**
+ * The server derives the user from `session.token`; nothing in the body says
+ * who is calling.
+ */
+async function post<T>(path: string, session: Session | null, body: unknown = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+    },
     body: JSON.stringify(body),
   });
+  if (response.status === 401 && session) throw new SessionExpired();
   if (!response.ok) {
     const text = await response.text().catch(() => '');
     throw new Error(text || `Request failed (${response.status})`);
@@ -52,44 +68,117 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
-export async function requestOtp(phone: string): Promise<void> {
-  if (!backendConfigured) {
-    // No SMS is sent; the code is STATIC_OTP.
-    console.info(`[api] stub requestOtp(${phone}) — use ${STATIC_OTP}`);
-    return;
-  }
-  await post('/requestOtp', { phone });
+let googleReady: Promise<void> | null = null;
+
+/**
+ * Loads Google's sign-in. On the web this injects Google's script, which must
+ * be done ahead of the tap, so the Login screen calls it on mount.
+ */
+export function prepareGoogleSignIn(): Promise<void> {
+  if (!GOOGLE_WEB_CLIENT_ID) return Promise.resolve();
+  googleReady ??= SocialLogin.initialize({ google: { webClientId: GOOGLE_WEB_CLIENT_ID } });
+  return googleReady;
 }
 
-export async function verifyOtp(phone: string, code: string): Promise<Session> {
-  if (!backendConfigured) {
-    if (code !== STATIC_OTP) throw new Error('That code did not work. Try again.');
-    await db();
-    // Registration is implicit: a verified number is a user row.
-    const user = await local.registerUser(phone, {
-      appVersion: APP_VERSION,
-      deviceModel: Capacitor.getPlatform(),
-    });
-    return { uid: user.id, phone: user.phone };
+/** The user closed Google's account picker. Not an error worth showing. */
+export class SignInCancelled extends Error {
+  constructor() {
+    super('Sign-in cancelled');
   }
-  return post<Session>('/verifyOtp', { phone, code });
+}
+
+export async function signInWithGoogle(): Promise<Session> {
+  const meta = { appVersion: APP_VERSION, deviceModel: Capacitor.getPlatform() };
+
+  if (!GOOGLE_WEB_CLIENT_ID) {
+    // Not configured: only the local stub can do without Google, as a single
+    // test account, so the UI stays usable in a plain `npm run dev`.
+    if (backendConfigured) throw new Error('Google sign-in is not configured.');
+    await db();
+    const user = await local.registerUser({ sub: 'dev', email: null, name: 'Test user' }, meta);
+    return { uid: user.id, email: user.email, name: user.name };
+  }
+
+  await prepareGoogleSignIn();
+  let login;
+  try {
+    login = await SocialLogin.login({
+      provider: 'google',
+      options: { scopes: ['email', 'profile'] },
+    });
+  } catch (error) {
+    // The picker reports a back-press as an error whose text mentions cancel.
+    if (/cancel/i.test(String((error as Error)?.message ?? error))) throw new SignInCancelled();
+    throw new Error('Google sign-in failed. Try again.');
+  }
+  const result = login.result as {
+    idToken: string | null;
+    profile: { id: string | null; email: string | null; name: string | null };
+  };
+  if (!result.idToken) throw new Error('Google did not return an account. Try again.');
+
+  if (!backendConfigured) {
+    await db();
+    // No server to verify the token against; the local stub trusts the device.
+    const user = await local.registerUser(
+      { sub: result.profile.id ?? 'unknown', email: result.profile.email, name: result.profile.name },
+      meta,
+    );
+    return { uid: user.id, email: user.email, name: user.name };
+  }
+  return post<Session>('/auth/google', null, { idToken: result.idToken, ...meta });
+}
+
+export async function signOutRemote(session: Session): Promise<void> {
+  if (GOOGLE_WEB_CLIENT_ID) {
+    // So the next sign-in offers the account picker instead of reusing this one.
+    await SocialLogin.logout({ provider: 'google' }).catch(() => undefined);
+  }
+  if (backendConfigured && session.token) await post('/auth/signOut', session);
 }
 
 export interface PurchaseResult {
   status: 'trial' | 'active';
   validUntil: string;
+  /** 'razorpay' once money moved; null for the no-payment trial. */
+  provider: string | null;
 }
 
+interface StartResponse {
+  checkout?: { keyId: string; subscriptionId: string; email: string | null };
+}
+
+/**
+ * With Razorpay configured on the server this opens Checkout and resolves only
+ * once the server has verified the payment. Throws CheckoutDismissed if the
+ * user closes Checkout.
+ */
 export async function startSubscription(
   session: Session,
   trialDays: number,
-): Promise<PurchaseResult | null> {
+): Promise<PurchaseResult> {
   if (!backendConfigured) {
     await db();
     const sub = await local.startTrial(session.uid, trialDays);
-    return { status: 'trial', validUntil: sub.valid_until };
+    return { status: 'trial', validUntil: sub.valid_until, provider: null };
   }
-  return post<PurchaseResult>('/startSubscription', { uid: session.uid, token: session.token });
+  const started = await post<StartResponse & Partial<PurchaseResult>>('/startSubscription', session);
+  if (!started.checkout) return started as PurchaseResult; // server has no gateway configured
+
+  const paid = await openSubscriptionCheckout(started.checkout);
+  return post<PurchaseResult>('/verifySubscription', session, paid);
+}
+
+export interface RemoteEntitlement {
+  premium: boolean;
+  validUntil: string | null;
+  status: 'trial' | 'active' | 'cancelled' | 'expired' | 'failed' | 'none';
+}
+
+/** Null when there is no server; the device's own record is then the truth. */
+export async function getEntitlement(session: Session): Promise<RemoteEntitlement | null> {
+  if (!backendConfigured) return null;
+  return post<RemoteEntitlement>('/getEntitlement', session);
 }
 
 export async function cancelSubscription(session: Session): Promise<void> {
@@ -98,6 +187,6 @@ export async function cancelSubscription(session: Session): Promise<void> {
     await local.cancelSubscription(session.uid);
     return;
   }
-  await post('/cancelSubscription', { uid: session.uid, token: session.token });
+  await post('/cancelSubscription', session);
 }
 

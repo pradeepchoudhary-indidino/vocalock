@@ -6,13 +6,14 @@ import {
 } from '@capacitor-community/sqlite';
 import { DB_NAME, MIGRATIONS, RUPEE } from './schema';
 import type {
+  GoogleIdentity,
   PaymentRow,
   Repository,
   SubscriptionRow,
   UserRow,
 } from './types';
 
-const PRICE_PAISE = { trial: 1 * RUPEE, monthly: 499 * RUPEE };
+const PRICE_PAISE = { trial: 1 * RUPEE, renewal: 199 * RUPEE };
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -84,40 +85,49 @@ export class SqliteRepository implements Repository {
   // ----- users -----
 
   async registerUser(
-    phone: string,
+    identity: GoogleIdentity,
     meta: { appVersion: string; deviceModel: string },
   ): Promise<UserRow> {
     const db = this.require();
-    const existing = await this.findUserByPhone(phone);
+    const rows = await db.query('SELECT * FROM users WHERE google_sub = ? LIMIT 1;', [identity.sub]);
+    const existing = (rows.values?.[0] as UserRow | undefined) ?? null;
     const now = nowIso();
 
     if (existing) {
       await db.run(
-        'UPDATE users SET last_seen_at = ?, app_version = ?, device_model = ? WHERE id = ?;',
-        [now, meta.appVersion, meta.deviceModel, existing.id],
+        `UPDATE users SET email = ?, name = ?, last_seen_at = ?, app_version = ?, device_model = ?
+         WHERE id = ?;`,
+        [identity.email, identity.name, now, meta.appVersion, meta.deviceModel, existing.id],
       );
-      return { ...existing, last_seen_at: now };
+      return { ...existing, email: identity.email, name: identity.name, last_seen_at: now };
     }
 
     const user: UserRow = {
       id: newId('usr'),
-      phone,
+      phone: null,
+      google_sub: identity.sub,
+      email: identity.email,
+      name: identity.name,
       created_at: now,
       last_seen_at: now,
       app_version: meta.appVersion,
       device_model: meta.deviceModel,
     };
     await db.run(
-      `INSERT INTO users (id, phone, created_at, last_seen_at, app_version, device_model)
-       VALUES (?, ?, ?, ?, ?, ?);`,
-      [user.id, user.phone, user.created_at, user.last_seen_at, user.app_version, user.device_model],
+      `INSERT INTO users (id, google_sub, email, name, created_at, last_seen_at, app_version, device_model)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+      [
+        user.id,
+        user.google_sub,
+        user.email,
+        user.name,
+        user.created_at,
+        user.last_seen_at,
+        user.app_version,
+        user.device_model,
+      ],
     );
     return user;
-  }
-
-  async findUserByPhone(phone: string): Promise<UserRow | null> {
-    const rows = await this.require().query('SELECT * FROM users WHERE phone = ? LIMIT 1;', [phone]);
-    return (rows.values?.[0] as UserRow) ?? null;
   }
 
   async touchUser(userId: string): Promise<void> {
@@ -144,7 +154,7 @@ export class SqliteRepository implements Repository {
       plan: 'monthly_premium',
       status: 'trial',
       trial_price: PRICE_PAISE.trial,
-      price: PRICE_PAISE.monthly,
+      price: PRICE_PAISE.renewal,
       currency: 'INR',
       // No gateway yet, so there is no provider or mandate to record.
       provider: null,

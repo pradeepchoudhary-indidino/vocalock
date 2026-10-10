@@ -5,7 +5,6 @@ import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Splash } from './screens/Splash';
 import { Login } from './screens/Login';
-import { Otp } from './screens/Otp';
 import { Paywall } from './screens/Paywall';
 import { Home } from './screens/Home';
 import { ClapSettings } from './screens/ClapSettings';
@@ -123,7 +122,6 @@ export function App() {
       <Route path="/" element={<Navigate to="/splash" replace />} />
       <Route path="/splash" element={<Splash />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/otp" element={<Otp />} />
       <Route path="/paywall" element={<Paywall />} />
       <Route path="/home" element={<Home />} />
 

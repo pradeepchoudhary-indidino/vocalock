@@ -11,20 +11,21 @@ import {
 import { PaywallVideo } from '../components/PaywallVideo';
 import { PRICING, usePremium } from '../store/account';
 import { track } from '../lib/analytics';
+import { CheckoutDismissed } from '../lib/razorpay';
 
 
 /**
  * Screen 3.
  *
- * UI only, by decision: "Unlock Now" grants the trial on the device straight
- * away. No mandate is created and no money moves. The real PhonePe AutoPay flow
- * replaces `startTrial` with the createSubscription call in M4 — everything on
- * this screen stays as it is.
+ * With the server's Razorpay keys set, "Start trial" opens Razorpay Checkout
+ * for the subscription mandate and Premium starts only once the server has
+ * verified the payment. Without a backend it grants the trial on the device.
  */
 export function Paywall() {
   const navigate = useNavigate();
   const startTrial = usePremium((s) => s.startTrial);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     track('paywall_view');
@@ -33,10 +34,22 @@ export function Paywall() {
   const unlock = async () => {
     if (busy) return;
     setBusy(true);
+    setError('');
     track('paywall_cta_tap');
-    track('mandate_started', { mode: 'ui_only' });
-    await startTrial('pending');
-    track('mandate_success', { mode: 'ui_only' });
+    track('mandate_started');
+    try {
+      await startTrial();
+    } catch (failure) {
+      setBusy(false);
+      if (failure instanceof CheckoutDismissed) {
+        track('mandate_failed', { reason: 'dismissed' });
+        return;
+      }
+      track('mandate_failed', { reason: 'error' });
+      setError((failure as Error).message || 'Payment did not go through. Try again.');
+      return;
+    }
+    track('mandate_success');
     navigate('/home', { replace: true });
   };
 
@@ -70,6 +83,7 @@ export function Paywall() {
           <p className="price__terms">
             Cancel any time from Profile &rarr; Payment Settings
           </p>
+          {error ? <div className="field-error">{error}</div> : null}
           <button className="btn btn--primary" type="button" disabled={busy} onClick={unlock}>
             Start trial for {PRICING.currency}
             {PRICING.trialPrice} &rarr;
@@ -87,7 +101,7 @@ export function Paywall() {
         </div>
         <div className="price__then">
           then {PRICING.currency}
-          {PRICING.monthlyPrice}/month &middot; Cancel anytime
+          {PRICING.renewalPrice} every {PRICING.periodDays} days &middot; Cancel anytime
         </div>
 
         <div className="price-card__rule" />
@@ -119,7 +133,7 @@ export function Paywall() {
             </span>
             <span className="timeline__sub" style={{ display: 'block' }}>
               {PRICING.currency}
-              {PRICING.monthlyPrice} every month until you cancel
+              {PRICING.renewalPrice} every {PRICING.periodDays} days until you cancel
             </span>
           </span>
         </div>

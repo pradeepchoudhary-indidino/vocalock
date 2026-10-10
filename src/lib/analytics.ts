@@ -1,3 +1,5 @@
+import { crashBreadcrumb } from './crashlytics';
+
 /**
  * Spec section 10. Firebase Analytics is wired in M5; until then events go to
  * the console with the same names and payloads, so switching the sink over is a
@@ -5,7 +7,6 @@
  */
 export type AnalyticsEvent =
   | 'app_open'
-  | 'login_otp_sent'
   | 'login_success'
   | 'paywall_view'
   | 'paywall_cta_tap'
@@ -36,6 +37,8 @@ export function track(event: AnalyticsEvent, params: Record<string, unknown> = {
   // Stringified, not passed as an object: Android's WebView console flattens
   // objects to "[object Object]" in logcat, which makes field reports useless.
   console.info(`[analytics] ${event} ${JSON.stringify(payload)}`);
+  // The events double as the trail a crash report shows leading up to it.
+  crashBreadcrumb(event);
 }
 
 export { APP_VERSION };

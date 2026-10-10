@@ -5,7 +5,11 @@ export type PaymentStatus = 'pending' | 'success' | 'failed' | 'simulated';
 /** Column names match the SQL exactly, so rows map without a translation layer. */
 export interface UserRow {
   id: string;
-  phone: string;
+  /** Null for Google sign-ins; kept for accounts made under phone OTP. */
+  phone: string | null;
+  google_sub: string | null;
+  email: string | null;
+  name: string | null;
   created_at: string;
   last_seen_at: string;
   app_version: string | null;
@@ -43,6 +47,12 @@ export interface PaymentRow {
   created_at: string;
 }
 
+export interface GoogleIdentity {
+  sub: string;
+  email: string | null;
+  name: string | null;
+}
+
 /**
  * Everything the app needs from persistence.
  *
@@ -51,8 +61,7 @@ export interface PaymentRow {
  */
 export interface Repository {
   init(): Promise<void>;
-  registerUser(phone: string, meta: { appVersion: string; deviceModel: string }): Promise<UserRow>;
-  findUserByPhone(phone: string): Promise<UserRow | null>;
+  registerUser(identity: GoogleIdentity, meta: { appVersion: string; deviceModel: string }): Promise<UserRow>;
   touchUser(userId: string): Promise<void>;
   startTrial(userId: string, days: number): Promise<SubscriptionRow>;
   cancelSubscription(userId: string): Promise<SubscriptionRow | null>;

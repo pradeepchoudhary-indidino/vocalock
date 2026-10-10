@@ -35,13 +35,13 @@ Positioning, stated honestly in the app: this is a convenience / focus tool, not
 | Navigation | React Router |
 | State | Zustand |
 | Native | Kotlin inside `android/`, exposed to React as local Capacitor plugins (this is about half the work) |
-| Firebase in the app | `@capacitor-firebase/*` plugins for Auth (native phone OTP), Analytics, Crashlytics, Remote Config. Firestore via Firebase JS SDK |
+| Firebase in the app | `@capacitor-firebase/*` plugins for Analytics, Crashlytics, Remote Config |
 | Offline phrase spotting | Vosk Android (small English + Hindi models), restricted grammar |
 | Phrase capture during setup | Android `SpeechRecognizer` |
-| Auth | Firebase Auth, phone OTP |
-| Database | Firestore |
-| Server logic | Firebase Cloud Functions (Node, TypeScript) |
-| Payments | PhonePe UPI AutoPay (subscription/mandate APIs). Follow current PhonePe docs, do not guess endpoints |
+| Auth | Google sign-in via Android Credential Manager (`@capgo/capacitor-social-login`). The server verifies Google's ID token and issues its own session token |
+| Database | PostgreSQL on AWS RDS (server); SQLite on the device as the offline stub and cache |
+| Server logic | Node + Express API (TypeScript), `server/` |
+| Payments | Razorpay Subscriptions (UPI AutoPay or card mandate), Standard Checkout in the WebView. Follow current Razorpay docs, do not guess endpoints |
 | Config | Firebase Remote Config (prices, trial length, paywall video URL) |
 | Analytics / crashes | Firebase Analytics + Crashlytics |
 
@@ -51,7 +51,7 @@ This is a hybrid app: React web UI embedded in a native Android app. Do not use 
 
 **Hard rule 2:** the UI must also run in a desktop browser with `npm run dev`. Every plugin gets a web mock (section 4.1) so screens can be built and checked in Chrome without a phone.
 
-**Hard rule 3:** use native phone OTP through the Capacitor Firebase Auth plugin. Do not use the web reCAPTCHA phone flow inside the WebView.
+**Hard rule 3:** sign in with Google through the native account picker (Credential Manager), never Google's web OAuth page inside the WebView. The server must verify the ID token itself, and every API route must take the user from the server-issued session token, never from a uid in the request body.
 
 ---
 
@@ -87,7 +87,8 @@ Project layout:
   app/src/main/java/.../plugins    ListenerPlugin, VoiceSetupPlugin
   app/src/main/java/.../service    ListenerService, detectors, controllers
   app/src/main/java/.../ui         AlertActivity, LockOverlay
-/functions      Firebase Cloud Functions
+/server         Node + Express API (auth, subscriptions, Razorpay webhook)
+/db/migrations  SQL migrations, shared by the server and the device schema
 capacitor.config.ts
 ```
 
@@ -164,8 +165,8 @@ Visual style: light background `#F4F7FD`, white rounded cards (radius 20), prima
 Make it feel like an app, not a website: mobile-only layout, no text selection or long-press menus, no pinch zoom, no tap highlight, respect safe-area insets, handle the Android back button through the Capacitor `App` plugin, short slide transitions between routes, status bar colored to match. All assets bundled in the app so every screen works offline. Only the paywall video streams.
 
 1. **Splash** — check auth and entitlement, route to Login, Paywall or Home.
-2. **Login** — phone number → OTP (Firebase).
-3. **Paywall** — autoplay muted presenter video (URL from Remote Config), "Unlock APP_NAME Premium", big "₹{trialPrice} today", "then ₹{monthlyPrice}/month · Cancel anytime", **trial length stated in plain words**, feature bullets, payment app picker (PhonePe default), "Unlock Now" button → starts mandate flow.
+2. **Login** — one "Continue with Google" button → the phone's Google account picker. Closing the picker is silent; any other failure shows an error under the button.
+3. **Paywall** — autoplay muted presenter video (URL from Remote Config), "Unlock APP_NAME Premium", big "₹{trialPrice} today", "then ₹{renewalPrice} every {periodDays} days · Cancel anytime", **trial length stated in plain words**, a Today / After {trialDays} day timeline, feature bullets, "Start trial for ₹{trialPrice}" button → opens Razorpay Checkout for the mandate (UPI app choice happens inside Checkout). Premium starts only after the server verifies the payment.
 4. **Home** — header with logo and profile icon. Card "Set up your voice lock" with Start setup (after setup: Voice Lock ON/OFF toggle and "Change phrases"). Section FIND MY PHONE: Clap to Find toggle, row "Settings & calibrate".
 5. **Voice lock intro** — explains: two phrases, a PIN always, and the honest "focus tool, not a security lock" note. Button Get started.
 6. **Step 1 Lock phrase** — mic button (idle / listening / captured states), live transcript chip, Start over, Continue. Validation: at least 2 words, error text in red if 1 word.
@@ -175,8 +176,8 @@ Make it feel like an app, not a website: mobile-only layout, no text selection o
 10. **Permissions** — rows for Microphone (Required), Notifications, Battery, Draw over apps. Each shows a green tick or an Allow link. Info box about battery exemption. Done.
 11. **Calibrate** — live bar graph from `calibrationLevel`, clap counter top right, "Heard a clap" label on detection, Test alert.
 12. **Phone found** — native Kotlin `AlertActivity`, not React. Blue gradient, bell icon, "Phone found", Stop alert button, countdown text.
-13. **Profile** — avatar, phone number, plan card, rows: Payment Settings, Privacy Policy, Terms of Service, Refund Policy, Help & Support. Sign out. Version footer.
-14. **Payment Settings** — Plan, Status, Price, Valid until. Cancel subscription button → confirm sheet → calls backend.
+13. **Profile** — avatar, Google name and email, plan card, rows: Payment Settings, Privacy Policy, Terms of Service, Refund Policy, Help & Support. Sign out. Version footer.
+14. **Payment Settings** — Plan, Status, Price (₹{renewalPrice} / {periodDays} days), Valid until. Cancel subscription button → confirm sheet → calls backend. If the backend cannot cancel at Razorpay, show the error; never show "cancelled" while the mandate can still debit.
 
 ---
 
@@ -200,27 +201,43 @@ Make it feel like an app, not a website: mobile-only layout, no text selection o
 ```
 PIN hash lives only in `SecureStore`.
 
-### Firestore
-- `users/{uid}`: `phone`, `createdAt`, `lastSeenAt`, `appVersion`, `deviceModel`
-- `subscriptions/{uid}`: `plan` ("monthly_premium"), `status` ("trial" | "active" | "cancelled" | "expired" | "failed"), `trialPrice`, `price`, `currency`, `mandateId`, `provider` ("phonepe"), `startedAt`, `validUntil`, `cancelledAt`
-- `payments/{id}`: `uid`, `amount`, `type` ("trial" | "renewal"), `status`, `providerTxnId`, `createdAt`
+### Server database (PostgreSQL)
 
-Security rules: a user can read only their own docs. Only Cloud Functions write `subscriptions` and `payments`.
+Schema in `db/migrations/`. Money in paise as integers, timestamps as ISO-8601 UTC text.
+
+- `users`: `id`, `google_sub` (unique, Google's stable account id), `email`, `name`, `phone` (nullable, legacy), `created_at`, `last_seen_at`, `app_version`, `device_model`
+- `sessions`: `token_hash` (SHA-256 of the token; the raw token is never stored), `user_id`, `created_at`, `expires_at` (180 days)
+- `subscriptions`: `plan` ("monthly_premium", kept as the stored id), `status` ("trial" | "active" | "cancelled" | "expired" | "failed"), `trial_price`, `price`, `currency`, `provider` ("razorpay"), `mandate_id` (Razorpay subscription id), `started_at`, `valid_until`, `cancelled_at`. At most one live (trial / active / cancelled) per user
+- `payments`: append-only ledger. `user_id`, `subscription_id`, `amount`, `type` ("trial" | "renewal" | "refund"), `status`, `provider`, `provider_txn_id` (unique per provider, so a retried webhook cannot record a payment twice), `created_at`
+
+Only the server writes `subscriptions` and `payments`. A user can only ever read or change their own rows, because the server takes the user from the session token.
 
 ### Remote Config
-`trial_price` (1), `trial_days` (3), `monthly_price` (499), `paywall_video_url`, `paywall_enabled`
+`trial_price` (1), `trial_days` (1), `renewal_price` (199), `period_days` (30), `paywall_video_url`, `paywall_enabled`
+
+The Razorpay plan's amount and period are fixed when the plan is created, so changing `renewal_price` or `period_days` also needs a new plan (and `RAZORPAY_PLAN_ID`). Existing subscribers stay on the plan they signed up to.
 
 ---
 
-## 7. Backend (Cloud Functions)
+## 7. Backend (Node API)
 
-- `createSubscription` (callable) — creates the PhonePe AutoPay mandate for max `monthly_price`, first debit `trial_price`. Returns the intent/redirect payload for the app
-- `phonepeWebhook` (HTTPS) — verify signature, update `subscriptions` and `payments`
-- `getEntitlement` (callable) — returns `{ premium: boolean, validUntil }`
-- `cancelSubscription` (callable) — revokes the mandate at PhonePe, sets status `cancelled`, access stays until `validUntil`
-- `renewalJob` (scheduled daily) — triggers renewal debits for subscriptions due, marks failures
+**Pricing:** ₹1 for a 1-day trial, then ₹199 every 30 days until cancelled. The Razorpay plan is `period: daily`, `interval: 30`; a `monthly` plan bills on the calendar date (28–31 days apart), and the paywall promises exactly 30.
 
-App caches entitlement locally for 72 hours so the features work offline.
+Auth:
+- `POST /auth/google` — verifies the Google ID token (signature, and audience = our Web OAuth client id), finds or creates the user by `google_sub`, returns `{ uid, email, name, token }`
+- `POST /auth/signOut` — deletes the session
+- Every other route requires `Authorization: Bearer <session token>` and answers 401 otherwise; the app then signs out and returns to Login
+
+Subscriptions:
+- `POST /startSubscription` — refuses if the user already has a live trial or active plan. Creates a Razorpay subscription on the plan with `start_at` = now + `trial_days`, the trial price as an addon charged on the authorisation payment, and `notes.uid`. Returns `{ keyId, subscriptionId }` for Checkout
+- `POST /verifySubscription` — Checkout's response. Fetches the subscription from Razorpay, checks `notes.uid` is the caller, verifies `HMAC_SHA256(payment_id + "|" + subscription_id, key_secret)`, then writes the `trial` row and the trial payment
+- `POST /webhooks/razorpay` — signature-checked (`X-Razorpay-Signature` over the raw body), idempotent. `authenticated` → trial (in case the app died before verify); `charged` → `active`, `valid_until` = end of the paid cycle, renewal payment; `halted` → `failed`, access ends; `cancelled` → `cancelled`; `completed` → `expired`
+- `POST /getEntitlement` — returns `{ premium, validUntil, status }`
+- `POST /cancelSubscription` — cancels at Razorpay immediately (no further debits), sets status `cancelled`; access stays until `valid_until`
+
+Razorpay runs the renewal debits itself, so there is no renewal job.
+
+The app re-reads the entitlement on every launch and keeps the last answer cached, so the features work offline.
 
 ---
 
@@ -229,7 +246,9 @@ App caches entitlement locally for 72 hours so the features work offline.
 - **Play billing:** this app sells a digital subscription outside Google Play Billing. Check the current Google Play payments policy and the India alternative-billing program, and enroll if required, before submitting
 - **Play subscription rules:** price, trial length and renewal terms must be clearly visible on the paywall. Cancel must be easy to find in-app
 - **Microphone:** prominent in-app disclosure before asking for the mic, accurate Data Safety form, foreground service type declaration with a video demo for Play review
-- **UPI AutoPay:** pre-debit notification rules are handled by the PSP, confirm with PhonePe during onboarding
+- **UPI AutoPay:** pre-debit notification rules are handled by the PSP, confirm with Razorpay during onboarding
+- **Google sign-in:** OAuth consent screen published; Android OAuth clients registered for the debug, upload and **Play app-signing** SHA-1s
+- **Data Safety:** declare Google account name and email (account management); no phone number is collected
 - Privacy Policy, Terms, Refund Policy pages hosted publicly
 - Audio never leaves the device. State this in the privacy policy and keep it true
 
@@ -246,7 +265,7 @@ App caches entitlement locally for 72 hours so the features work offline.
 
 ## 10. Analytics events
 
-`app_open`, `login_otp_sent`, `login_success`, `paywall_view`, `paywall_cta_tap`, `mandate_started`, `mandate_success`, `mandate_failed`, `voice_setup_start`, `voice_setup_step` (step), `voice_setup_done`, `clap_toggle` (on/off), `permission_result` (name, granted), `calibrate_open`, `alert_fired` (trigger: clap | whistle | test), `alert_stopped` (how: button | notification | timeout), `lock_shown`, `unlock` (how: voice | pin), `cancel_tap`, `cancel_confirmed`
+`app_open`, `login_success` (method: google), `paywall_view`, `paywall_cta_tap`, `mandate_started`, `mandate_success`, `mandate_failed`, `voice_setup_start`, `voice_setup_step` (step), `voice_setup_done`, `clap_toggle` (on/off), `permission_result` (name, granted), `calibrate_open`, `alert_fired` (trigger: clap | whistle | test), `alert_stopped` (how: button | notification | timeout), `lock_shown`, `unlock` (how: voice | pin), `cancel_tap`, `cancel_confirmed`
 
 All with `uid`, `app_version`, timestamps in UTC.
 
@@ -262,7 +281,7 @@ All with `uid`, `app_version`, timestamps in UTC.
 
 **M3 — Voice Lock.** Setup flow (3 steps), `VoiceSetupPlugin`, Vosk `PhraseSpotter`, `LockOverlay`, PIN and `SecureStore`.
 
-**M4 — Accounts and money.** Phone OTP login, Firestore, Cloud Functions, PhonePe sandbox, Paywall, Profile, Payment Settings, cancel flow, entitlement gating.
+**M4 — Accounts and money.** Google sign-in, Node API on RDS, Razorpay test mode, Paywall, Profile, Payment Settings, cancel flow, entitlement gating.
 
 **M5 — Launch.** Analytics events, Crashlytics, policy pages, compliance checklist, Play Store listing, closed testing, release.
 
@@ -275,7 +294,7 @@ Build and check screens in Chrome first, since it is much faster. Then finish an
 ## 12. Open decisions for the owner
 
 1. App name and package id
-2. Trial length (default here: 3 days) and whether to keep ₹1 → ₹499/month
+2. ~~Trial length and price~~ — decided: ₹1 for 1 day, then ₹199 every 30 days
 3. Show the paywall before or after the user tries Clap to Find once
 4. Languages at launch (English only, or English + Hindi)
 5. Who records the paywall video

@@ -1,7 +1,7 @@
 /**
  * The schema, inlined so the app can create its database with no file I/O.
  *
- * Kept identical in meaning to db/migrations/001_init.sql — that file is what
+ * Kept identical in meaning to db/migrations/*.sql — those files are what
  * runs on RDS. Change one, change both: the whole point is that a row written
  * on the device fits the server table without translation.
  */
@@ -49,6 +49,31 @@ export const MIGRATIONS: { version: number; statements: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS payments_by_user ON payments (user_id, created_at DESC);`,
       `CREATE UNIQUE INDEX IF NOT EXISTS payments_provider_txn_unique
          ON payments (provider, provider_txn_id) WHERE provider_txn_id IS NOT NULL;`,
+    ],
+  },
+  {
+    // db/migrations/002_google_sessions.sql. SQLite cannot drop phone's NOT
+    // NULL in place, so users is rebuilt. Foreign keys are still off here (the
+    // pragma is set after migrating), so dropping the old table is safe.
+    version: 2,
+    statements: [
+      `CREATE TABLE users_v2 (
+         id TEXT PRIMARY KEY,
+         phone TEXT UNIQUE,
+         created_at TEXT NOT NULL,
+         last_seen_at TEXT NOT NULL,
+         app_version TEXT,
+         device_model TEXT,
+         google_sub TEXT,
+         email TEXT,
+         name TEXT
+       );`,
+      `INSERT INTO users_v2 (id, phone, created_at, last_seen_at, app_version, device_model)
+         SELECT id, phone, created_at, last_seen_at, app_version, device_model FROM users;`,
+      `DROP TABLE users;`,
+      `ALTER TABLE users_v2 RENAME TO users;`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS users_google_sub_unique
+         ON users (google_sub) WHERE google_sub IS NOT NULL;`,
     ],
   },
 ];

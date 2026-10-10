@@ -33,8 +33,8 @@ export function Profile() {
           <NavBar title="Profile" />
           <div className="hero__centre">
             <div className="hero-illo">&#128100;</div>
-            <div className="hero__name">{session?.phone ?? 'VocaLock'}</div>
-            <div className="hero__sub">VocaLock account</div>
+            <div className="hero__name">{session?.name ?? 'VocaLock'}</div>
+            <div className="hero__sub">{session?.email ?? 'VocaLock account'}</div>
           </div>
         </>
       }
@@ -136,7 +136,7 @@ export function Profile() {
         <Sheet title="Sign out" onDismiss={() => setConfirmOut(false)}>
           <h2 className="card__title">Sign out?</h2>
           <p className="card__text">
-            Your number and plan are cleared from this phone. Your voice lock phrases and
+            Your account and plan are cleared from this phone. Your voice lock phrases and
             clap settings stay as they are.
           </p>
           <div style={{ height: 18 }} />

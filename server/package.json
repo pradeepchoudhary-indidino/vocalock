@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "express": "^4.21.1",
+    "google-auth-library": "^11.2.0",
     "pg": "^8.13.1"
   },
   "devDependencies": {
