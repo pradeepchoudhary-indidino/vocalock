@@ -102,11 +102,12 @@ export async function signInWithGoogle(): Promise<Session> {
   await prepareGoogleSignIn();
   let login;
   try {
-    login = await SocialLogin.login({
-      provider: 'google',
-      options: { scopes: ['email', 'profile'] },
-    });
+    // No `scopes`: the ID token already carries name and email. Asking for
+    // scopes, even these, makes the plugin demand a MainActivity change and
+    // fail every login without it.
+    login = await SocialLogin.login({ provider: 'google', options: {} });
   } catch (error) {
+    console.warn('[VocaLock] Google sign-in failed', error);
     // The picker reports a back-press as an error whose text mentions cancel.
     if (/cancel/i.test(String((error as Error)?.message ?? error))) throw new SignInCancelled();
     throw new Error('Google sign-in failed. Try again.');
@@ -132,7 +133,10 @@ export async function signInWithGoogle(): Promise<Session> {
 export async function signOutRemote(session: Session): Promise<void> {
   if (GOOGLE_WEB_CLIENT_ID) {
     // So the next sign-in offers the account picker instead of reusing this one.
-    await SocialLogin.logout({ provider: 'google' }).catch(() => undefined);
+    // logout rejects unless the provider was initialised first.
+    await prepareGoogleSignIn()
+      .then(() => SocialLogin.logout({ provider: 'google' }))
+      .catch(() => undefined);
   }
   if (backendConfigured && session.token) await post('/auth/signOut', session);
 }
