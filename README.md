@@ -317,9 +317,17 @@ unprivileged `vocalock` user; Postgres 16 listens on localhost only; ufw allows
 22, 80 and 443; 2 GB of swap. Production config is
 `/opt/vocalock/server/.env` (mode 600), not in git.
 
+- Pages: `/privacy.html`, `/terms.html`, `/refund.html`, `/delete-account.html`.
+- Backups: `vocalock-db-backup.timer` dumps the database nightly (03:30 IST) to
+  `/var/backups/vocalock`, keeping 14 days. Restore:
+  `gunzip -c FILE | sudo -u postgres psql vocalock`. Turn on DigitalOcean's own
+  droplet backups as well, for the machine itself.
+- SSH is key-only (`/etc/ssh/sshd_config.d/00-vocalock-hardening.conf`); the
+  DigitalOcean web console still works for recovery.
 - Redeploy: `scripts/deploy.sh` (ships code and pages, migrates, restarts).
 - Logs: `ssh -i ~/.ssh/vocalock_deploy root@143.110.190.26 journalctl -u vocalock-api -f`
-- The app's release build needs `VITE_API_BASE=https://vocalock.indidino.com/api`.
+- Release builds read `.env.production` (API base and Google client id, neither
+  secret). `npm run dev` does not, so local work never hits production.
 
 ## Sign-in (Google)
 

@@ -30,8 +30,8 @@ android {
         applicationId "com.indidino.vocalock"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.0"
+        versionCode 3
+        versionName "1.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // 85 locales of AndroidX strings ship by default; we support two.
         resConfigs "en", "hi"

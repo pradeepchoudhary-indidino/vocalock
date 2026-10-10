@@ -39,3 +39,9 @@
 -dontwarn com.google.errorprone.annotations.**
 -dontwarn javax.annotation.**
 -dontwarn javax.annotation.concurrent.**
+
+# --- Social login: Facebook off -------------------------------------------
+# capacitor.config.ts turns the Facebook provider off, so its SDK is
+# compileOnly and absent from the APK (keeping out its AD_ID permission). The
+# plugin's FacebookProvider still references it but is never initialised.
+-dontwarn com.facebook.**
