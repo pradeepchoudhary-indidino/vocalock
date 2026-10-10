@@ -1,0 +1,10 @@
+# Only server/Dockerfile builds from this context, and it needs very little.
+# An allowlist, so the Vosk models, keystore and .env files can never end up
+# in an image by accident.
+*
+!server/package.json
+!server/package-lock.json
+!server/tsconfig.json
+!server/src
+!server/certs
+!db/migrations
