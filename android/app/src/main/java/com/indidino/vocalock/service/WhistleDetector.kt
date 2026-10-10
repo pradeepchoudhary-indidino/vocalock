@@ -14,6 +14,10 @@ import kotlin.math.sqrt
  * across the spectrum, which is what spectral flatness measures — so "one strong
  * peak in band, low flatness, held for 300 ms" separates a whistle from a voice
  * without needing anything heavier than an FFT per frame.
+ *
+ * It also reports when any such tone is sounding, whether or not whistle alerts
+ * are on, because the clap detector needs to know: a breathy whistle swells and
+ * dips, and each swell looks like a short bright burst.
  */
 class WhistleDetector(private val onFire: () -> Unit) {
 
@@ -26,14 +30,36 @@ class WhistleDetector(private val onFire: () -> Unit) {
         private const val MAX_HZ = 4_000f
 
         /**
-         * Peak must hold this much of the in-band energy. Raised from 0.34
-         * after a device soak produced a false alert against background
-         * speech/music, which puts real energy in the 1-4 kHz band.
+         * The tone's main lobe must hold this share of the in-band POWER.
+         *
+         * Measured over the lobe (peak ±2 bins), not the single peak bin: the Hann
+         * window spreads even a perfect tone across about three bins, so a
+         * one-bin share topped out near 0.5 for a tone on a bin centre and fell
+         * to ~0.38 between bins. With the threshold at 0.45 most real whistles,
+         * which also carry breath noise, never registered. Power rather than
+         * magnitude makes a tone stand out from noise by the square.
          */
-        private const val MIN_PEAK_SHARE = 0.45f
+        private const val MIN_LOBE_SHARE = 0.6f
+        private const val LOBE_BINS = 2
 
-        /** Geometric/arithmetic mean ratio; a pure tone sits far below this. */
-        private const val MAX_FLATNESS = 0.22f
+        /**
+         * A whistle has nothing at half its pitch. A voice or an instrument whose
+         * harmonic lands in band does — its fundamental — which is what caught
+         * background music before.
+         */
+        private const val MAX_SUBHARMONIC_SHARE = 0.2f
+
+        /** How long after the last tonal frame [toneActive] still answers yes. */
+        private const val TONE_MEMORY_MS = 400L
+
+        /**
+         * Spectral flatness (Wiener entropy): geometric over arithmetic mean of the
+         * in-band POWER. White noise sits near 0.56, voiced speech around 0.05 to
+         * 0.2, a whistle with breath noise at 0.002 to 0.02. It used to be taken
+         * over magnitudes with a limit of 0.22, which a breathy whistle crossed
+         * in every dip of its swell, resetting the hold before it could fire.
+         */
+        private const val MAX_FLATNESS = 0.05f
 
         /** Ignore near-silence. */
         private const val MIN_LEVEL = 0.012f
@@ -52,11 +78,18 @@ class WhistleDetector(private val onFire: () -> Unit) {
 
     private val real = FloatArray(FFT_SIZE)
     private val imag = FloatArray(FFT_SIZE)
-    private val magnitude = FloatArray(FFT_SIZE / 2)
+    private val power = FloatArray(FFT_SIZE / 2)
 
     private var holdingSince = 0L
     private var holdBin = -1
     private var cooldownUntil = 0L
+    private var lastToneAt = Long.MIN_VALUE / 2
+
+    /** Off when the user has whistle detection switched off; tones are still tracked. */
+    var fireEnabled = true
+
+    /** Whether a whistle-like tone is sounding now, or was a moment ago. */
+    fun toneActive(nowMs: Long): Boolean = nowMs - lastToneAt <= TONE_MEMORY_MS
 
     fun reset() {
         filled = 0
@@ -97,43 +130,45 @@ class WhistleDetector(private val onFire: () -> Unit) {
         }
         fft(real, imag)
 
-        for (k in magnitude.indices) {
-            magnitude[k] = sqrt(real[k] * real[k] + imag[k] * imag[k])
-        }
+        for (k in power.indices) power[k] = real[k] * real[k] + imag[k] * imag[k]
 
         val lowBin = (MIN_HZ / BIN_HZ).toInt()
-        val highBin = minOf((MAX_HZ / BIN_HZ).toInt(), magnitude.size - 1)
+        val highBin = minOf((MAX_HZ / BIN_HZ).toInt(), power.size - 1)
 
         var peakBin = lowBin
-        var peakValue = 0f
-        var bandSum = 0f
+        var peakPower = 0f
+        var bandPower = 0f
         var logSum = 0.0
         var count = 0
         for (k in lowBin..highBin) {
-            val value = magnitude[k]
-            bandSum += value
-            logSum += ln((value + 1e-9f).toDouble())
+            bandPower += power[k]
+            logSum += ln((power[k] + 1e-12f).toDouble())
             count++
-            if (value > peakValue) {
-                peakValue = value
+            if (power[k] > peakPower) {
+                peakPower = power[k]
                 peakBin = k
             }
         }
-        if (bandSum <= 0f || count == 0) {
+        if (bandPower <= 0f || count == 0) {
             holdBin = -1
             return
         }
 
-        val peakShare = peakValue / bandSum
-        val arithmeticMean = bandSum / count
+        val lobePower = lobe(peakBin)
+        val lobeShare = lobePower / bandPower
+        val subharmonicShare = lobe(peakBin / 2) / lobePower
+        val arithmeticMean = bandPower / count
         val geometricMean = Math.exp(logSum / count).toFloat()
         val flatness = if (arithmeticMean > 0f) geometricMean / arithmeticMean else 1f
 
-        val isTone = peakShare >= MIN_PEAK_SHARE && flatness <= MAX_FLATNESS
+        val isTone = lobeShare >= MIN_LOBE_SHARE &&
+            flatness <= MAX_FLATNESS &&
+            subharmonicShare <= MAX_SUBHARMONIC_SHARE
         if (!isTone) {
             holdBin = -1
             return
         }
+        lastToneAt = nowMs
 
         // The same tone has to persist; a bin that jumps around is not a whistle.
         if (holdBin < 0 || abs(peakBin - holdBin) > MAX_DRIFT_BINS) {
@@ -143,11 +178,18 @@ class WhistleDetector(private val onFire: () -> Unit) {
         }
         holdBin = peakBin
 
-        if (nowMs - holdingSince >= HOLD_MS && nowMs >= cooldownUntil) {
+        if (fireEnabled && nowMs - holdingSince >= HOLD_MS && nowMs >= cooldownUntil) {
             cooldownUntil = nowMs + COOLDOWN_MS
             holdBin = -1
             onFire()
         }
+    }
+
+    /** Power in the main lobe around [bin]: where a windowed pure tone lands. */
+    private fun lobe(bin: Int): Float {
+        var sum = 0f
+        for (k in maxOf(0, bin - LOBE_BINS)..minOf(power.size - 1, bin + LOBE_BINS)) sum += power[k]
+        return sum
     }
 
     /** In-place radix-2 Cooley–Tukey. FFT_SIZE is a power of two. */

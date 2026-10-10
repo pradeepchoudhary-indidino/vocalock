@@ -17,6 +17,11 @@ class ClapDetector(
     private val onClap: (chainCount: Int) -> Unit,
     /** Called when enough claps have landed close enough together. */
     private val onFire: () -> Unit,
+    /**
+     * True while something tonal is sounding (see WhistleDetector.toneActive).
+     * A whistle's swells pass as short bright bursts, so none count then.
+     */
+    private val suppressed: (nowMs: Long) -> Boolean = { false },
 ) {
 
     companion object {
@@ -166,6 +171,11 @@ class ClapDetector(
 
     private fun registerClap(nowMs: Long) {
         if (nowMs < cooldownUntil) return
+        if (suppressed(nowMs)) {
+            // Also drop a chain the first swell may have started.
+            chain = 0
+            return
+        }
 
         val gap = nowMs - lastClapAt
         val continues = chain > 0 &&

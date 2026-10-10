@@ -2,6 +2,7 @@ package com.indidino.vocalock.ui
 
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -110,6 +111,8 @@ class AlertActivity : AppCompatActivity() {
         }
         val bell = ImageView(this).apply {
             setImageResource(R.drawable.ic_bell_large)
+            // The drawable is white; on the white tile it has to take the brand ink.
+            imageTintList = ColorStateList.valueOf(Palette.onLightBrand)
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,

@@ -265,6 +265,7 @@ class ListenerService : Service() {
             onFire = {
                 if (!calibrating) AlertController.start(this, "clap")
             },
+            suppressed = { now -> whistleDetector.toneActive(now) },
         )
         whistleDetector = WhistleDetector {
             if (!calibrating) AlertController.start(this, "whistle")
@@ -616,11 +617,14 @@ class ListenerService : Service() {
         val selfNoisy = isSelfNoisy(now) && !calibrating
 
         if (!alerting && !clapPaused && !selfNoisy) {
+            // Whistle first: the clap detector asks it whether a tone is sounding.
+            // It runs whenever claps do, alerting only if whistles are switched on.
+            if (settings.clapEnabled && !calibrating) {
+                whistleDetector.fireEnabled = settings.whistleEnabled
+                whistleDetector.accept(frame, length, now)
+            }
             if (settings.clapEnabled || calibrating) {
                 clapDetector.accept(frame, length, now)
-            }
-            if (settings.clapEnabled && settings.whistleEnabled && !calibrating) {
-                whistleDetector.accept(frame, length, now)
             }
         }
 
