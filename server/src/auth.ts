@@ -1,7 +1,8 @@
-import { createHash, randomBytes } from 'crypto';
+import { randomBytes } from 'crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { query } from './db';
+import { sha256 as hash } from './util';
 
 /**
  * Who is calling.
@@ -34,8 +35,6 @@ export async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdenti
     name: payload.name ?? null,
   };
 }
-
-const hash = (token: string) => createHash('sha256').update(token).digest('hex');
 
 export async function createSession(userId: string): Promise<string> {
   const token = randomBytes(32).toString('hex');

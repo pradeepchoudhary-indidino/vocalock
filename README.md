@@ -286,7 +286,12 @@ AutoPay or card mandate):
 4. `POST /webhooks/razorpay` takes everything after that: `authenticated` (in case
    the app died before step 3), `charged` (renewal → `active`, extends
    `valid_until`), `halted` (→ `failed`), `cancelled`, `completed`.
-5. Cancel calls Razorpay's cancel immediately; access runs to `valid_until`.
+5. Cancel calls Razorpay's cancel immediately and ends Premium at once, whether done in
+   the app, from a UPI app or in the dashboard. The app leaves the Premium screens and
+   switches clap-to-find and voice lock off.
+6. **One ₹1 trial per person.** `trial_claims` holds a hash of the Google account id, so
+   it outlives Delete account. Anyone who has had it is offered ₹199 for 30 days,
+   charged at checkout (a subscription with no `start_at` and no addon).
 
 The app re-reads `/getEntitlement` on every launch, so renewals and failed debits
 reach the device.

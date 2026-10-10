@@ -54,29 +54,38 @@ async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown): Pr
   return json as T;
 }
 
-/**
- * The trial is the subscription's start date pushed out by `trialDays`, with the
- * trial price charged as an addon on the authorisation payment. The first
- * plan-price debit happens on `start_at`.
- */
 export function createSubscription(opts: {
   uid: string;
-  trialDays: number;
-  trialPaise: number;
+  /** Null when the person has had their trial: the plan price is charged now. */
+  trial: { days: number; paise: number } | null;
   totalCount: number;
 }): Promise<RzpSubscription> {
+  const now = Math.floor(Date.now() / 1000);
   return call('POST', '/subscriptions', {
     plan_id: PLAN_ID,
     total_count: opts.totalCount,
-    start_at: Math.floor(Date.now() / 1000) + opts.trialDays * 86_400,
     // Unpaid checkouts are abandoned rather than left payable for 30 years.
-    expire_by: Math.floor(Date.now() / 1000) + 86_400,
-    addons: [
-      { item: { name: `${opts.trialDays}-day trial`, amount: opts.trialPaise, currency: 'INR' } },
-    ],
-    // `app` tells this account's other apps' webhooks the event is not theirs.
-    notes: { uid: opts.uid, app: 'vocalock' },
+    expire_by: now + 86_400,
+    // With a trial, the first plan-price debit waits until start_at and the
+    // authorisation charges only the addon. Without one, start_at is left out
+    // and the authorisation charges the first 30 days.
+    ...(opts.trial
+      ? {
+          start_at: now + opts.trial.days * 86_400,
+          addons: [
+            { item: { name: `${opts.trial.days}-day trial`, amount: opts.trial.paise, currency: 'INR' } },
+          ],
+        }
+      : {}),
+    // `app` tells this account's other apps' webhooks the event is not theirs;
+    // `trial` tells activation which kind of subscription it is looking at.
+    notes: { uid: opts.uid, app: 'vocalock', trial: opts.trial ? '1' : '0' },
   });
+}
+
+/** Whether this subscription was created with the ₹1 trial. */
+export function hasTrial(sub: RzpSubscription): boolean {
+  return Array.isArray(sub.notes) ? true : sub.notes.trial !== '0';
 }
 
 export function fetchSubscription(id: string): Promise<RzpSubscription> {

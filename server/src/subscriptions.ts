@@ -14,11 +14,34 @@ export const PRICING = { trialPaise: 1 * RUPEE, renewalPaise: 199 * RUPEE, trial
 /** 30-day debits the mandate covers: about five years, then the user re-subscribes. */
 export const SUBSCRIPTION_CYCLES = 60;
 
+const DAY_MS = 86_400_000;
+const PERIOD_DAYS = 30;
+
 /**
- * Turns an authorised Razorpay subscription into a trial row plus its ledger
- * entry. Idempotent: the app's verify call and the webhook both land here.
+ * Whether this user may still have the ₹1 trial: one per Google account, ever.
+ * Claims are keyed by a hash of the Google id, so they outlive Delete account.
  */
-export async function activateTrial(
+export async function trialEligible(uid: string): Promise<boolean> {
+  const [row] = await query<{ claimed: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM trial_claims c JOIN users u ON u.google_sub IS NOT NULL
+         AND c.google_sub_hash = encode(sha256(u.google_sub::bytea), 'hex')
+       WHERE u.id = $1
+     ) OR EXISTS (
+       SELECT 1 FROM subscriptions WHERE user_id = $1 AND provider = 'razorpay'
+     ) AS claimed;`,
+    [uid],
+  );
+  return !row?.claimed;
+}
+
+/**
+ * Turns an authorised Razorpay subscription into a subscription row plus its
+ * ledger entry: a trial (₹1 now, plan price from start_at) or, for someone who
+ * has had their trial, a paid first period. Idempotent: the app's verify call,
+ * the sync and the webhook can all land here.
+ */
+export async function activateSubscription(
   uid: string,
   sub: razorpay.RzpSubscription,
   paymentId: string | null,
@@ -45,28 +68,41 @@ export async function activateTrial(
       [uid],
     );
     const now = iso();
-    const validUntil = sub.start_at
-      ? iso(sub.start_at * 1000)
-      : iso(Date.now() + PRICING.trialDays * 86_400_000);
+    const trial = razorpay.hasTrial(sub);
+    const status = trial ? 'trial' : 'active';
+    const validUntil = trial
+      ? iso((sub.start_at ?? Date.now() / 1000 + PRICING.trialDays * 86_400) * 1000)
+      : iso(sub.current_end ? sub.current_end * 1000 : Date.now() + PERIOD_DAYS * DAY_MS);
     const subscriptionId = newId('sub');
     await q(
       `INSERT INTO subscriptions
          (id, user_id, plan, status, trial_price, price, currency,
           provider, mandate_id, started_at, valid_until, cancelled_at)
-       VALUES ($1, $2, 'monthly_premium', 'trial', $3, $4, 'INR',
-               'razorpay', $5, $6, $7, NULL);`,
-      [subscriptionId, uid, PRICING.trialPaise, PRICING.renewalPaise, sub.id, now, validUntil],
+       VALUES ($1, $2, 'monthly_premium', $3, $4, $5, 'INR',
+               'razorpay', $6, $7, $8, NULL);`,
+      [subscriptionId, uid, status, trial ? PRICING.trialPaise : 0, PRICING.renewalPaise, sub.id, now, validUntil],
     );
     await recordPayment(q, {
       uid,
       subscriptionId,
-      amount: PRICING.trialPaise,
-      type: 'trial',
+      amount: trial ? PRICING.trialPaise : PRICING.renewalPaise,
+      // A paid first period is recorded as a renewal: a full-price period charge.
+      type: trial ? 'trial' : 'renewal',
       providerTxnId: paymentId,
     });
-    return { status: 'trial', validUntil, provider: 'razorpay' };
+    if (trial) {
+      await q(
+        `INSERT INTO trial_claims (google_sub_hash, claimed_at)
+         SELECT encode(sha256(google_sub::bytea), 'hex'), $2 FROM users
+         WHERE id = $1 AND google_sub IS NOT NULL
+         ON CONFLICT DO NOTHING;`,
+        [uid, now],
+      );
+    }
+    return { status, validUntil, provider: 'razorpay' };
   });
 }
+
 
 /** Ledger insert that a retried webhook cannot duplicate. */
 async function recordPayment(
@@ -124,7 +160,8 @@ async function applyRenewal(
  * Razorpay has ended the subscription.
  * - halted: every retry of a renewal failed; access ends now.
  * - cancelled: usually already done by /cancelSubscription; this catches
- *   dashboard cancels and mandates revoked from the user's UPI app.
+ *   dashboard cancels and mandates revoked from the user's UPI app. Access
+ *   ends immediately, as it does for an in-app cancel.
  * - completed: every billing cycle has run.
  */
 async function applyLapse(rowId: string, razorpayStatus: string): Promise<void> {
@@ -135,8 +172,9 @@ async function applyLapse(rowId: string, razorpayStatus: string): Promise<void> 
       [rowId, iso()],
     );
   } else if (razorpayStatus === 'cancelled') {
+    // Cancelling ends Premium immediately, wherever it was done.
     await query(
-      `UPDATE subscriptions SET status = 'cancelled', cancelled_at = $2
+      `UPDATE subscriptions SET status = 'cancelled', cancelled_at = $2, valid_until = $2
        WHERE id = $1 AND status IN ('trial','active');`,
       [rowId, iso()],
     );
@@ -181,7 +219,7 @@ export async function handleRazorpayEvent(event: RazorpayEvent): Promise<void> {
 
   if (event.event === 'subscription.authenticated') {
     const uid = razorpay.ownerOf(sub);
-    if (uid) await activateTrial(uid, sub, payment?.id ?? null);
+    if (uid) await activateSubscription(uid, sub, payment?.id ?? null);
     return;
   }
 

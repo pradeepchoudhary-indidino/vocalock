@@ -189,7 +189,6 @@ export class SqliteRepository implements Repository {
     const current = await this.currentSubscription(userId);
     if (!current) return null;
     const cancelledAt = nowIso();
-    // Access continues until valid_until, which is what the paywall promises.
     await db.run(
       `UPDATE subscriptions SET status = 'cancelled', cancelled_at = ? WHERE id = ?;`,
       [cancelledAt, current.id],

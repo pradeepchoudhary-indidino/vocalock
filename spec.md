@@ -166,7 +166,7 @@ Make it feel like an app, not a website: mobile-only layout, no text selection o
 
 1. **Splash** — check auth and entitlement, route to Login, Paywall or Home.
 2. **Login** — one "Continue with Google" button → the phone's Google account picker. Closing the picker is silent; any other failure shows an error under the button.
-3. **Paywall** — autoplay muted presenter video (URL from Remote Config), "Unlock APP_NAME Premium", big "₹{trialPrice} today", "then ₹{renewalPrice} every {periodDays} days · Cancel anytime", **trial length stated in plain words**, a Today / After {trialDays} day timeline, feature bullets, "Start trial for ₹{trialPrice}" button → opens the hosted Razorpay checkout page in a Custom Tab for the mandate (UPI app choice happens inside Checkout). Premium starts only after the server verifies the payment.
+3. **Paywall** — two offers, chosen by the server: first-timers see the ₹1 trial below; anyone who has had it sees "₹199 for 30 days · Renews every 30 days" and "Subscribe for ₹199". The trial version: autoplay muted presenter video (URL from Remote Config), "Unlock APP_NAME Premium", big "₹{trialPrice} today", "then ₹{renewalPrice} every {periodDays} days · Cancel anytime", **trial length stated in plain words**, a Today / After {trialDays} day timeline, feature bullets, "Start trial for ₹{trialPrice}" button → opens the hosted Razorpay checkout page in a Custom Tab for the mandate (UPI app choice happens inside Checkout). Premium starts only after the server verifies the payment.
 4. **Home** — header with logo and profile icon. Card "Set up your voice lock" with Start setup (after setup: Voice Lock ON/OFF toggle and "Change phrases"). Section FIND MY PHONE: Clap to Find toggle, row "Settings & calibrate".
 5. **Voice lock intro** — explains: two phrases, a PIN always, and the honest "focus tool, not a security lock" note. Button Get started.
 6. **Step 1 Lock phrase** — mic button (idle / listening / captured states), live transcript chip, Start over, Continue. Validation: at least 2 words, error text in red if 1 word.
@@ -177,7 +177,7 @@ Make it feel like an app, not a website: mobile-only layout, no text selection o
 11. **Calibrate** — live bar graph from `calibrationLevel`, clap counter top right, "Heard a clap" label on detection, Test alert.
 12. **Phone found** — native Kotlin `AlertActivity`, not React. Blue gradient, bell icon, "Phone found", Stop alert button, countdown text.
 13. **Profile** — avatar, Google name and email, plan card, rows: Payment Settings, Privacy Policy, Terms of Service, Refund Policy, Help & Support. Sign out. Version footer.
-14. **Payment Settings** — Plan, Status, Price (₹{renewalPrice} / {periodDays} days), Valid until. Cancel subscription button → confirm sheet → calls backend. If the backend cannot cancel at Razorpay, show the error; never show "cancelled" while the mandate can still debit.
+14. **Payment Settings** — Plan, Status, Price (₹{renewalPrice} / {periodDays} days), Valid until. Cancel subscription button → confirm sheet ("Premium ends straight away; the rest of the period is not refunded") → calls backend → paywall. If the backend cannot cancel at Razorpay, show the error; never show "cancelled" while the mandate can still debit.
 
 ---
 
@@ -221,7 +221,7 @@ The Razorpay plan's amount and period are fixed when the plan is created, so cha
 
 ## 7. Backend (Node API)
 
-**Pricing:** ₹1 for a 1-day trial, then ₹199 every 30 days until cancelled. The Razorpay plan is `period: daily`, `interval: 30`; a `monthly` plan bills on the calendar date (28–31 days apart), and the paywall promises exactly 30.
+**Pricing:** ₹1 for a 1-day trial, then ₹199 every 30 days until cancelled. **One trial per person, ever** (tracked by a hash of the Google account id, so it survives Delete account); a returning subscriber pays ₹199 at checkout for the first 30 days. Cancelling ends Premium immediately. The Razorpay plan is `period: daily`, `interval: 30`; a `monthly` plan bills on the calendar date (28–31 days apart), and the paywall promises exactly 30.
 
 Auth:
 - `POST /auth/google` — verifies the Google ID token (signature, and audience = our Web OAuth client id), finds or creates the user by `google_sub`, returns `{ uid, email, name, token }`
@@ -233,7 +233,7 @@ Subscriptions:
 - `POST /verifySubscription` — Checkout's response. Fetches the subscription from Razorpay, checks `notes.uid` is the caller, verifies `HMAC_SHA256(payment_id + "|" + subscription_id, key_secret)`, then writes the `trial` row and the trial payment
 - `POST /webhooks/razorpay` — signature-checked (`X-Razorpay-Signature` over the raw body), idempotent. `authenticated` → trial (in case the app died before verify); `charged` → `active`, `valid_until` = end of the paid cycle, renewal payment; `halted` → `failed`, access ends; `cancelled` → `cancelled`; `completed` → `expired`
 - `POST /getEntitlement` — returns `{ premium, validUntil, status }`
-- `POST /cancelSubscription` — cancels at Razorpay immediately (no further debits), sets status `cancelled`; access stays until `valid_until`
+- `POST /cancelSubscription` — cancels at Razorpay immediately (no further debits), sets status `cancelled` and ends access now; the app returns to the paywall and switches clap-to-find and voice lock off
 
 Razorpay runs the renewal debits itself, so there is no renewal job.
 

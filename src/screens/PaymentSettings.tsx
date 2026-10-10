@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Screen } from '../components/Screen';
 import { NavBar } from '../components/NavBar';
-import { Card, Note, Sheet } from '../components/Controls';
+import { Card, Sheet } from '../components/Controls';
 import { PRICING, formatDate, isPremium, usePremium } from '../store/account';
 import { track } from '../lib/analytics';
 
@@ -59,19 +59,12 @@ export function PaymentSettings() {
         <div className="row">
           <div className="row__main">
             <div className="row__label">
-              {entitlement.status === 'cancelled' ? 'Access until' : 'Valid until'}
+              {entitlement.status === 'cancelled' ? 'Ended' : 'Valid until'}
             </div>
           </div>
           <div className="row__sub">{formatDate(entitlement.validUntil)}</div>
         </div>
       </Card>
-
-      {entitlement.status === 'cancelled' ? (
-        <Note>
-          Your subscription is cancelled. You keep Premium until{' '}
-          {formatDate(entitlement.validUntil)}, then the app goes back to the free state.
-        </Note>
-      ) : null}
 
       {canCancel ? (
         <button
@@ -94,8 +87,8 @@ export function PaymentSettings() {
         <Sheet title="Cancel subscription" onDismiss={() => setConfirm(false)}>
           <h2 className="card__title">Cancel your subscription?</h2>
           <p className="card__text">
-            You keep Premium until {formatDate(entitlement.validUntil)}. Nothing further will
-            be charged.
+            Premium ends straight away and nothing further is charged. The rest of the
+            current period is not refunded.
           </p>
           <div style={{ height: 18 }} />
           <button
@@ -115,6 +108,7 @@ export function PaymentSettings() {
               }
               track('cancel_confirmed');
               setConfirm(false);
+              navigate('/paywall', { replace: true });
             }}
           >
             Yes, cancel it

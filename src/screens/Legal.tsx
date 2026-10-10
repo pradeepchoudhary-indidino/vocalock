@@ -67,7 +67,7 @@ const DOCS: Record<string, Doc> = {
       },
       {
         heading: 'Subscription',
-        text: `Premium costs ${PRICING.currency}${PRICING.trialPrice} for the first ${PRICING.trialDays === 1 ? 'day' : `${PRICING.trialDays} days`}, then ${PRICING.currency}${PRICING.renewalPrice} every ${PRICING.periodDays} days until cancelled. You can cancel at any time from Profile, Payment Settings. Access continues until the end of the period you have paid for.`,
+        text: `Premium costs ${PRICING.currency}${PRICING.trialPrice} for the first ${PRICING.trialDays === 1 ? 'day' : `${PRICING.trialDays} days`}, then ${PRICING.currency}${PRICING.renewalPrice} every ${PRICING.periodDays} days until cancelled. The ₹1 trial is available once per person; after that Premium is ${PRICING.currency}${PRICING.renewalPrice} for each ${PRICING.periodDays} days, charged up front. You can cancel at any time from Profile, Payment Settings: Premium ends straight away and nothing further is charged.`,
       },
       {
         heading: 'No warranty',
@@ -80,7 +80,7 @@ const DOCS: Record<string, Doc> = {
     body: [
       {
         heading: 'Trial',
-        text: `The ${PRICING.currency}${PRICING.trialPrice} trial charge is not refundable — it is a nominal amount taken to set up the payment mandate.`,
+        text: `The ${PRICING.currency}${PRICING.trialPrice} trial charge is not refundable — it is a nominal amount taken to set up the payment mandate. The trial is available once per person.`,
       },
       {
         heading: 'Renewal charges',
@@ -88,7 +88,7 @@ const DOCS: Record<string, Doc> = {
       },
       {
         heading: 'Change of mind',
-        text: 'We do not refund part-used 30-day periods. Cancel before your renewal date and you will not be charged again. You keep Premium until the end of the period you have already paid for.',
+        text: 'Cancelling ends Premium straight away, and the unused part of the current 30-day period is not refunded. Cancel before your renewal date and you will not be charged again.',
       },
       {
         heading: 'How to ask',

@@ -28,11 +28,13 @@ export interface Entitlement {
   validUntil: string | null;
   cancelledAt: string | null;
   provider: string | null;
+  /** One ₹1 trial per person; the server decides, this mirrors it for the paywall. */
+  trialEligible: boolean;
 }
 
 /**
- * Pricing and trial length. These come from Firebase Remote Config in M4; the
- * shape here matches so swapping the source touches nothing else.
+ * Pricing and trial length. Constants, mirrored in server/src/subscriptions.ts;
+ * changing the renewal price also needs a new Razorpay plan.
  */
 export const PRICING = {
   trialPrice: 1,
@@ -54,6 +56,7 @@ const NO_ENTITLEMENT: Entitlement = {
   validUntil: null,
   cancelledAt: null,
   provider: null,
+  trialEligible: true,
 };
 
 interface AccountState {
@@ -67,10 +70,11 @@ interface AccountState {
   /** Throws, keeping the user signed in, if the server could not delete. */
   deleteAccount: () => Promise<void>;
   /**
-   * Takes payment when the server has Razorpay configured, otherwise grants
-   * the trial straight away. Throws CheckoutDismissed or the failure.
+   * Takes payment when the server has Razorpay configured (₹1 trial or ₹199,
+   * as the server decides), otherwise grants the trial straight away. Throws
+   * CheckoutDismissed or the failure.
    */
-  startTrial: () => Promise<void>;
+  subscribe: () => Promise<void>;
   /** Pulls the server's view, which is what sees renewals and failed debits. */
   refresh: () => Promise<void>;
   cancel: () => Promise<void>;
@@ -116,6 +120,7 @@ export const usePremium = create<AccountState>((set, get) => ({
             startedAt: new Date().toISOString(),
             validUntil: recovered.validUntil,
             provider: recovered.provider,
+            trialEligible: false,
           };
           await Preferences.set({ key: KEY_ENTITLEMENT, value: JSON.stringify(entitlement) });
           set({ entitlement });
@@ -135,8 +140,13 @@ export const usePremium = create<AccountState>((set, get) => ({
     if (!remote) return;
     const entitlement: Entitlement =
       remote.status === 'none'
-        ? NO_ENTITLEMENT
-        : { ...get().entitlement, status: remote.status, validUntil: remote.validUntil };
+        ? { ...NO_ENTITLEMENT, trialEligible: remote.trialEligible }
+        : {
+            ...get().entitlement,
+            status: remote.status,
+            validUntil: remote.validUntil,
+            trialEligible: remote.trialEligible,
+          };
     await Preferences.set({ key: KEY_ENTITLEMENT, value: JSON.stringify(entitlement) });
     set({ entitlement });
   },
@@ -165,7 +175,7 @@ export const usePremium = create<AccountState>((set, get) => ({
     await get().signOut();
   },
 
-  startTrial: async () => {
+  subscribe: async () => {
     const session = get().session;
     if (!session) throw new Error('Sign in first.');
     const result = await startSubscription(session, PRICING.trialDays);
@@ -175,6 +185,7 @@ export const usePremium = create<AccountState>((set, get) => ({
       startedAt: new Date().toISOString(),
       validUntil: result.validUntil,
       provider: result.provider,
+      trialEligible: false,
     };
     await Preferences.set({ key: KEY_ENTITLEMENT, value: JSON.stringify(entitlement) });
     set({ entitlement });
@@ -185,11 +196,14 @@ export const usePremium = create<AccountState>((set, get) => ({
     // Not swallowed: showing "cancelled" while the mandate still debits would
     // be the worst failure this screen could have.
     if (session) await cancelSubscription(session);
-    // Access is kept until validUntil, as the spec's cancel flow requires.
+    // Cancelling ends Premium immediately, and the trial is not offered again.
+    const now = new Date().toISOString();
     const entitlement: Entitlement = {
       ...get().entitlement,
       status: 'cancelled',
-      cancelledAt: new Date().toISOString(),
+      cancelledAt: now,
+      validUntil: now,
+      trialEligible: false,
     };
     await Preferences.set({ key: KEY_ENTITLEMENT, value: JSON.stringify(entitlement) });
     set({ entitlement });

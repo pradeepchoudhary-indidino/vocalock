@@ -98,7 +98,7 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
 (async () => {
   await new Promise((r) => setTimeout(r, 500));
   await db.connect();
-  await db.query('TRUNCATE users, sessions, subscriptions, payments CASCADE;');
+  await db.query('TRUNCATE users, sessions, subscriptions, payments, trial_claims CASCADE;');
 
   // CORS
   const pre = await realFetch(BASE + '/startSubscription', { method: 'OPTIONS', headers: { Origin: 'https://localhost', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'authorization,content-type' } });
@@ -171,7 +171,21 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   const c = await call('/cancelSubscription', { token: alice.token });
   check('cancel → stopped at Razorpay and marked cancelled', c.data.cancelled === true && fakeSub.status === 'cancelled');
   const ent2 = (await call('/getEntitlement', { token: alice.token })).data;
-  check('cancelled keeps premium until valid_until', ent2.premium === true && ent2.status === 'cancelled', JSON.stringify(ent2));
+  check('cancel ends premium immediately', ent2.premium === false && ent2.status === 'cancelled', JSON.stringify(ent2));
+  check('…and the paywall offers no second trial', ent2.trialEligible === false, JSON.stringify(ent2));
+
+  // Coming back: no ₹1 trial, the first 30 days are charged now.
+  const back = await call('/startSubscription', { token: alice.token });
+  const paidSub = subs.get(back.data.checkout?.subscriptionId);
+  check('returning user → checkout without trial', back.data.trial === false && paidSub && !paidSub.start_at && !paidSub._addons && paidSub.notes.trial === '0', JSON.stringify({ trial: back.data.trial, start_at: paidSub?.start_at, addons: paidSub?._addons, notes: paidSub?.notes }));
+  paidSub.status = 'authenticated';
+  const pv = await call('/verifySubscription', { token: alice.token, body: { paymentId: 'pay_a199', subscriptionId: paidSub.id, signature: sign(`pay_a199|${paidSub.id}`, 'key_secret') } });
+  check('returning user pays → active for 30 days', pv.data.status === 'active' && Math.abs(Date.parse(pv.data.validUntil) - Date.now() - 30 * 86_400_000) < 60_000, JSON.stringify(pv.data));
+  check('…recorded as a ₹199 charge', (await rows("SELECT amount FROM payments WHERE provider_txn_id = 'pay_a199'")).map((r) => r.amount).join() === '19900');
+  await call('/cancelSubscription', { token: alice.token });
+
+  const fresh = (await call('/auth/google', { body: { idToken: 'erin' } })).data;
+  check('new user → trial offered', (await call('/getEntitlement', { token: fresh.token })).data.trialEligible === true);
 
   // Halted renewal for bob
   const bs = await call('/startSubscription', { token: bob.token });
@@ -218,9 +232,12 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   check('old session no longer works', (await call('/getEntitlement', { token: alice.token })).status === 401);
   const [u] = await rows('SELECT google_sub, email, name FROM users WHERE id=$1', [alice.uid]);
   check('personal data erased', u.google_sub === null && u.email === null && u.name === null, JSON.stringify(u));
-  check('payment records kept', (await rows('SELECT 1 FROM payments WHERE user_id=$1', [alice.uid])).length === 2);
+  check('payment records kept', (await rows('SELECT 1 FROM payments WHERE user_id=$1', [alice.uid])).length === 3);
   const again = (await call('/auth/google', { body: { idToken: 'alice' } })).data;
   check('same Google account afterwards → fresh user', again.uid && again.uid !== alice.uid);
+  check('…but still no second trial after deleting the account', (await call('/getEntitlement', { token: again.token })).data.trialEligible === false);
+  const again2 = await call('/startSubscription', { token: again.token });
+  check('…and its checkout charges ₹199 now', again2.data.trial === false, JSON.stringify(again2.data));
 
   // Rate limit on sign-in (30 / 15 min / IP; this run has used 7)
   let limited = 0;

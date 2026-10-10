@@ -74,7 +74,7 @@ listener.
 
 SUBSCRIPTION
 
-Premium is ₹1 for the first day, then ₹199 every 30 days until cancelled. Cancel
+Premium is ₹1 for the first day (once per person), then ₹199 every 30 days until cancelled. Cancel
 any time from Profile → Payment Settings.
 
 

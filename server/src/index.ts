@@ -6,11 +6,12 @@ import * as razorpay from './razorpay';
 import {
   PRICING,
   SUBSCRIPTION_CYCLES,
-  activateTrial,
+  activateSubscription,
   handleRazorpayEvent,
   liveSubscription,
   reconcile,
   stopMandate,
+  trialEligible,
 } from './subscriptions';
 import { iso, newId } from './util';
 
@@ -202,14 +203,16 @@ async function startRazorpaySubscription(uid: string, res: express.Response): Pr
     return;
   }
   try {
+    // Decided here, never by the app: one ₹1 trial per person.
+    const trial = await trialEligible(uid);
     const sub = await razorpay.createSubscription({
       uid,
-      trialDays: PRICING.trialDays,
-      trialPaise: PRICING.trialPaise,
+      trial: trial ? { days: PRICING.trialDays, paise: PRICING.trialPaise } : null,
       totalCount: SUBSCRIPTION_CYCLES,
     });
     res.json({
       checkout: { keyId: razorpay.razorpayKeyId, subscriptionId: sub.id, email: user.email },
+      trial,
     });
   } catch (error) {
     console.error('[razorpay create]', error);
@@ -241,7 +244,7 @@ app.post('/verifySubscription', async (req, res) => {
     res.status(400).send('Payment could not be verified.');
     return;
   }
-  res.json(await activateTrial(uid, sub, paymentId));
+  res.json(await activateSubscription(uid, sub, paymentId));
 });
 
 /**
@@ -270,7 +273,7 @@ app.post('/syncSubscription', async (req, res) => {
     return;
   }
   const [trial] = await razorpay.paidInvoices(sub.id).catch(() => []);
-  res.json(await activateTrial(uid, sub, trial?.payment_id ?? null));
+  res.json(await activateSubscription(uid, sub, trial?.payment_id ?? null));
 });
 
 app.post('/cancelSubscription', async (req, res) => {
@@ -291,9 +294,9 @@ app.post('/cancelSubscription', async (req, res) => {
     return;
   }
 
-  // Access continues until valid_until, which is what the paywall promises.
+  // Cancelling ends Premium immediately; the app returns to the paywall.
   await query(
-    `UPDATE subscriptions SET status = 'cancelled', cancelled_at = $2
+    `UPDATE subscriptions SET status = 'cancelled', cancelled_at = $2, valid_until = $2
      WHERE id = $1 AND status IN ('trial','active');`,
     [live.id, iso()],
   );
@@ -351,7 +354,13 @@ app.post('/getEntitlement', async (req, res) => {
     }
   }
   const premium = sub !== undefined && Date.parse(sub.valid_until) > Date.now();
-  res.json({ premium, validUntil: sub?.valid_until ?? null, status: sub?.status ?? 'none' });
+  res.json({
+    premium,
+    validUntil: sub?.valid_until ?? null,
+    status: sub?.status ?? 'none',
+    // Which price the paywall shows: ₹1 trial, or ₹199 now for a returning user.
+    trialEligible: premium ? false : await trialEligible(uid),
+  });
 });
 
 // Express 5 routes a rejected async handler here instead of crashing the

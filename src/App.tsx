@@ -4,7 +4,7 @@ import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Splash } from './screens/Splash';
-import { usePremium } from './store/account';
+import { isPremium, usePremium } from './store/account';
 import { Login } from './screens/Login';
 import { Paywall } from './screens/Paywall';
 import { Home } from './screens/Home';
@@ -26,6 +26,9 @@ import { useSettings } from './store/settings';
 import { track } from './lib/analytics';
 import { initTheme, THEME_BG, useTheme } from './lib/theme';
 
+/** Screens that are Premium. Profile, Payment Settings and Legal stay open. */
+const PREMIUM_ROUTES = /^\/(home|clap|permissions|calibrate|voice-lock)(\/|$)/;
+
 /** Back on these exits the app rather than navigating. */
 const ROOT_ROUTES = new Set(['/home', '/splash', '/login', '/paywall', '/']);
 
@@ -38,6 +41,12 @@ export function App() {
   const location = useLocation();
   const setServiceRunning = useSettings((s) => s.setServiceRunning);
   const patch = useSettings((s) => s.patch);
+  const syncService = useSettings((s) => s.syncService);
+  const settingsLoaded = useSettings((s) => s.loaded);
+  const listening = useSettings((s) => s.settings.clapEnabled || s.settings.voiceLockEnabled);
+  const accountLoaded = usePremium((s) => s.loaded);
+  const signedIn = usePremium((s) => s.session !== null);
+  const premium = usePremium((s) => isPremium(s.entitlement));
 
   // index.html painted the theme before first paint; adopt it and start
   // following the system setting while the preference is 'auto'.
@@ -54,6 +63,31 @@ export function App() {
     }
     // navigate is stable, so this runs once, at boot.
   }, [navigate]);
+
+  // Premium ended — cancelled here, revoked from a UPI app, or a renewal that
+  // failed: leave the Premium screens for the paywall, and switch clap-to-find
+  // and voice lock off, since both keep running natively with the app closed.
+  // A lock that is up stays answerable by phrase and PIN until it is lifted.
+  useEffect(() => {
+    if (!accountLoaded || !signedIn || premium) return;
+    if (PREMIUM_ROUTES.test(location.pathname)) navigate('/paywall', { replace: true });
+    if (settingsLoaded && listening) {
+      void patch({ clapEnabled: false, voiceLockEnabled: false }).then(syncService);
+    }
+  }, [accountLoaded, signedIn, premium, location.pathname, settingsLoaded, listening, navigate, patch, syncService]);
+
+  // Coming back to the app is when a change made elsewhere — a cancel from a
+  // UPI app, a renewal or a failed one — reaches the screen.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let handle: { remove: () => Promise<void> } | undefined;
+    void CapApp.addListener('resume', () => {
+      if (usePremium.getState().session) void usePremium.getState().refresh().catch(() => undefined);
+    }).then((h) => {
+      handle = h;
+    });
+    return () => void handle?.remove();
+  }, []);
 
   // Pull the window insets once the page exists.
   //

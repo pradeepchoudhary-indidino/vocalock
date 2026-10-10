@@ -13,17 +13,47 @@ import { PRICING, usePremium } from '../store/account';
 import { track } from '../lib/analytics';
 import { CheckoutDismissed } from '../lib/razorpay';
 
+const { currency: C } = PRICING;
+
+/**
+ * The two offers. One ₹1 trial per person, ever; anyone who has had it (the
+ * server decides) is asked the plan price up front.
+ */
+const OFFERS = {
+  trial: {
+    tag: `${PRICING.trialDays}-DAY TRIAL`,
+    amount: PRICING.trialPrice,
+    amountNote: 'today',
+    then: `then ${C}${PRICING.renewalPrice} every ${PRICING.periodDays} days · Cancel anytime`,
+    first: ['Today', `${C}${PRICING.trialPrice} for your ${PRICING.trialDays}-day trial`],
+    next: [
+      `After ${PRICING.trialDays} day${PRICING.trialDays === 1 ? '' : 's'}`,
+      `${C}${PRICING.renewalPrice} every ${PRICING.periodDays} days until you cancel`,
+    ],
+    cta: `Start trial for ${C}${PRICING.trialPrice}`,
+  },
+  paid: {
+    tag: 'PREMIUM',
+    amount: PRICING.renewalPrice,
+    amountNote: `for ${PRICING.periodDays} days`,
+    then: `Renews every ${PRICING.periodDays} days · Cancel anytime`,
+    first: ['Today', `${C}${PRICING.renewalPrice} for your first ${PRICING.periodDays} days`],
+    next: [`Every ${PRICING.periodDays} days`, `${C}${PRICING.renewalPrice} until you cancel`],
+    cta: `Subscribe for ${C}${PRICING.renewalPrice}`,
+  },
+};
 
 /**
  * Screen 3.
  *
- * With the server's Razorpay keys set, "Start trial" opens Razorpay Checkout
- * for the subscription mandate and Premium starts only once the server has
- * verified the payment. Without a backend it grants the trial on the device.
+ * With the server's Razorpay keys set, the button opens Razorpay Checkout for
+ * the subscription mandate and Premium starts only once the server has verified
+ * the payment. Without a backend it grants the trial on the device.
  */
 export function Paywall() {
   const navigate = useNavigate();
-  const startTrial = usePremium((s) => s.startTrial);
+  const subscribe = usePremium((s) => s.subscribe);
+  const offer = usePremium((s) => (s.entitlement.trialEligible ? OFFERS.trial : OFFERS.paid));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -38,7 +68,7 @@ export function Paywall() {
     track('paywall_cta_tap');
     track('mandate_started');
     try {
-      await startTrial();
+      await subscribe();
     } catch (failure) {
       setBusy(false);
       if (failure instanceof CheckoutDismissed) {
@@ -72,9 +102,7 @@ export function Paywall() {
               </span>
             </span>
           )}
-          <span className="trial-tag">
-            {PRICING.trialDays}-DAY TRIAL
-          </span>
+          <span className="trial-tag">{offer.tag}</span>
           <h1 className="hero__h1">Unlock VocaLock Premium</h1>
         </div>
       }
@@ -85,8 +113,7 @@ export function Paywall() {
           </p>
           {error ? <div className="field-error">{error}</div> : null}
           <button className="btn btn--primary" type="button" disabled={busy} onClick={unlock}>
-            Start trial for {PRICING.currency}
-            {PRICING.trialPrice} &rarr;
+            {offer.cta} &rarr;
           </button>
         </>
       }
@@ -94,19 +121,16 @@ export function Paywall() {
       <div className="price-card">
         <div className="price__amount">
           <b>
-            {PRICING.currency}
-            {PRICING.trialPrice}
+            {C}
+            {offer.amount}
           </b>
-          <span>today</span>
+          <span>{offer.amountNote}</span>
         </div>
-        <div className="price__then">
-          then {PRICING.currency}
-          {PRICING.renewalPrice} every {PRICING.periodDays} days &middot; Cancel anytime
-        </div>
+        <div className="price__then">{offer.then}</div>
 
         <div className="price-card__rule" />
 
-        {/* Play's subscription rules want the trial and what follows it stated
+        {/* Play's subscription rules want the price and what follows it stated
             plainly, so this is a timeline rather than small print. */}
         <div className="timeline__step">
           <span className="timeline__rail">
@@ -115,11 +139,10 @@ export function Paywall() {
           </span>
           <span className="timeline__body">
             <span className="timeline__label" style={{ display: 'block' }}>
-              Today
+              {offer.first[0]}
             </span>
             <span className="timeline__sub" style={{ display: 'block' }}>
-              {PRICING.currency}
-              {PRICING.trialPrice} for your {PRICING.trialDays}-day trial
+              {offer.first[1]}
             </span>
           </span>
         </div>
@@ -129,11 +152,10 @@ export function Paywall() {
           </span>
           <span>
             <span className="timeline__label" style={{ display: 'block' }}>
-              After {PRICING.trialDays} day{PRICING.trialDays === 1 ? '' : 's'}
+              {offer.next[0]}
             </span>
             <span className="timeline__sub" style={{ display: 'block' }}>
-              {PRICING.currency}
-              {PRICING.renewalPrice} every {PRICING.periodDays} days until you cancel
+              {offer.next[1]}
             </span>
           </span>
         </div>

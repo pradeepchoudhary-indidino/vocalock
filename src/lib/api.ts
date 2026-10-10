@@ -243,6 +243,8 @@ export interface RemoteEntitlement {
   premium: boolean;
   validUntil: string | null;
   status: 'trial' | 'active' | 'cancelled' | 'expired' | 'failed' | 'none';
+  /** False once this person has had the ₹1 trial; the paywall then asks ₹199. */
+  trialEligible: boolean;
 }
 
 /** Null when there is no server; the device's own record is then the truth. */
