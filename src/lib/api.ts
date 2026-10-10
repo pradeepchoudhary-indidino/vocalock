@@ -1,9 +1,10 @@
 import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
 import { SocialLogin } from '@capgo/capacitor-social-login';
 import { SqliteRepository } from '../db/sqlite';
 import type { Repository } from '../db/types';
 import { APP_VERSION } from './analytics';
-import { openSubscriptionCheckout } from './razorpay';
+import { CheckoutDismissed, openSubscriptionCheckout } from './razorpay';
 
 /**
  * Backend client.
@@ -169,8 +170,73 @@ export async function startSubscription(
   const started = await post<StartResponse & Partial<PurchaseResult>>('/startSubscription', session);
   if (!started.checkout) return started as PurchaseResult; // server has no gateway configured
 
-  const paid = await openSubscriptionCheckout(started.checkout);
-  return post<PurchaseResult>('/verifySubscription', session, paid);
+  // Written before leaving the app: Android may discard the app while the user
+  // is in the browser and the UPI app, and this is how it finds its way back.
+  await savePendingCheckout(started.checkout.subscriptionId);
+
+  let paid;
+  try {
+    paid = await openSubscriptionCheckout(started.checkout);
+  } catch (error) {
+    if (!(error instanceof CheckoutDismissed)) throw error;
+    // The redirect can be lost even when the payment went through.
+    const recovered = await resumePendingCheckout(session);
+    if (recovered) return recovered;
+    throw error;
+  }
+  const result = await post<PurchaseResult>('/verifySubscription', session, paid);
+  await clearPendingCheckout();
+  return result;
+}
+
+const KEY_PENDING = 'vocalock.pendingCheckout';
+/** Razorpay lets an unpaid subscription be paid for a day (expire_by). */
+const PENDING_TTL_MS = 86_400_000;
+
+async function savePendingCheckout(subscriptionId: string): Promise<void> {
+  await Preferences.set({ key: KEY_PENDING, value: JSON.stringify({ subscriptionId, at: Date.now() }) });
+}
+
+async function clearPendingCheckout(): Promise<void> {
+  await Preferences.remove({ key: KEY_PENDING });
+}
+
+/**
+ * Settles a checkout the app lost track of: asks the server, which asks
+ * Razorpay, whether it was paid. Returns the activated plan, or null if there
+ * is nothing pending or it is still unpaid.
+ */
+export async function resumePendingCheckout(session: Session): Promise<PurchaseResult | null> {
+  if (!backendConfigured || !session.token) return null;
+  const raw = (await Preferences.get({ key: KEY_PENDING })).value;
+  if (!raw) return null;
+  let pending: { subscriptionId: string; at: number };
+  try {
+    pending = JSON.parse(raw);
+  } catch {
+    await clearPendingCheckout();
+    return null;
+  }
+  if (Date.now() - pending.at > PENDING_TTL_MS) {
+    await clearPendingCheckout();
+    return null;
+  }
+  let result: PurchaseResult | { status: 'pending' };
+  try {
+    result = await post<PurchaseResult | { status: 'pending' }>('/syncSubscription', session, {
+      subscriptionId: pending.subscriptionId,
+    });
+  } catch (error) {
+    if (error instanceof SessionExpired) throw error;
+    // 400/403: not one this user can claim. Anything else: try again next launch.
+    if (/belongs to someone else|Unknown subscription/.test(String((error as Error).message))) {
+      await clearPendingCheckout();
+    }
+    return null;
+  }
+  if (result.status === 'pending') return null;
+  await clearPendingCheckout();
+  return result;
 }
 
 export interface RemoteEntitlement {

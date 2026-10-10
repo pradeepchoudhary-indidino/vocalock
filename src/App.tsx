@@ -4,6 +4,7 @@ import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Splash } from './screens/Splash';
+import { usePremium } from './store/account';
 import { Login } from './screens/Login';
 import { Paywall } from './screens/Paywall';
 import { Home } from './screens/Home';
@@ -42,6 +43,18 @@ export function App() {
   // following the system setting while the preference is 'auto'.
   const { mode } = useTheme();
   useEffect(initTheme, []);
+
+  // Android can discard the WebView while the app is in the background (during
+  // checkout, typically) and later restore it straight onto the last screen.
+  // That skips Splash, which is what loads the session and entitlement, so a
+  // cold start anywhere else goes through Splash first.
+  useEffect(() => {
+    if (!usePremium.getState().loaded && !['/', '/splash'].includes(currentPath())) {
+      navigate('/splash', { replace: true });
+    }
+    // Boot only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Pull the window insets once the page exists.
   //

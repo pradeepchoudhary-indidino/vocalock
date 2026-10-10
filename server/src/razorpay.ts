@@ -83,6 +83,18 @@ export function fetchSubscription(id: string): Promise<RzpSubscription> {
   return call('GET', `/subscriptions/${encodeURIComponent(id)}`);
 }
 
+/** The payment behind the subscription's first paid invoice (the trial charge). */
+export async function firstPaymentId(subscriptionId: string): Promise<string | null> {
+  const invoices = await call<{ items: { status: string; payment_id: string | null; date?: number }[] }>(
+    'GET',
+    `/invoices?subscription_id=${encodeURIComponent(subscriptionId)}`,
+  );
+  const paid = invoices.items
+    .filter((i) => i.status === 'paid' && i.payment_id)
+    .sort((a, b) => (a.date ?? 0) - (b.date ?? 0));
+  return paid[0]?.payment_id ?? null;
+}
+
 /**
  * Stops all future debits now. Access is governed by our own valid_until, so
  * there is no reason to leave the mandate live until the cycle ends.

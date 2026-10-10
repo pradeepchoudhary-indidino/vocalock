@@ -244,6 +244,35 @@ app.post('/verifySubscription', async (req, res) => {
 });
 
 /**
+ * Asks Razorpay whether a checkout the app started was paid, for when the app
+ * never got Checkout's answer: Android can discard the app while the user is
+ * in the browser and the UPI app, and the redirect back then lands nowhere.
+ * Razorpay is asked directly with the secret key, so this needs no signature
+ * from the client and cannot be faked by it.
+ */
+app.post('/syncSubscription', async (req, res) => {
+  const uid = res.locals.uid as string;
+  let sub: razorpay.RzpSubscription;
+  try {
+    sub = await razorpay.fetchSubscription(String(req.body?.subscriptionId ?? ''));
+  } catch {
+    res.status(400).send('Unknown subscription.');
+    return;
+  }
+  if (!razorpay.isOurs(sub) || razorpay.ownerOf(sub) !== uid) {
+    res.status(403).send('That subscription belongs to someone else.');
+    return;
+  }
+  // 'created' means checkout was opened but never paid.
+  if (!['authenticated', 'active'].includes(sub.status)) {
+    res.json({ status: 'pending' });
+    return;
+  }
+  const paymentId = await razorpay.firstPaymentId(sub.id).catch(() => null);
+  res.json(await activateTrial(uid, sub, paymentId));
+});
+
+/**
  * Turns an authorised Razorpay subscription into a trial row plus its ledger
  * entry. Idempotent: the app's verify call and the webhook both land here.
  */

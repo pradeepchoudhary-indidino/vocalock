@@ -5,13 +5,13 @@ import {
   cancelSubscription,
   deleteAccount,
   getEntitlement,
+  resumePendingCheckout,
   signOutRemote,
   startSubscription,
   type Session,
 } from '../lib/api';
 import type { PlanStatus } from '../db/types';
 import { setCrashUser } from '../lib/crashlytics';
-import { CheckoutDismissed } from '../lib/razorpay';
 
 const KEY_ENTITLEMENT = 'vocalock.entitlement';
 const KEY_SESSION = 'vocalock.session';
@@ -109,6 +109,19 @@ export const usePremium = create<AccountState>((set, get) => ({
     if (restored) {
       try {
         await get().refresh();
+        // A payment the app lost track of when Android discarded it mid-checkout.
+        const recovered = await resumePendingCheckout(restored);
+        if (recovered) {
+          const entitlement: Entitlement = {
+            ...NO_ENTITLEMENT,
+            status: recovered.status,
+            startedAt: new Date().toISOString(),
+            validUntil: recovered.validUntil,
+            provider: recovered.provider,
+          };
+          await Preferences.set({ key: KEY_ENTITLEMENT, value: JSON.stringify(entitlement) });
+          set({ entitlement });
+        }
       } catch (error) {
         // Revoked or expired on the server: back to Login. Anything else
         // (offline, server down) keeps the cached entitlement until next launch.
@@ -157,20 +170,7 @@ export const usePremium = create<AccountState>((set, get) => ({
   startTrial: async () => {
     const session = get().session;
     if (!session) throw new Error('Sign in first.');
-    let result;
-    try {
-      result = await startSubscription(session, PRICING.trialDays);
-    } catch (error) {
-      if (!(error instanceof CheckoutDismissed)) throw error;
-      // The tab can close before its redirect reaches the app even though the
-      // payment went through; the webhook will have recorded it by then.
-      await new Promise((r) => window.setTimeout(r, 2000));
-      await get()
-        .refresh()
-        .catch(() => undefined);
-      if (isPremium(get().entitlement)) return;
-      throw error;
-    }
+    const result = await startSubscription(session, PRICING.trialDays);
     const entitlement: Entitlement = {
       ...NO_ENTITLEMENT,
       status: result.status,
