@@ -2527,6 +2527,131 @@ button {
   }
 }
 
+/* ---------- login ---------- */
+
+.login-hero {
+  gap: var(--s3);
+  padding-top: var(--s4);
+}
+
+.login-hero__sub {
+  opacity: 0.92;
+  max-width: 300px;
+  text-wrap: balance;
+}
+
+.login-card {
+  padding: var(--s5) var(--s5) var(--s4);
+}
+
+.login-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 18px;
+}
+
+.login-feature {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.login-feature__title {
+  display: block;
+  font-family: var(--display);
+  font-size: var(--t-row);
+  line-height: 22px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.login-feature__sub {
+  display: block;
+  font-size: var(--t-caption);
+  line-height: 18px;
+  color: var(--ink-muted);
+}
+
+.login-card__note {
+  margin: var(--s5) 0 0;
+  padding-top: var(--s4);
+  border-top: 2px solid var(--f-divider);
+  font-size: var(--t-caption);
+  line-height: 19px;
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+/* Google's sign-in branding: a neutral button, the unaltered four-colour G,
+   dark grey text; a near-black variant in dark mode. Only the app's chunky
+   edge and press are added, so it still sits in the same family. */
+.btn--google {
+  --g-bg: #ffffff;
+  --g-ink: #1f1f1f;
+  --g-line: #747775;
+  --g-edge: #c7cdd6;
+  background: var(--g-bg);
+  color: var(--g-ink);
+  border: 1.5px solid var(--g-line);
+  box-shadow: 0 var(--edge-btn) 0 var(--g-edge);
+  gap: var(--s3);
+}
+
+.btn--google:active:not(:disabled) {
+  box-shadow: 0 calc(var(--edge-btn) - var(--press)) 0 var(--g-edge);
+}
+
+.btn--google:disabled {
+  opacity: 1;
+  color: var(--ink-muted);
+}
+
+[data-theme='dark'] .btn--google {
+  --g-bg: #131314;
+  --g-ink: #e3e3e3;
+  --g-line: #8e918f;
+  --g-edge: #050608;
+}
+
+.spinner--sm {
+  width: 18px;
+  height: 18px;
+  border-width: 2.5px;
+}
+
+.login-error {
+  margin-bottom: var(--s3);
+  padding: 10px var(--s4);
+  border-radius: var(--r-sm);
+  background: var(--red-wash);
+  border: 2px solid var(--red-line);
+  color: var(--red-ink);
+  font-size: var(--t-caption);
+  line-height: 18px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.login-legal {
+  margin: var(--s4) 0 0;
+  font-size: var(--t-label);
+  line-height: 18px;
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+.login-legal__link {
+  display: inline;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--f-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* ---------- profile: the plan card ---------- */
 
 .plan-card__head {
