@@ -83,7 +83,7 @@ const DOCS: Record<string, Doc> = {
         text: `The ${PRICING.currency}${PRICING.trialPrice} trial charge is not refundable — it is a nominal amount taken to set up the payment mandate.`,
       },
       {
-        heading: 'Monthly charges',
+        heading: 'Renewal charges',
         text: 'If you were charged after cancelling, or charged twice, write to us within 7 days and we will refund it in full. Refunds reach your account in 5 to 7 working days.',
       },
       {

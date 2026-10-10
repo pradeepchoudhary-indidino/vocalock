@@ -19,7 +19,7 @@ rsync -az --delete -e "$SSH" \
   --include='package.json' --include='package-lock.json' --include='tsconfig.json' \
   --exclude='*' server/ "$HOST:/opt/vocalock/server/"
 rsync -az --delete -e "$SSH" db/migrations "$HOST:/opt/vocalock/db/"
-rsync -az --delete -e "$SSH" docs/privacy.html docs/delete-account.html docs/icon-512.png "$HOST:/opt/vocalock/site/"
+rsync -az --delete -e "$SSH" docs/privacy.html docs/terms.html docs/refund.html docs/delete-account.html docs/icon-512.png "$HOST:/opt/vocalock/site/"
 
 $SSH "$HOST" 'set -e
 chown -R vocalock:vocalock /opt/vocalock/server /opt/vocalock/db
