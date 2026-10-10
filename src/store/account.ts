@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import {
   SessionExpired,
   cancelSubscription,
+  deleteAccount,
   getEntitlement,
   signOutRemote,
   startSubscription,
@@ -62,6 +63,8 @@ interface AccountState {
   hydrate: () => Promise<void>;
   signIn: (session: Session) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Throws, keeping the user signed in, if the server could not delete. */
+  deleteAccount: () => Promise<void>;
   /**
    * Takes payment when the server has Razorpay configured, otherwise grants
    * the trial straight away. Throws CheckoutDismissed or the failure.
@@ -142,6 +145,12 @@ export const usePremium = create<AccountState>((set, get) => ({
     ]);
     set({ session: null, entitlement: NO_ENTITLEMENT });
     setCrashUser(null);
+  },
+
+  deleteAccount: async () => {
+    const session = get().session;
+    if (session) await deleteAccount(session);
+    await get().signOut();
   },
 
   startTrial: async () => {

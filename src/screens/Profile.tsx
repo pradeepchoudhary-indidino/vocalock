@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Screen } from '../components/Screen';
 import { NavBar } from '../components/NavBar';
 import { Card, LinkRow, SectionLabel, Segmented, Sheet } from '../components/Controls';
-import { CardIcon, DocIcon, LifebuoyIcon, LogOutIcon, ShieldIcon } from '../components/Icons';
+import { CardIcon, DocIcon, LifebuoyIcon, LogOutIcon, ShieldIcon, UserIcon } from '../components/Icons';
 import { daysLeft, isPremium, usePremium } from '../store/account';
 import { APP_VERSION } from '../lib/analytics';
 import { setThemePref, useTheme, type ThemePref } from '../lib/theme';
@@ -19,9 +19,12 @@ const PLAN_LABEL: Record<string, string> = {
 /** Screen 13. */
 export function Profile() {
   const navigate = useNavigate();
-  const { session, entitlement, signOut } = usePremium();
+  const { session, entitlement, signOut, deleteAccount } = usePremium();
   const { pref: themePref } = useTheme();
   const [confirmOut, setConfirmOut] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const premium = isPremium(entitlement);
   const left = daysLeft(entitlement);
@@ -128,6 +131,15 @@ export function Profile() {
           tint="peach"
           onClick={() => setConfirmOut(true)}
         />
+        <LinkRow
+          label="Delete account"
+          icon={<UserIcon />}
+          tint="peach"
+          onClick={() => {
+            setDeleteError('');
+            setConfirmDelete(true);
+          }}
+        />
       </Card>
 
       <div className="version-foot">VocaLock {APP_VERSION}</div>
@@ -152,6 +164,42 @@ export function Profile() {
           </button>
           <button className="text-btn" type="button" onClick={() => setConfirmOut(false)}>
             Stay signed in
+          </button>
+        </Sheet>
+      ) : null}
+
+      {confirmDelete ? (
+        <Sheet title="Delete account" onDismiss={() => setConfirmDelete(false)}>
+          <h2 className="card__title">Delete your account?</h2>
+          <p className="card__text">
+            Your subscription is cancelled straight away and you lose Premium now, not at the
+            end of the period. Your name, email and sign-in are erased. Payment records are kept,
+            without your name, because the law requires it. This cannot be undone.
+          </p>
+          <div style={{ height: 18 }} />
+          <button
+            className="btn btn--danger"
+            type="button"
+            disabled={deleting}
+            onClick={async () => {
+              setDeleting(true);
+              setDeleteError('');
+              try {
+                await deleteAccount();
+              } catch (failure) {
+                setDeleteError((failure as Error).message || 'Could not delete. Try again.');
+                return;
+              } finally {
+                setDeleting(false);
+              }
+              navigate('/login', { replace: true });
+            }}
+          >
+            {deleting ? 'Deleting…' : 'Delete my account'}
+          </button>
+          {deleteError ? <div className="field-error">{deleteError}</div> : null}
+          <button className="text-btn" type="button" onClick={() => setConfirmDelete(false)}>
+            Keep my account
           </button>
         </Sheet>
       ) : null}

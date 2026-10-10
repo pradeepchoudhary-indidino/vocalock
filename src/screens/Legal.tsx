@@ -26,8 +26,20 @@ const DOCS: Record<string, Doc> = {
         text: 'Every sound VocaLock hears is processed on the device, in memory, and thrown away immediately. Nothing is recorded to a file. Nothing is uploaded. No audio is sent to us, to any server, or to any third party. The speech model used to match your phrases is bundled inside the app and runs offline.',
       },
       {
-        heading: 'What we do store',
-        text: 'VocaLock does not ask you to create an account. Your plan status, your two phrases and your settings are stored on this device and nowhere else. Your backup PIN is never stored: only a salted one-way hash of it, held in Android encrypted storage. We cannot read your PIN and neither can anyone with the file.',
+        heading: 'What stays on your phone',
+        text: 'Your two phrases and your settings are stored on this device and nowhere else. Your backup PIN is never stored: only a salted one-way hash of it, held in Android encrypted storage. We cannot read your PIN and neither can anyone with the file.',
+      },
+      {
+        heading: 'Your account',
+        text: 'When you sign in with Google we receive your name, email and Google account identifier, and use them only to keep your subscription attached to you. They are not sold or used for advertising. Delete account, in Profile, erases them.',
+      },
+      {
+        heading: 'Payments',
+        text: "Razorpay handles payments. Your card, UPI or bank details go to Razorpay and never reach us; we receive only the amount, the result and Razorpay's reference, kept as tax law requires.",
+      },
+      {
+        heading: 'Crash reports',
+        text: 'If the app crashes it sends a report through Firebase Crashlytics (Google): the error, your phone model and Android version, the app version, your last few actions in the app and an internal account number. Never audio, phrases, your PIN, your name or your email.',
       },
       {
         heading: 'Permissions and why',
