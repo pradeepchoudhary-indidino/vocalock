@@ -53,7 +53,8 @@ app.use((req, res, next) => {
 // Razorpay calls this, not the app, so it authenticates by signature rather
 // than the bearer token. It needs the raw body for that, so it is registered
 // before the JSON parser.
-app.post('/webhooks/razorpay', express.raw({ type: '*/*' }), async (req, res) => {
+// Both spellings: the dashboard registration uses /webhook/, the docs /webhooks/.
+app.post(['/webhooks/razorpay', '/webhook/razorpay'], express.raw({ type: '*/*' }), async (req, res) => {
   const body = req.body as Buffer;
   if (!razorpay.webhookSignatureValid(body, req.header('x-razorpay-signature') ?? '')) {
     res.status(400).send('Bad signature');
