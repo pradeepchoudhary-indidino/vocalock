@@ -1,15 +1,26 @@
+import { App } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
+import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
+
 /**
- * Razorpay Standard Checkout, run inside the WebView.
+ * Razorpay Checkout, through the hosted page on indidino.com.
  *
- * The script is loaded on demand from Razorpay's CDN rather than bundled: it is
- * the one part of the app that is online-only by nature, and Razorpay requires
- * it be served from checkout.razorpay.com.
+ * The Razorpay account is registered to that website, so checkout must run
+ * there rather than inside the app's WebView. The page takes the checkout
+ * options as `?data=` JSON, opens Razorpay, and reports the result back.
  *
- * UPI apps open through `upi://` links, which Capacitor's WebView client hands
- * to Android as an ACTION_VIEW intent; `webview_intent` tells Checkout to offer
- * that flow.
+ * On the phone it opens in a Chrome Custom Tab, not the WebView: card payments
+ * open the bank's OTP page as a popup, which a WebView cannot show, and a real
+ * browser also hands UPI links to the UPI apps. After paying, the page sends
+ * the browser to RETURN_URL, which Android routes back into this app.
+ *
+ * In a desktop browser (`npm run dev`) the page opens as a popup instead and
+ * answers with postMessage.
  */
-const SCRIPT_URL = 'https://checkout.razorpay.com/v1/checkout.js';
+const PAGE_URL = 'https://beatai.indidino.com/vocalock/index.html';
+const PAGE_ORIGIN = new URL(PAGE_URL).origin;
+/** Must match the intent-filter on MainActivity in AndroidManifest.xml. */
+const RETURN_URL = 'com.indidino.vocalock://payment-return';
 
 export interface CheckoutResult {
   paymentId: string;
@@ -17,75 +28,119 @@ export interface CheckoutResult {
   signature: string;
 }
 
-/** The user closed Checkout without paying. Not an error worth showing. */
+/**
+ * The user left checkout without a confirmed payment. Not an error worth
+ * showing — but a payment may still have gone through (the app can lose the
+ * redirect), so the caller re-checks the entitlement before giving up.
+ */
 export class CheckoutDismissed extends Error {
   constructor() {
     super('Payment cancelled');
   }
 }
 
-interface RazorpayResponse {
-  razorpay_payment_id: string;
-  razorpay_subscription_id: string;
-  razorpay_signature: string;
-}
-
-interface RazorpayInstance {
-  open(): void;
-}
-
-declare global {
-  interface Window {
-    Razorpay?: new (options: Record<string, unknown>) => RazorpayInstance;
-  }
-}
-
-let loading: Promise<void> | null = null;
-
-function loadScript(): Promise<void> {
-  if (window.Razorpay) return Promise.resolve();
-  loading ??= new Promise<void>((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = SCRIPT_URL;
-    script.onload = () => resolve();
-    script.onerror = () => {
-      loading = null; // let the next tap retry
-      script.remove();
-      reject(new Error('Could not reach the payment page. Check your connection.'));
-    };
-    document.head.appendChild(script);
-  });
-  return loading;
-}
-
-export async function openSubscriptionCheckout(opts: {
+interface CheckoutOptions {
   keyId: string;
   subscriptionId: string;
   email: string | null;
-}): Promise<CheckoutResult> {
-  await loadScript();
-  const Razorpay = window.Razorpay;
-  if (!Razorpay) throw new Error('Payment page failed to load.');
+}
 
+function pageUrl(opts: CheckoutOptions, callback?: string): string {
+  const data = {
+    key: opts.keyId,
+    subscription_id: opts.subscriptionId,
+    name: 'VocaLock',
+    description: 'Premium, renews every 30 days',
+    theme: { color: '#1565C0' },
+    // Checkout asks for the mobile number itself; UPI needs one anyway.
+    ...(opts.email ? { prefill: { email: opts.email } } : {}),
+  };
+  const params = new URLSearchParams({ data: JSON.stringify(data) });
+  if (callback) params.set('callback', callback);
+  return `${PAGE_URL}?${params.toString()}`;
+}
+
+export function openSubscriptionCheckout(opts: CheckoutOptions): Promise<CheckoutResult> {
+  return Capacitor.isNativePlatform() ? checkoutInCustomTab(opts) : checkoutInPopup(opts);
+}
+
+function checkoutInCustomTab(opts: CheckoutOptions): Promise<CheckoutResult> {
   return new Promise<CheckoutResult>((resolve, reject) => {
-    new Razorpay({
-      key: opts.keyId,
-      subscription_id: opts.subscriptionId,
-      name: 'VocaLock',
-      description: 'Premium, renews every 30 days',
-      // Checkout asks for the mobile number itself; UPI needs one anyway.
-      ...(opts.email ? { prefill: { email: opts.email } } : {}),
-      theme: { color: '#1565C0' },
-      webview_intent: true,
-      handler: (response: RazorpayResponse) =>
-        resolve({
-          paymentId: response.razorpay_payment_id,
-          subscriptionId: response.razorpay_subscription_id,
-          signature: response.razorpay_signature,
-        }),
-      // A failed attempt keeps Checkout open for a retry, so the only exit
-      // without a payment is the user closing it.
-      modal: { ondismiss: () => reject(new CheckoutDismissed()) },
-    }).open();
+    const handles: Promise<PluginListenerHandle>[] = [];
+    let settled = false;
+    const finish = (outcome: () => void) => {
+      if (settled) return;
+      settled = true;
+      handles.forEach((h) => void h.then((l) => l.remove()));
+      outcome();
+    };
+
+    handles.push(
+      App.addListener('appUrlOpen', ({ url }) => {
+        if (!url.startsWith(RETURN_URL)) return;
+        const params = new URL(url).searchParams;
+        const paymentId = params.get('payment_id') ?? '';
+        const signature = params.get('signature') ?? '';
+        void Browser.close().catch(() => undefined);
+        finish(() =>
+          paymentId && signature
+            ? // The page reports order_id, which a subscription does not have;
+              // the server checks the signature against the id it created.
+              resolve({ paymentId, signature, subscriptionId: opts.subscriptionId })
+            : reject(new CheckoutDismissed()),
+        );
+      }),
+    );
+    handles.push(
+      Browser.addListener('browserFinished', () => {
+        // The tab also closes on the way back after a success; give that
+        // appUrlOpen a moment to land first.
+        window.setTimeout(() => finish(() => reject(new CheckoutDismissed())), 1500);
+      }),
+    );
+
+    Browser.open({ url: pageUrl(opts, RETURN_URL), toolbarColor: '#1565C0' }).catch((error) =>
+      finish(() =>
+        reject(error instanceof Error ? error : new Error('Could not open the payment page.')),
+      ),
+    );
+  });
+}
+
+function checkoutInPopup(opts: CheckoutOptions): Promise<CheckoutResult> {
+  return new Promise<CheckoutResult>((resolve, reject) => {
+    const popup = window.open(pageUrl(opts), 'vocalock-payment', 'width=480,height=760');
+    if (!popup) {
+      reject(new Error('Allow pop-ups for this site to open the payment page.'));
+      return;
+    }
+
+    let settled = false;
+    const finish = (outcome: () => void) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener('message', onMessage);
+      window.clearInterval(closedPoll);
+      outcome();
+    };
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== PAGE_ORIGIN || event.data?.source !== 'vocalock') return;
+      if (event.data.type === 'razorpay_success') {
+        finish(() =>
+          resolve({
+            paymentId: String(event.data.payment_id ?? ''),
+            signature: String(event.data.signature ?? ''),
+            subscriptionId: opts.subscriptionId,
+          }),
+        );
+      } else if (event.data.type === 'razorpay_dismissed') {
+        finish(() => reject(new CheckoutDismissed()));
+      }
+    };
+    window.addEventListener('message', onMessage);
+    // Closing the popup window itself sends no message.
+    const closedPoll = window.setInterval(() => {
+      if (popup.closed) window.setTimeout(() => finish(() => reject(new CheckoutDismissed())), 500);
+    }, 500);
   });
 }

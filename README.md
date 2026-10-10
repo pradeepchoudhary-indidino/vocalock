@@ -269,8 +269,12 @@ AutoPay or card mandate):
 
 1. App → `POST /startSubscription`. The server creates a Razorpay subscription
    with `start_at` 1 day out and the ₹1 trial as an addon, stamping `notes.uid`.
-2. App opens Razorpay Checkout (`src/lib/razorpay.ts`, Checkout.js in the WebView).
-   UPI apps open through `upi://` links, which Capacitor passes to Android.
+2. App opens the hosted checkout page, `https://beatai.indidino.com/vocalock/index.html`
+   (`src/lib/razorpay.ts`), in a Chrome Custom Tab. The Razorpay account is registered
+   to that website, so checkout runs there and not in the WebView; a real browser also
+   handles card OTP popups and UPI app links. The page sends the user back to
+   `com.indidino.vocalock://payment-return` (an intent-filter on MainActivity). If that
+   redirect is lost, the app re-reads the entitlement, which the webhook has updated.
 3. App → `POST /verifySubscription` with Checkout's response. The server checks the
    subscription belongs to that uid, verifies the HMAC, then writes the `trial` row.
 4. `POST /webhooks/razorpay` takes everything after that: `authenticated` (in case

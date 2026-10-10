@@ -23,6 +23,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Where the hosted Razorpay page sends the user back after paying
+                 (src/lib/razorpay.ts). Carries only payment ids; the server
+                 verifies them, so another app claiming this scheme gains
+                 nothing. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.indidino.vocalock" android:host="payment-return" />
+            </intent-filter>
+
         </activity>
 
         <!-- Screen 12, "Phone found". Native so it can show over the lock screen

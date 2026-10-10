@@ -11,6 +11,7 @@ import {
 } from '../lib/api';
 import type { PlanStatus } from '../db/types';
 import { setCrashUser } from '../lib/crashlytics';
+import { CheckoutDismissed } from '../lib/razorpay';
 
 const KEY_ENTITLEMENT = 'vocalock.entitlement';
 const KEY_SESSION = 'vocalock.session';
@@ -156,7 +157,20 @@ export const usePremium = create<AccountState>((set, get) => ({
   startTrial: async () => {
     const session = get().session;
     if (!session) throw new Error('Sign in first.');
-    const result = await startSubscription(session, PRICING.trialDays);
+    let result;
+    try {
+      result = await startSubscription(session, PRICING.trialDays);
+    } catch (error) {
+      if (!(error instanceof CheckoutDismissed)) throw error;
+      // The tab can close before its redirect reaches the app even though the
+      // payment went through; the webhook will have recorded it by then.
+      await new Promise((r) => window.setTimeout(r, 2000));
+      await get()
+        .refresh()
+        .catch(() => undefined);
+      if (isPremium(get().entitlement)) return;
+      throw error;
+    }
     const entitlement: Entitlement = {
       ...NO_ENTITLEMENT,
       status: result.status,

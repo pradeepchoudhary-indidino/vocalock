@@ -41,7 +41,7 @@ Positioning, stated honestly in the app: this is a convenience / focus tool, not
 | Auth | Google sign-in via Android Credential Manager (`@capgo/capacitor-social-login`). The server verifies Google's ID token and issues its own session token |
 | Database | PostgreSQL on AWS RDS (server); SQLite on the device as the offline stub and cache |
 | Server logic | Node + Express API (TypeScript), `server/` |
-| Payments | Razorpay Subscriptions (UPI AutoPay or card mandate), Standard Checkout in the WebView. Follow current Razorpay docs, do not guess endpoints |
+| Payments | Razorpay Subscriptions (UPI AutoPay or card mandate). Checkout runs on the hosted page `beatai.indidino.com/vocalock/index.html` (the Razorpay account's registered website), opened in a Chrome Custom Tab, returning via `com.indidino.vocalock://payment-return`. Follow current Razorpay docs, do not guess endpoints |
 | Config | Firebase Remote Config (prices, trial length, paywall video URL) |
 | Analytics / crashes | Firebase Analytics + Crashlytics |
 
@@ -166,7 +166,7 @@ Make it feel like an app, not a website: mobile-only layout, no text selection o
 
 1. **Splash** — check auth and entitlement, route to Login, Paywall or Home.
 2. **Login** — one "Continue with Google" button → the phone's Google account picker. Closing the picker is silent; any other failure shows an error under the button.
-3. **Paywall** — autoplay muted presenter video (URL from Remote Config), "Unlock APP_NAME Premium", big "₹{trialPrice} today", "then ₹{renewalPrice} every {periodDays} days · Cancel anytime", **trial length stated in plain words**, a Today / After {trialDays} day timeline, feature bullets, "Start trial for ₹{trialPrice}" button → opens Razorpay Checkout for the mandate (UPI app choice happens inside Checkout). Premium starts only after the server verifies the payment.
+3. **Paywall** — autoplay muted presenter video (URL from Remote Config), "Unlock APP_NAME Premium", big "₹{trialPrice} today", "then ₹{renewalPrice} every {periodDays} days · Cancel anytime", **trial length stated in plain words**, a Today / After {trialDays} day timeline, feature bullets, "Start trial for ₹{trialPrice}" button → opens the hosted Razorpay checkout page in a Custom Tab for the mandate (UPI app choice happens inside Checkout). Premium starts only after the server verifies the payment.
 4. **Home** — header with logo and profile icon. Card "Set up your voice lock" with Start setup (after setup: Voice Lock ON/OFF toggle and "Change phrases"). Section FIND MY PHONE: Clap to Find toggle, row "Settings & calibrate".
 5. **Voice lock intro** — explains: two phrases, a PIN always, and the honest "focus tool, not a security lock" note. Button Get started.
 6. **Step 1 Lock phrase** — mic button (idle / listening / captured states), live transcript chip, Start over, Continue. Validation: at least 2 words, error text in red if 1 word.
