@@ -17,6 +17,7 @@ curl -sS -u "$RAZORPAY_KEY_ID:$RAZORPAY_KEY_SECRET" \
   -d '{
     "period": "daily",
     "interval": 30,
-    "item": { "name": "VocaLock Premium (30 days)", "amount": 19900, "currency": "INR" }
+    "item": { "name": "VocaLock Premium (30 days)", "amount": 19900, "currency": "INR", "description": "VocaLock Premium, renews every 30 days" },
+    "notes": { "app": "vocalock" }
   }'
 echo
