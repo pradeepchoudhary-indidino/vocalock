@@ -105,6 +105,9 @@ export interface ListenerPlugin {
   /** Window insets in CSS px. See ListenerPlugin.getInsets for why this is a pull. */
   getInsets(): Promise<{ top: number; bottom: number; keyboard: number }>;
 
+  /** Dark icons for a light page, light icons for a dark one. */
+  setSystemBarStyle(options: { darkIcons: boolean }): Promise<void>;
+
   setSettings(settings: Partial<ListenerSettings>): Promise<void>;
   getSettings(): Promise<ListenerSettings>;
 

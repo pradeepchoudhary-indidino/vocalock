@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
-import { StatusBar, Style } from '@capacitor/status-bar';
 import { Splash } from './screens/Splash';
 import { isPremium, usePremium } from './store/account';
 import { Login } from './screens/Login';
@@ -24,7 +23,7 @@ import { VoiceLockManage } from './screens/voicelock/Manage';
 import { Listener } from './plugins';
 import { useSettings } from './store/settings';
 import { track } from './lib/analytics';
-import { initTheme, THEME_BG, useTheme } from './lib/theme';
+import { initTheme, useTheme } from './lib/theme';
 
 /** Screens that are Premium. Profile, Payment Settings and Legal stay open. */
 const PREMIUM_ROUTES = /^\/(home|clap|permissions|calibrate|voice-lock)(\/|$)/;
@@ -123,12 +122,12 @@ export function App() {
     });
   }, []);
 
-  // Match the native status bar to the web theme, or its icons end up invisible.
-  // Capacitor's Style.Dark means a dark bar with light icons.
+  // Match the system-bar icons to the web theme, or they end up invisible. The
+  // app is edge-to-edge, so the bars have no colour of their own: the page
+  // paints behind them.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
-    void StatusBar.setStyle({ style: mode === 'dark' ? Style.Dark : Style.Light });
-    void StatusBar.setBackgroundColor({ color: THEME_BG[mode] });
+    void Listener.setSystemBarStyle({ darkIcons: mode !== 'dark' });
   }, [mode]);
 
   // With the keyboard up the screen is much shorter, so bring whatever was

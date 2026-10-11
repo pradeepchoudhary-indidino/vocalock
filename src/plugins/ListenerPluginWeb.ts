@@ -39,6 +39,10 @@ export class ListenerPluginWeb extends WebPlugin implements ListenerPlugin {
     return { top: 0, bottom: 0, keyboard: 0 };
   }
 
+  async setSystemBarStyle(): Promise<void> {
+    // A browser tab has no system bars of its own.
+  }
+
   async setSettings(settings: Partial<ListenerSettings>): Promise<void> {
     const merged = { ...(await this.getSettings()), ...settings };
     localStorage.setItem(MOCK_SETTINGS_KEY, JSON.stringify(merged));

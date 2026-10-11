@@ -16,8 +16,11 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.ScrollView
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.WindowCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.indidino.vocalock.R
 import com.indidino.vocalock.service.AlertController
 
@@ -53,7 +56,7 @@ class AlertActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setTheme(R.style.VocaLockFullScreen)
         showOverLockScreen()
-        WindowCompat.setDecorFitsSystemWindows(window, true)
+        enableEdgeToEdge()
         setContentView(buildView())
         live = this
     }
@@ -216,7 +219,21 @@ class AlertActivity : AppCompatActivity() {
             start()
         }
 
-        return root
+        // Edge-to-edge: keep the content clear of the bars and cutout, on top of
+        // its own padding. Scrollable, because nothing locks this screen to
+        // portrait any more and a landscape phone is short.
+        val base = intArrayOf(root.paddingLeft, root.paddingTop, root.paddingRight, root.paddingBottom)
+        val scroll = ScrollView(this).apply {
+            isFillViewport = true
+            background = root.background
+            addView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(scroll) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            root.setPadding(base[0] + bars.left, base[1] + bars.top, base[2] + bars.right, base[3] + bars.bottom)
+            insets
+        }
+        return scroll
     }
 
     /**

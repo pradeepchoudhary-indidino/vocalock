@@ -2,6 +2,7 @@ package com.indidino.vocalock
 
 import android.graphics.Color
 import android.os.Bundle
+import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.getcapacitor.BridgeActivity
@@ -18,6 +19,9 @@ class MainActivity : BridgeActivity() {
         registerPlugin(ListenerPlugin::class.java)
         registerPlugin(VoiceSetupPlugin::class.java)
         super.onCreate(savedInstanceState)
+        // Android 15+ forces edge-to-edge; this makes 8-14 match, with
+        // transparent bars over the page. The web side pads with --safe-*.
+        enableEdgeToEdge()
         paintWebViewGround()
         publishInsets()
         resumeListeningIfArmed()

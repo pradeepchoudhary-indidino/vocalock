@@ -8,6 +8,7 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -103,6 +104,24 @@ class ListenerPlugin : Plugin() {
                 .put("bottom", (bars.bottom / d).toInt())
                 .put("keyboard", ((ime.bottom - bars.bottom).coerceAtLeast(0) / d).toInt()),
         )
+    }
+
+    /**
+     * Light or dark status- and navigation-bar icons, to match the web theme.
+     * The app is edge-to-edge, so the bars have no colour of their own to set:
+     * the page paints behind them.
+     */
+    @PluginMethod
+    fun setSystemBarStyle(call: PluginCall) {
+        val darkIcons = call.getBoolean("darkIcons", true) ?: true
+        val activity = activity ?: return call.resolve()
+        activity.runOnUiThread {
+            WindowCompat.getInsetsController(activity.window, activity.window.decorView).apply {
+                isAppearanceLightStatusBars = darkIcons
+                isAppearanceLightNavigationBars = darkIcons
+            }
+            call.resolve()
+        }
     }
 
     // ----- settings -----

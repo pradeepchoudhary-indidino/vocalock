@@ -18,11 +18,6 @@ const config: CapacitorConfig = {
     SocialLogin: {
       providers: { google: true, facebook: false, apple: true, twitter: false },
     },
-    StatusBar: {
-      overlaysWebView: false,
-      style: 'LIGHT',
-      backgroundColor: '#EEF4FC',
-    },
   },
 };
 

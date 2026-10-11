@@ -46,7 +46,6 @@
             android:excludeFromRecents="true"
             android:showOnLockScreen="true"
             android:turnScreenOn="true"
-            android:screenOrientation="portrait"
             android:configChanges="orientation|keyboardHidden|screenSize|uiMode" />
 
         <service
