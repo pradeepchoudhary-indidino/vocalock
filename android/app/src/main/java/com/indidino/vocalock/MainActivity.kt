@@ -7,6 +7,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.getcapacitor.BridgeActivity
 import com.indidino.vocalock.plugins.ListenerPlugin
+import com.indidino.vocalock.plugins.MetaPlugin
 import com.indidino.vocalock.plugins.VoiceSetupPlugin
 import com.indidino.vocalock.service.BootReceiver
 import com.indidino.vocalock.service.ListenerService
@@ -18,6 +19,7 @@ class MainActivity : BridgeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         registerPlugin(ListenerPlugin::class.java)
         registerPlugin(VoiceSetupPlugin::class.java)
+        registerPlugin(MetaPlugin::class.java)
         super.onCreate(savedInstanceState)
         // Android 15+ forces edge-to-edge; this makes 8-14 match, with
         // transparent bars over the page. The web side pads with --safe-*.

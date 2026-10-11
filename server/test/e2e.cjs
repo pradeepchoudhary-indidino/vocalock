@@ -24,6 +24,8 @@ Object.assign(process.env, {
   RAZORPAY_KEY_SECRET: 'key_secret',
   RAZORPAY_PLAN_ID: 'plan_fake',
   RAZORPAY_WEBHOOK_SECRET: 'wh_secret',
+  META_DATASET_ID: 'ds_test',
+  META_ACCESS_TOKEN: 'meta_token',
 });
 
 // --- fake Google: the ID token string is the Google `sub`
@@ -35,8 +37,13 @@ OAuth2Client.prototype.verifyIdToken = async ({ idToken, audience }) => {
 
 // --- fake Razorpay
 const subs = new Map();
+const metaCalls = [];
 const realFetch = global.fetch;
 global.fetch = async (url, init = {}) => {
+  if (String(url).startsWith('https://graph.facebook.com/')) {
+    metaCalls.push({ url: String(url), body: JSON.parse(init.body) });
+    return new Response('{"events_received":1}', { status: 200 });
+  }
   if (!String(url).startsWith('https://api.razorpay.com/v1')) return realFetch(url, init);
   const path = String(url).replace('https://api.razorpay.com/v1', '');
   const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -114,6 +121,9 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   check('sign-in returns uid + token', Boolean(alice.uid && alice.token && bob.token), JSON.stringify(alice));
   const alice2 = (await call('/auth/google', { body: { idToken: 'alice' } })).data;
   check('same Google account → same user', alice2.uid === alice.uid);
+  check('first sign-in says created, the second does not', alice.created === true && alice2.created === false, JSON.stringify([alice.created, alice2.created]));
+  const att = await call('/me/attribution', { token: alice.token, body: { anonId: 'XZ-anon-alice', advertiserId: 'gaid-alice', trackingLimited: false } });
+  check('attribution stored', att.status === 200 && (await rows('SELECT meta_anon_id, meta_advertiser_id, meta_tracking_limited FROM users WHERE id=$1', [alice.uid]))[0].meta_advertiser_id === 'gaid-alice');
   const [hashRow] = await rows('SELECT token_hash FROM sessions WHERE user_id = $1 LIMIT 1', [alice.uid]);
   check('session stored hashed, not raw', hashRow && hashRow.token_hash !== alice.token);
 
@@ -140,6 +150,7 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   check('verify ×2 + authenticated webhook → one sub row, one ₹1 payment',
     (await rows('SELECT 1 FROM subscriptions WHERE user_id=$1', [alice.uid])).length === 1 &&
     (await rows("SELECT amount FROM payments WHERE user_id=$1", [alice.uid])).map((r) => r.amount).join() === '100');
+  check('the server does not report the trial (the app does)', metaCalls.length === 0, String(metaCalls.length));
   check('second purchase while in trial → 409', (await call('/startSubscription', { token: alice.token })).status === 409);
 
   // Renewal
@@ -152,6 +163,15 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   check('charged → active, valid_until = cycle end', afterCharge.status === 'active' && afterCharge.valid_until === new Date(cycleEnd * 1000).toISOString(), JSON.stringify(afterCharge));
   const pays = await rows('SELECT type, amount FROM payments WHERE user_id=$1 ORDER BY created_at', [alice.uid]);
   check('retried charged webhook → still one ₹199 renewal', pays.map((p) => `${p.type}:${p.amount}`).join() === 'trial:100,renewal:19900', JSON.stringify(pays));
+  await new Promise((r) => setTimeout(r, 300));
+  const renewalEvents = metaCalls.filter((c) => c.body.data[0].event_id === 'renewal:pay_renew_1');
+  const ev = renewalEvents[0]?.body.data[0];
+  check('renewal reported to Meta once, despite the retry', renewalEvents.length === 1, String(renewalEvents.length));
+  check('…as fb_mobile_purchase, ₹199.00 INR, action_source app, to dataset v26.0',
+    ev && ev.event_name === 'fb_mobile_purchase' && ev.custom_data.value === '199.00' && ev.custom_data.currency === 'INR' && ev.action_source === 'app'
+      && renewalEvents[0].url.includes('/v26.0/ds_test/events'), JSON.stringify(ev));
+  check('…with the install id, advertising id and a 16-field extinfo',
+    ev && ev.user_data.anon_id === 'XZ-anon-alice' && ev.user_data.madid === 'gaid-alice' && ev.app_data.extinfo.length === 16 && ev.app_data.advertiser_tracking_enabled === 1, JSON.stringify(ev?.user_data));
   const badHook = await realFetch(BASE + '/webhooks/razorpay', { method: 'POST', headers: { 'X-Razorpay-Signature': 'nope' }, body: '{}' });
   check('webhook with bad signature → 400', badHook.status === 400);
   // Another app on the shared Razorpay account: same uid shape in notes, different plan.
@@ -232,6 +252,7 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   check('old session no longer works', (await call('/getEntitlement', { token: alice.token })).status === 401);
   const [u] = await rows('SELECT google_sub, email, name FROM users WHERE id=$1', [alice.uid]);
   check('personal data erased', u.google_sub === null && u.email === null && u.name === null, JSON.stringify(u));
+  check('…including the Meta ids', (await rows('SELECT meta_anon_id, meta_advertiser_id FROM users WHERE id=$1', [alice.uid]))[0].meta_advertiser_id === null);
   check('payment records kept', (await rows('SELECT 1 FROM payments WHERE user_id=$1', [alice.uid])).length === 3);
   const again = (await call('/auth/google', { body: { idToken: 'alice' } })).data;
   check('same Google account afterwards → fresh user', again.uid && again.uid !== alice.uid);

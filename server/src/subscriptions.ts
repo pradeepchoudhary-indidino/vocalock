@@ -1,5 +1,6 @@
 import { query, transaction } from './db';
 import * as razorpay from './razorpay';
+import { reportRenewal } from './meta';
 import { iso, newId } from './util';
 
 /**
@@ -104,19 +105,24 @@ export async function activateSubscription(
 }
 
 
-/** Ledger insert that a retried webhook cannot duplicate. */
+/**
+ * Ledger insert that a retried webhook cannot duplicate. True if this call
+ * recorded the payment, false if it was already there.
+ */
 async function recordPayment(
   q: typeof query,
   p: { uid: string; subscriptionId: string; amount: number; type: string; providerTxnId: string | null },
-): Promise<void> {
-  await q(
+): Promise<boolean> {
+  const inserted = await q(
     `INSERT INTO payments
        (id, user_id, subscription_id, amount, currency, type, status,
         provider, provider_txn_id, created_at)
      VALUES ($1, $2, $3, $4, 'INR', $5, 'success', 'razorpay', $6, $7)
-     ON CONFLICT (provider, provider_txn_id) WHERE provider_txn_id IS NOT NULL DO NOTHING;`,
+     ON CONFLICT (provider, provider_txn_id) WHERE provider_txn_id IS NOT NULL DO NOTHING
+     RETURNING id;`,
     [newId('pay'), p.uid, p.subscriptionId, p.amount, p.type, p.providerTxnId, iso()],
   );
+  return inserted.length > 0;
 }
 
 interface SubscriptionRef {
@@ -134,6 +140,7 @@ async function applyRenewal(
   currentEnd: number | null,
   payments: { payment_id: string; amount: number }[],
 ): Promise<void> {
+  const recorded: { payment_id: string; amount: number }[] = [];
   await transaction(async (q) => {
     if (currentEnd) {
       await q(
@@ -145,15 +152,19 @@ async function applyRenewal(
       );
     }
     for (const p of payments) {
-      await recordPayment(q, {
+      const isNew = await recordPayment(q, {
         uid: row.user_id,
         subscriptionId: row.id,
         amount: p.amount,
         type: 'renewal',
         providerTxnId: p.payment_id,
       });
+      if (isNew) recorded.push(p);
     }
   });
+  // After the commit, and only for payments this call recorded: a payment the
+  // app already reported (a paid first period) or a retried webhook is skipped.
+  for (const p of recorded) void reportRenewal(row.user_id, p.payment_id, p.amount);
 }
 
 /**

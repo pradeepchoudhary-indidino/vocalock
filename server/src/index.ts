@@ -101,7 +101,7 @@ app.post('/auth/google', authLimit, async (req, res) => {
 
   // Registration is implicit: a verified Google account is a user.
   const now = iso();
-  const [user] = await query<{ id: string; email: string | null; name: string | null }>(
+  const [user] = await query<{ id: string; email: string | null; name: string | null; created: boolean }>(
     `INSERT INTO users (id, google_sub, email, name, created_at, last_seen_at, app_version, device_model)
      VALUES ($1, $2, $3, $4, $5, $5, $6, $7)
      ON CONFLICT (google_sub) WHERE google_sub IS NOT NULL DO UPDATE
@@ -110,7 +110,7 @@ app.post('/auth/google', authLimit, async (req, res) => {
            last_seen_at = EXCLUDED.last_seen_at,
            app_version = EXCLUDED.app_version,
            device_model = EXCLUDED.device_model
-     RETURNING id, email, name;`,
+     RETURNING id, email, name, (xmax = 0) AS created;`,
     [
       newId('usr'),
       identity.sub,
@@ -123,11 +123,28 @@ app.post('/auth/google', authLimit, async (req, res) => {
   );
 
   const token = await createSession(user.id);
-  res.json({ uid: user.id, email: user.email, name: user.name, token });
+  // `created` lets the app report a sign-up to Meta once, not on every sign-in.
+  res.json({ uid: user.id, email: user.email, name: user.name, token, created: user.created });
 });
 
 // Everything below acts on the signed-in user, and only that user.
 app.use(requireSession);
+
+/** The Meta SDK's ids for this install; see meta.ts for what they are for. */
+app.post('/me/attribution', async (req, res) => {
+  const uid = res.locals.uid as string;
+  const anonId = String(req.body?.anonId ?? '').slice(0, 128);
+  const advertiserId = req.body?.advertiserId ? String(req.body.advertiserId).slice(0, 64) : null;
+  if (!anonId) {
+    res.status(400).send('anonId required');
+    return;
+  }
+  await query(
+    `UPDATE users SET meta_anon_id = $2, meta_advertiser_id = $3, meta_tracking_limited = $4 WHERE id = $1;`,
+    [uid, anonId, advertiserId, req.body?.trackingLimited !== false],
+  );
+  res.json({ ok: true });
+});
 
 app.post('/auth/signOut', async (req, res) => {
   await deleteSession(bearerToken(req));
@@ -331,7 +348,8 @@ app.post('/deleteAccount', async (req, res) => {
     );
     await q(
       `UPDATE users SET google_sub = NULL, email = NULL, name = NULL, phone = NULL,
-         app_version = NULL, device_model = NULL, last_seen_at = $2
+         app_version = NULL, device_model = NULL, meta_anon_id = NULL,
+         meta_advertiser_id = NULL, meta_tracking_limited = NULL, last_seen_at = $2
        WHERE id = $1;`,
       [uid, now],
     );

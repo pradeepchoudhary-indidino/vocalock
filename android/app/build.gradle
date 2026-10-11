@@ -30,6 +30,14 @@ android {
         applicationId "com.indidino.vocalock"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
+        // Meta SDK ids as string resources: a numeric App ID written straight
+        // into a manifest meta-data value is read back as an integer and the
+        // SDK rejects it.
+        def metaAppId = (project.findProperty('vocalock.metaAppId') ?: '').toString().trim()
+        def metaClientToken = (project.findProperty('vocalock.metaClientToken') ?: '').toString().trim()
+        resValue "string", "meta_app_id", metaAppId
+        resValue "string", "meta_client_token", metaClientToken
+        resValue "bool", "meta_enabled", (!metaAppId.isEmpty() && !metaClientToken.isEmpty()).toString()
         versionCode 3
         versionName "1.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -126,6 +134,9 @@ dependencies {
     implementation "androidx.security:security-crypto:$androidxSecurityCryptoVersion"
     // Offline phrase spotting, built locally for 16 KB page alignment.
     implementation project(':vosk')
+    // Meta App Events: install attribution and the funnel events Meta ads
+    // optimise for. Core only — no Facebook Login.
+    implementation "com.facebook.android:facebook-core:18.3.0"
     // Native crash capture. Vosk runs as C++ inside the listener service, and a
     // crash there never reaches the Java handler.
     implementation "com.google.firebase:firebase-crashlytics-ndk:$firebaseCrashlyticsVersion"

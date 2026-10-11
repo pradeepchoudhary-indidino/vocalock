@@ -4,6 +4,7 @@ import { SocialLogin } from '@capgo/capacitor-social-login';
 import { SqliteRepository } from '../db/sqlite';
 import type { Repository } from '../db/types';
 import { APP_VERSION } from './analytics';
+import { metaAttribution } from './meta';
 import { CheckoutDismissed, openSubscriptionCheckout } from './razorpay';
 
 /**
@@ -20,6 +21,8 @@ const GOOGLE_WEB_CLIENT_ID = import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID ?? '';
 
 export interface Session {
   uid: string;
+  /** True on the sign-in that created the account. Not persisted. */
+  created?: boolean;
   email: string | null;
   name: string | null;
   /** The server's session token. Absent in the local stub, which has no server. */
@@ -263,6 +266,17 @@ async function syncPendingCheckout(session: Session): Promise<PurchaseResult | n
   if (result.status === 'pending') return 'pending';
   await clearPendingCheckout();
   return result;
+}
+
+/**
+ * Hands the server the Meta ids it stamps on Conversions API events, so a
+ * renewal — reported from the server, with the app closed — is credited to the
+ * ad behind the install. Best effort; nothing waits on it.
+ */
+export async function syncMetaAttribution(session: Session): Promise<void> {
+  if (!backendConfigured || !session.token) return;
+  const ids = await metaAttribution();
+  if (ids) await post('/me/attribution', session, ids).catch(() => undefined);
 }
 
 export interface RemoteEntitlement {

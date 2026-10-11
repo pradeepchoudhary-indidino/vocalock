@@ -7,12 +7,14 @@ import {
   getEntitlement,
   resumePendingCheckout,
   signOutRemote,
+  syncMetaAttribution,
   startSubscription,
   type PurchaseResult,
   type Session,
 } from '../lib/api';
 import type { PlanStatus } from '../db/types';
 import { setCrashUser } from '../lib/crashlytics';
+import { metaPurchase, metaRegistration } from '../lib/meta';
 
 const KEY_ENTITLEMENT = 'vocalock.entitlement';
 const KEY_SESSION = 'vocalock.session';
@@ -116,6 +118,7 @@ export const usePremium = create<AccountState>((set, get) => ({
     }
     set({ entitlement: parsed, session: restored, loaded: true });
     setCrashUser(restored?.uid ?? null);
+    if (restored) void syncMetaAttribution(restored);
     if (restored) {
       try {
         await get().refresh();
@@ -148,9 +151,13 @@ export const usePremium = create<AccountState>((set, get) => ({
   },
 
   signIn: async (session) => {
-    await Preferences.set({ key: KEY_SESSION, value: JSON.stringify(session) });
-    set({ session });
+    if (session.created) metaRegistration();
+    // `created` describes this sign-in only; it is not kept.
+    const { created: _created, ...kept } = session;
+    await Preferences.set({ key: KEY_SESSION, value: JSON.stringify(kept) });
+    set({ session: kept });
     setCrashUser(session.uid);
+    void syncMetaAttribution(kept);
   },
 
   signOut: async () => {
@@ -180,6 +187,13 @@ export const usePremium = create<AccountState>((set, get) => ({
   },
 
   applyPurchase: async (result) => {
+    // The first time this purchase reaches the phone: verify, a recovery after
+    // Android killed the app, and a resume can all deliver the same one.
+    const isNew = get().entitlement.validUntil !== result.validUntil;
+    if (isNew && result.provider) {
+      if (result.status === 'trial') metaPurchase('trial', PRICING.trialPrice);
+      else metaPurchase('subscribe', PRICING.renewalPrice);
+    }
     const entitlement: Entitlement = {
       ...NO_ENTITLEMENT,
       status: result.status,

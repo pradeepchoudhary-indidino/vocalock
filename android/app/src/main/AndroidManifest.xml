@@ -36,6 +36,24 @@
 
         </activity>
 
+        <!-- Meta SDK. Switched off entirely (no init, no automatic events) until
+             the App ID and client token are set in gradle.properties. -->
+        <meta-data
+            android:name="com.facebook.sdk.ApplicationId"
+            android:value="@string/meta_app_id" />
+        <meta-data
+            android:name="com.facebook.sdk.ClientToken"
+            android:value="@string/meta_client_token" />
+        <meta-data
+            android:name="com.facebook.sdk.AutoInitEnabled"
+            android:value="@bool/meta_enabled" />
+        <meta-data
+            android:name="com.facebook.sdk.AutoLogAppEventsEnabled"
+            android:value="@bool/meta_enabled" />
+        <meta-data
+            android:name="com.facebook.sdk.AdvertiserIDCollectionEnabled"
+            android:value="@bool/meta_enabled" />
+
         <!-- Screen 12, "Phone found". Native so it can show over the lock screen
              with no WebView alive. -->
         <activity

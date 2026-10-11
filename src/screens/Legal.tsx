@@ -38,6 +38,10 @@ const DOCS: Record<string, Doc> = {
         text: "Razorpay handles payments. Your card, UPI or bank details go to Razorpay and never reach us; we receive only the amount, the result and Razorpay's reference, kept as tax law requires.",
       },
       {
+        heading: 'Advertising measurement',
+        text: 'The Meta (Facebook) SDK tells Meta that the app was installed and opened, and when you sign up, start the trial or subscribe, with your advertising ID, so we can see which ads work. It never shares audio, phrases, your PIN, your name or your email. Reset or delete your advertising ID in Android Settings, Google, Ads.',
+      },
+      {
         heading: 'Crash reports',
         text: 'If the app crashes it sends a report through Firebase Crashlytics (Google): the error, your phone model and Android version, the app version, your last few actions in the app and an internal account number. Never audio, phrases, your PIN, your name or your email.',
       },
