@@ -1,5 +1,6 @@
 package com.indidino.vocalock.plugins
 
+import android.os.Build
 import android.os.Bundle
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
@@ -84,7 +85,11 @@ class MetaPlugin : Plugin() {
                 JSObject()
                     .put("anonId", AppEventsLogger.getAnonymousAppDeviceGUID(context))
                     .put("advertiserId", ids?.androidAdvertiserId ?: JSONObject.NULL)
-                    .put("trackingLimited", ids?.isTrackingLimited ?: true),
+                    .put("trackingLimited", ids?.isTrackingLimited ?: true)
+                    // Meta rejects a server event whose device info lacks these.
+                    .put("osVersion", Build.VERSION.RELEASE)
+                    .put("deviceModel", Build.MODEL)
+                    .put("appVersion", context.packageManager.getPackageInfo(context.packageName, 0).versionName),
             )
         }.start()
     }

@@ -30,13 +30,19 @@ export async function reportRenewal(uid: string, paymentId: string, paise: numbe
       meta_anon_id: string | null;
       meta_advertiser_id: string | null;
       meta_tracking_limited: boolean | null;
-      app_version: string | null;
+      meta_os_version: string | null;
+      meta_device_model: string | null;
+      meta_app_version: string | null;
     }>(
-      'SELECT meta_anon_id, meta_advertiser_id, meta_tracking_limited, app_version FROM users WHERE id = $1;',
+      `SELECT meta_anon_id, meta_advertiser_id, meta_tracking_limited,
+              meta_os_version, meta_device_model, meta_app_version
+       FROM users WHERE id = $1;`,
       [uid],
     );
-    // Without an install id Meta cannot tie the event to anyone.
-    if (!user?.meta_anon_id) return;
+    // Without an install id Meta cannot tie the event to anyone, and without
+    // the Android version it rejects the event.
+    if (!user?.meta_anon_id || !user.meta_os_version) return;
+    const version = user.meta_app_version ?? '';
     const tracked = user.meta_tracking_limited === false;
     const event = {
       event_name: PURCHASE,
@@ -50,8 +56,12 @@ export async function reportRenewal(uid: string, paymentId: string, paise: numbe
       app_data: {
         advertiser_tracking_enabled: tracked ? 1 : 0,
         application_tracking_enabled: 1,
-        // All 16 positions are required, in order; unknown ones are empty.
-        extinfo: ['a2', PACKAGE, '', user.app_version ?? '', '', '', 'en_IN', '', '', '', '', '', '', '', '', 'Asia/Kolkata'],
+        // All 16 positions, in order: version, package, app short and long
+        // version, Android version, model, locale, timezone abbreviation,
+        // carrier, screen width, height, density, cores, storage, free
+        // storage, timezone. Unknown ones are empty.
+        extinfo: ['a2', PACKAGE, version, version, user.meta_os_version, user.meta_device_model ?? '',
+          'en_IN', '', '', '', '', '', '', '', '', 'Asia/Kolkata'],
       },
       custom_data: { currency: 'INR', value: (paise / 100).toFixed(2) },
     };

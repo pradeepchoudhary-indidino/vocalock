@@ -122,7 +122,7 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   const alice2 = (await call('/auth/google', { body: { idToken: 'alice' } })).data;
   check('same Google account → same user', alice2.uid === alice.uid);
   check('first sign-in says created, the second does not', alice.created === true && alice2.created === false, JSON.stringify([alice.created, alice2.created]));
-  const att = await call('/me/attribution', { token: alice.token, body: { anonId: 'XZ-anon-alice', advertiserId: 'gaid-alice', trackingLimited: false } });
+  const att = await call('/me/attribution', { token: alice.token, body: { anonId: 'XZ-anon-alice', advertiserId: 'gaid-alice', trackingLimited: false, osVersion: '14', deviceModel: 'Pixel 7', appVersion: '1.2' } });
   check('attribution stored', att.status === 200 && (await rows('SELECT meta_anon_id, meta_advertiser_id, meta_tracking_limited FROM users WHERE id=$1', [alice.uid]))[0].meta_advertiser_id === 'gaid-alice');
   const [hashRow] = await rows('SELECT token_hash FROM sessions WHERE user_id = $1 LIMIT 1', [alice.uid]);
   check('session stored hashed, not raw', hashRow && hashRow.token_hash !== alice.token);
@@ -171,7 +171,7 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
     ev && ev.event_name === 'fb_mobile_purchase' && ev.custom_data.value === '199.00' && ev.custom_data.currency === 'INR' && ev.action_source === 'app'
       && renewalEvents[0].url.includes('/v26.0/ds_test/events'), JSON.stringify(ev));
   check('…with the install id, advertising id and a 16-field extinfo',
-    ev && ev.user_data.anon_id === 'XZ-anon-alice' && ev.user_data.madid === 'gaid-alice' && ev.app_data.extinfo.length === 16 && ev.app_data.advertiser_tracking_enabled === 1, JSON.stringify(ev?.user_data));
+    ev && ev.user_data.anon_id === 'XZ-anon-alice' && ev.user_data.madid === 'gaid-alice' && ev.app_data.extinfo.length === 16 && ev.app_data.extinfo[4] === '14' && ev.app_data.extinfo[2] === '1.2' && ev.app_data.advertiser_tracking_enabled === 1, JSON.stringify(ev?.user_data));
   const badHook = await realFetch(BASE + '/webhooks/razorpay', { method: 'POST', headers: { 'X-Razorpay-Signature': 'nope' }, body: '{}' });
   check('webhook with bad signature → 400', badHook.status === 400);
   // Another app on the shared Razorpay account: same uid shape in notes, different plan.

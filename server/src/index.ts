@@ -139,9 +139,12 @@ app.post('/me/attribution', async (req, res) => {
     res.status(400).send('anonId required');
     return;
   }
+  const text = (v: unknown) => (v ? String(v).slice(0, 64) : null);
   await query(
-    `UPDATE users SET meta_anon_id = $2, meta_advertiser_id = $3, meta_tracking_limited = $4 WHERE id = $1;`,
-    [uid, anonId, advertiserId, req.body?.trackingLimited !== false],
+    `UPDATE users SET meta_anon_id = $2, meta_advertiser_id = $3, meta_tracking_limited = $4,
+       meta_os_version = $5, meta_device_model = $6, meta_app_version = $7 WHERE id = $1;`,
+    [uid, anonId, advertiserId, req.body?.trackingLimited !== false,
+      text(req.body?.osVersion), text(req.body?.deviceModel), text(req.body?.appVersion)],
   );
   res.json({ ok: true });
 });
@@ -349,7 +352,8 @@ app.post('/deleteAccount', async (req, res) => {
     await q(
       `UPDATE users SET google_sub = NULL, email = NULL, name = NULL, phone = NULL,
          app_version = NULL, device_model = NULL, meta_anon_id = NULL,
-         meta_advertiser_id = NULL, meta_tracking_limited = NULL, last_seen_at = $2
+         meta_advertiser_id = NULL, meta_tracking_limited = NULL,
+         meta_os_version = NULL, meta_device_model = NULL, meta_app_version = NULL, last_seen_at = $2
        WHERE id = $1;`,
       [uid, now],
     );

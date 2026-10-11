@@ -23,6 +23,9 @@ export interface MetaAttribution {
   anonId?: string;
   advertiserId?: string | null;
   trackingLimited?: boolean;
+  osVersion?: string;
+  deviceModel?: string;
+  appVersion?: string;
 }
 
 const Meta = registerPlugin<MetaPlugin>('Meta');
