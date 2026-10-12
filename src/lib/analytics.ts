@@ -27,7 +27,7 @@ export type AnalyticsEvent =
   | 'cancel_tap'
   | 'cancel_confirmed';
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 
 export function track(event: AnalyticsEvent, params: Record<string, unknown> = {}) {
   const payload = {

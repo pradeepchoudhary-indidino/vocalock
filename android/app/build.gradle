@@ -38,8 +38,8 @@ android {
         resValue "string", "meta_app_id", metaAppId
         resValue "string", "meta_client_token", metaClientToken
         resValue "bool", "meta_enabled", (!metaAppId.isEmpty() && !metaClientToken.isEmpty()).toString()
-        versionCode 3
-        versionName "1.1"
+        versionCode 4
+        versionName "1.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // 85 locales of AndroidX strings ship by default; we support two.
         resConfigs "en", "hi"
