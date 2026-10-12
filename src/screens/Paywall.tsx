@@ -4,6 +4,7 @@ import { Screen } from '../components/Screen';
 import {
   BoltIcon,
   ClapIcon,
+  CloseIcon,
   LockIcon,
   LogoMark,
   ShieldIcon,
@@ -83,28 +84,46 @@ export function Paywall() {
     navigate('/home', { replace: true });
   };
 
+  // Play requires a clearly visible way out of the paywall. Profile, Payment
+  // Settings and Legal stay open without Premium, so dismissing lands there.
+  const dismiss = () => {
+    track('paywall_dismiss');
+    navigate('/profile');
+  };
+
   return (
     <Screen
       hero={
-        <div className="hero__centre">
-          {/* The canvas draws the app tile here. The Hindi explainer was asked
-              for before the redesign and has no slot in the canvas, so it takes
-              the tile's place when a video is present. */}
-          {PRICING.paywallVideoUrl ? (
-            <PaywallVideo remoteUrl={PRICING.paywallVideoUrl} />
-          ) : (
-            <span className="paywall-mark">
-              <span className="paywall-mark__ring" />
-              <span className="paywall-mark__ring" />
-              <span className="paywall-mark__tile">
-                <LogoMark size={52} tone="#1669C5" />
-                <span className="paywall-mark__badge">&#11088;</span>
+        <>
+          <div className="hero__bar">
+            <span className="hero__spacer" />
+            <button className="hero__btn" type="button" aria-label="Close" onClick={dismiss}>
+              <CloseIcon />
+            </button>
+          </div>
+          <div className="hero__centre">
+            {/* The canvas draws the app tile here. The Hindi explainer was asked
+                for before the redesign and has no slot in the canvas, so it takes
+                the tile's place when a video is present. */}
+            {PRICING.paywallVideoUrl ? (
+              <PaywallVideo remoteUrl={PRICING.paywallVideoUrl} />
+            ) : (
+              <span className="paywall-mark">
+                <span className="paywall-mark__ring" />
+                <span className="paywall-mark__ring" />
+                <span className="paywall-mark__tile">
+                  <LogoMark size={52} tone="#1669C5" />
+                  <span className="paywall-mark__badge">&#11088;</span>
+                </span>
               </span>
-            </span>
-          )}
-          <span className="trial-tag">{offer.tag}</span>
-          <h1 className="hero__h1">Unlock VocaLock Premium</h1>
-        </div>
+            )}
+            <span className="trial-tag">{offer.tag}</span>
+            <h1 className="hero__h1">Unlock VocaLock Premium</h1>
+            <p className="paywall__required">
+              A subscription is required to use VocaLock&rsquo;s features.
+            </p>
+          </div>
+        </>
       }
       dock={
         <>
@@ -114,6 +133,9 @@ export function Paywall() {
           {error ? <div className="field-error">{error}</div> : null}
           <button className="btn btn--primary" type="button" disabled={busy} onClick={unlock}>
             {offer.cta} &rarr;
+          </button>
+          <button className="btn btn--ghost paywall__dismiss" type="button" onClick={dismiss}>
+            Not now
           </button>
         </>
       }

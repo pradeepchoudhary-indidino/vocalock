@@ -1526,6 +1526,21 @@ button {
   text-wrap: balance;
 }
 
+.paywall__required {
+  margin: 0;
+  font-size: var(--t-caption);
+  line-height: 18px;
+  color: #fff;
+  opacity: 0.95;
+  text-align: center;
+}
+
+/* Play wants the way out of the paywall plainly visible, so it is a full
+   button rather than a faint link. */
+.paywall__dismiss {
+  margin-top: var(--s3);
+}
+
 .price__terms {
   font-size: var(--t-label);
   color: var(--ink-muted);

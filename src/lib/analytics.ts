@@ -10,6 +10,7 @@ export type AnalyticsEvent =
   | 'login_success'
   | 'paywall_view'
   | 'paywall_cta_tap'
+  | 'paywall_dismiss'
   | 'mandate_started'
   | 'mandate_success'
   | 'mandate_failed'
