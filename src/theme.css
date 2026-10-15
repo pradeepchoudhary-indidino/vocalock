@@ -281,8 +281,10 @@ button {
   border-radius: var(--r-xs);
 }
 
+/* Exactly the viewport, never taller: each screen scrolls its own body, so the
+   hero (with any close button) and the dock stay on screen. */
 #root {
-  min-height: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -304,7 +306,9 @@ button {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   max-width: 520px;
   width: 100%;
   margin: 0 auto;
@@ -317,7 +321,9 @@ button {
 
 .screen__body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   padding: var(--s5) var(--gutter) var(--s6);
 }
@@ -330,13 +336,19 @@ button {
   z-index: 1;
 }
 
+/* Scrolled: content passes under the hero's curved edge, not over it. */
+.screen--scrolled .hero {
+  z-index: 2;
+}
+
 .screen__body--docked {
-  padding-bottom: calc(96px + var(--safe-bottom));
+  /* The dock is in the column, not over it; this is only room for its fade. */
+  padding-bottom: var(--s6);
 }
 
 .screen__dock {
-  position: sticky;
-  bottom: 0;
+  position: relative;
+  flex-shrink: 0;
   /* Above the body, which is raised (z-index 1) to ride over the hero's curve.
      Without this, on a short screen the content painted over the dock and hid
      the screen's main button — "Continue with Google" on a 360×640 phone. */
@@ -379,6 +391,7 @@ button {
 /* ---------- the hero ---------- */
 
 .hero {
+  flex-shrink: 0;
   background: var(--f-hero);
   border-radius: 0 0 var(--r-hero) var(--r-hero);
   padding: calc(var(--safe-top) + var(--s6)) var(--gutter)
@@ -426,6 +439,34 @@ button {
   align-items: center;
   gap: var(--s3);
   min-height: 44px;
+}
+
+/* A lone close button floats in the hero's corner rather than taking a row of
+   its own: the paywall then fits a typical phone without scrolling, and the
+   way out stays at the top of the screen where Play expects it. */
+.hero > .hero__bar--float {
+  position: absolute;
+  top: calc(var(--safe-top) + var(--s4));
+  right: var(--gutter);
+  z-index: 2;
+}
+
+/* With no bar row to clear, that hero can sit tighter too. */
+.hero:has(> .hero__bar--float) {
+  padding-top: calc(var(--safe-top) + var(--s4));
+  padding-bottom: calc(var(--overlap) + var(--s3));
+}
+
+.hero:has(> .hero__bar--float) .hero__centre {
+  gap: 6px;
+}
+
+/* Below Pixel-8 height the paywall's icon is what pushes the offer into a
+   scroll; it is decoration, the offer is not. */
+@media (max-height: 880px) {
+  .hero .paywall-mark {
+    display: none;
+  }
 }
 
 .hero__title {
@@ -2427,8 +2468,8 @@ button {
 
 /* The app tile on the hero, with its ripple rings and its little badge. */
 .paywall-mark {
-  width: 132px;
-  height: 104px;
+  width: 104px;
+  height: 80px;
   position: relative;
   display: grid;
   place-items: center;
@@ -2437,8 +2478,8 @@ button {
 
 .paywall-mark__ring {
   position: absolute;
-  width: 104px;
-  height: 104px;
+  width: 80px;
+  height: 80px;
   border-radius: var(--r-pill);
   border: 3px solid rgba(255, 255, 255, 0.5);
   animation: ripple 2.6s ease-out infinite;
@@ -2450,9 +2491,9 @@ button {
 
 .paywall-mark__tile {
   position: relative;
-  width: 84px;
-  height: 84px;
-  border-radius: 26px;
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
   background: #fff;
   color: #1669c5;
   display: grid;
@@ -2463,10 +2504,10 @@ button {
 
 .paywall-mark__badge {
   position: absolute;
-  top: -12px;
-  right: -12px;
-  width: 34px;
-  height: 34px;
+  top: -10px;
+  right: -10px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--r-pill);
   background: var(--yellow);
   color: var(--yellow-ink);
@@ -2505,15 +2546,15 @@ button {
   border: 2px solid var(--f-line);
   border-bottom: var(--edge-card) solid var(--f-line-edge);
   border-radius: var(--r-card);
-  padding: 14px 18px;
-  margin-bottom: var(--s4);
+  padding: 12px 18px;
+  margin-bottom: var(--s3);
 }
 
 .price-card__rule {
   height: 2px;
   background: var(--f-divider);
   border-radius: 2px;
-  margin: 10px 0;
+  margin: 8px 0;
 }
 
 /* What happens, and when — a two-stop vertical timeline. */
@@ -2579,7 +2620,7 @@ button {
   padding: 0 var(--s1);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .bullet {
@@ -3066,4 +3107,30 @@ button {
   line-height: 22px;
   font-weight: 600;
   word-break: break-word;
+}
+
+/* ---------- short screens ---------- */
+
+/* Heroes and docks stay put while the body scrolls, so on a short phone
+   (360x640 and the like) they would leave the body a sliver. Tighten the hero
+   and drop its decoration there; the content is what needs the room. */
+@media (max-height: 760px) {
+  .hero {
+    padding-top: calc(var(--safe-top) + var(--s3));
+    padding-bottom: calc(var(--overlap) + var(--s3));
+    gap: var(--s2);
+  }
+
+  .hero > .hero__bar--float {
+    top: calc(var(--safe-top) + var(--s2));
+  }
+
+  .hero .paywall-mark,
+  .hero .hero-illo {
+    display: none;
+  }
+
+  .hero__emblem {
+    zoom: 0.6;
+  }
 }

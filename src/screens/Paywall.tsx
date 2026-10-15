@@ -95,8 +95,7 @@ export function Paywall() {
     <Screen
       hero={
         <>
-          <div className="hero__bar">
-            <span className="hero__spacer" />
+          <div className="hero__bar hero__bar--float">
             <button className="hero__btn" type="button" aria-label="Close" onClick={dismiss}>
               <CloseIcon />
             </button>
@@ -112,7 +111,7 @@ export function Paywall() {
                 <span className="paywall-mark__ring" />
                 <span className="paywall-mark__ring" />
                 <span className="paywall-mark__tile">
-                  <LogoMark size={52} tone="#1669C5" />
+                  <LogoMark size={40} tone="#1669C5" />
                   <span className="paywall-mark__badge">&#11088;</span>
                 </span>
               </span>

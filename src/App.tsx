@@ -29,7 +29,7 @@ import { initTheme, useTheme } from './lib/theme';
 const PREMIUM_ROUTES = /^\/(home|clap|permissions|calibrate|voice-lock)(\/|$)/;
 
 /** Back on these exits the app rather than navigating. */
-const ROOT_ROUTES = new Set(['/home', '/splash', '/login', '/paywall', '/']);
+const ROOT_ROUTES = new Set(['/home', '/splash', '/login', '/']);
 
 function currentPath(): string {
   return window.location.hash.replace('#', '') || '/';
@@ -148,7 +148,10 @@ export function App() {
     if (!Capacitor.isNativePlatform()) return;
     let handle: { remove: () => Promise<void> } | undefined;
     void CapApp.addListener('backButton', () => {
-      if (ROOT_ROUTES.has(currentPath())) void CapApp.exitApp();
+      // Back on the paywall is one more way out of it, like its close button
+      // and "Not now" — never an exit from the app (Play subscriptions policy).
+      if (currentPath() === '/paywall') navigate('/profile');
+      else if (ROOT_ROUTES.has(currentPath())) void CapApp.exitApp();
       else navigate(-1);
     }).then((h) => {
       handle = h;

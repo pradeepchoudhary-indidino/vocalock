@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode, type UIEvent } from 'react';
 
 /**
  * Which hue the screen belongs to. Blue is the app at large; purple is the
@@ -10,7 +10,7 @@ export type Flow = 'blue' | 'purple';
 
 interface ScreenProps {
   children: ReactNode;
-  /** Bottom-pinned action area; adds matching body padding. */
+  /** Bottom-pinned action area, outside the scrolling body. */
   dock?: ReactNode;
   /**
    * Hero content: the gradient block at the top of the screen. The body rides
@@ -22,13 +22,21 @@ interface ScreenProps {
 }
 
 export function Screen({ children, dock, hero, flow = 'blue' }: ScreenProps) {
+  // At rest the body's first card rides over the hero's curve; once it scrolls,
+  // the hero is brought forward so content slides under the curve instead of
+  // being cut off flat partway across the gradient.
+  const [scrolled, setScrolled] = useState(false);
+  const onScroll = (e: UIEvent<HTMLDivElement>) => {
+    const next = e.currentTarget.scrollTop > 0;
+    if (next !== scrolled) setScrolled(next);
+  };
   return (
     <div
-      className={`screen screen--enter${hero ? ' screen--hero' : ''}`}
+      className={`screen screen--enter${hero ? ' screen--hero' : ''}${scrolled ? ' screen--scrolled' : ''}`}
       data-flow={flow}
     >
       {hero ? <div className="hero">{hero}</div> : null}
-      <div className={`screen__body${dock ? ' screen__body--docked' : ''}`}>
+      <div className={`screen__body${dock ? ' screen__body--docked' : ''}`} onScroll={onScroll}>
         {children}
       </div>
       {dock ? <div className="screen__dock">{dock}</div> : null}
