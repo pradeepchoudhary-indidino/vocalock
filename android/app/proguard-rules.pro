@@ -23,6 +23,16 @@
     native <methods>;
 }
 
+# --- Capacitor core --------------------------------------------------------
+# Capacitor's consumer rules keep the plugins but not the bridge that reads
+# their annotations reflectively. In 1.2 R8 deleted PluginHandle's
+# pluginAnnotation field outright, so getPermissionState() hit a null
+# annotation and every launch crashed (Play rejection, 14 Oct 2026). Keep the
+# whole core and the annotations it reads at runtime.
+-keepattributes RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations,AnnotationDefault
+-keep class com.getcapacitor.** { *; }
+-keep @interface com.getcapacitor.** { *; }
+
 # --- Our own bridge --------------------------------------------------------
 # Plugin methods are invoked from JavaScript by name; the Capacitor rules cover
 # the annotated ones, this covers the classes themselves.
