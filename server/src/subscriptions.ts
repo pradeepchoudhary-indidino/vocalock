@@ -1,5 +1,6 @@
 import { query, transaction } from './db';
 import * as razorpay from './razorpay';
+import { logEvent } from './events';
 import { reportRenewal } from './meta';
 import { iso, newId } from './util';
 
@@ -47,7 +48,8 @@ export async function activateSubscription(
   sub: razorpay.RzpSubscription,
   paymentId: string | null,
 ): Promise<{ status: string; validUntil: string; provider: string }> {
-  return transaction(async (q) => {
+  let started = null as { status: string; amount: number } | null;
+  const result = await transaction(async (q) => {
     // Serialises the verify call and the webhook for the same user.
     const [user] = await q('SELECT id FROM users WHERE id = $1 FOR UPDATE;', [uid]);
     if (!user) throw new Error(`Unknown user ${uid}`);
@@ -91,6 +93,7 @@ export async function activateSubscription(
       type: trial ? 'trial' : 'renewal',
       providerTxnId: paymentId,
     });
+    started = { status, amount: trial ? PRICING.trialPaise : PRICING.renewalPaise };
     if (trial) {
       await q(
         `INSERT INTO trial_claims (google_sub_hash, claimed_at)
@@ -102,6 +105,11 @@ export async function activateSubscription(
     }
     return { status, validUntil, provider: 'razorpay' };
   });
+  // After the commit, and only for the call that created the row.
+  if (started) {
+    logEvent(uid, started.status === 'trial' ? 'trial_started' : 'subscription_started', { rupees: started.amount / RUPEE });
+  }
+  return result;
 }
 
 
@@ -164,7 +172,10 @@ async function applyRenewal(
   });
   // After the commit, and only for payments this call recorded: a payment the
   // app already reported (a paid first period) or a retried webhook is skipped.
-  for (const p of recorded) void reportRenewal(row.user_id, p.payment_id, p.amount);
+  for (const p of recorded) {
+    void reportRenewal(row.user_id, p.payment_id, p.amount);
+    logEvent(row.user_id, 'renewal_charged', { rupees: p.amount / RUPEE });
+  }
 }
 
 /**
@@ -175,27 +186,30 @@ async function applyRenewal(
  *   ends immediately, as it does for an in-app cancel.
  * - completed: every billing cycle has run.
  */
-async function applyLapse(rowId: string, razorpayStatus: string): Promise<void> {
+async function applyLapse(row: SubscriptionRef, razorpayStatus: string): Promise<void> {
+  let changed: unknown[] = [];
   if (razorpayStatus === 'halted') {
-    await query(
+    changed = await query(
       `UPDATE subscriptions SET status = 'failed', valid_until = $2
-       WHERE id = $1 AND status IN ('trial','active');`,
-      [rowId, iso()],
+       WHERE id = $1 AND status IN ('trial','active') RETURNING id;`,
+      [row.id, iso()],
     );
   } else if (razorpayStatus === 'cancelled') {
     // Cancelling ends Premium immediately, wherever it was done.
-    await query(
+    changed = await query(
       `UPDATE subscriptions SET status = 'cancelled', cancelled_at = $2, valid_until = $2
-       WHERE id = $1 AND status IN ('trial','active');`,
-      [rowId, iso()],
+       WHERE id = $1 AND status IN ('trial','active') RETURNING id;`,
+      [row.id, iso()],
     );
   } else if (razorpayStatus === 'completed' || razorpayStatus === 'expired') {
-    await query(
+    changed = await query(
       `UPDATE subscriptions SET status = 'expired'
-       WHERE id = $1 AND status IN ('trial','active','cancelled') AND valid_until <= $2;`,
-      [rowId, iso()],
+       WHERE id = $1 AND status IN ('trial','active','cancelled') AND valid_until <= $2 RETURNING id;`,
+      [row.id, iso()],
     );
   }
+  // An in-app cancel already logged itself and left nothing for this to change.
+  if (changed.length) logEvent(row.user_id, `subscription_${razorpayStatus}`, { by: 'razorpay' });
 }
 
 /**
@@ -210,7 +224,7 @@ export async function reconcile(row: SubscriptionRef & { mandate_id: string }): 
     const renewals = (await razorpay.paidInvoices(sub.id).catch(() => [])).slice(1);
     await applyRenewal(row, sub.current_end, renewals);
   } else {
-    await applyLapse(row.id, sub.status);
+    await applyLapse(row, sub.status);
   }
 }
 
@@ -247,7 +261,7 @@ export async function handleRazorpayEvent(event: RazorpayEvent): Promise<void> {
     case 'subscription.halted':
     case 'subscription.cancelled':
     case 'subscription.completed':
-      await applyLapse(row.id, sub.status);
+      await applyLapse(row, sub.status);
       return;
     default:
       // pending (retrying), updated, paused, resumed: no change to access.

@@ -2,6 +2,7 @@ import express from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { bearerToken, createSession, deleteSession, requireSession, verifyGoogleIdToken } from './auth';
 import { query, transaction } from './db';
+import { logEvent } from './events';
 import * as razorpay from './razorpay';
 import {
   PRICING,
@@ -95,6 +96,7 @@ app.post('/auth/google', authLimit, async (req, res) => {
     identity = await verifyGoogleIdToken(String(req.body?.idToken ?? ''));
   } catch (error) {
     console.warn('[auth/google]', (error as Error).message);
+    logEvent(null, 'sign_in_failed', {}, req.body?.appVersion);
     res.status(401).send('Google sign-in could not be verified.');
     return;
   }
@@ -124,6 +126,7 @@ app.post('/auth/google', authLimit, async (req, res) => {
   );
 
   const token = await createSession(user.id);
+  logEvent(user.id, user.created ? 'signup' : 'sign_in', { device_model: req.body?.deviceModel ?? null }, req.body?.appVersion);
   // `created` lets the app report a sign-up to Meta once, not on every sign-in.
   res.json({ uid: user.id, email: user.email, name: user.name, token, created: user.created });
 });
@@ -152,6 +155,7 @@ app.post('/me/attribution', async (req, res) => {
 
 app.post('/auth/signOut', async (req, res) => {
   await deleteSession(bearerToken(req));
+  logEvent(res.locals.uid as string, 'sign_out');
   res.json({ ok: true });
 });
 
@@ -220,6 +224,7 @@ async function startRazorpaySubscription(uid: string, res: express.Response): Pr
     [uid, iso()],
   );
   if (live) {
+    logEvent(uid, 'checkout_blocked', { reason: 'already_premium' });
     res.status(409).send('You already have Premium.');
     return;
   }
@@ -231,12 +236,14 @@ async function startRazorpaySubscription(uid: string, res: express.Response): Pr
       trial: trial ? { days: PRICING.trialDays, paise: PRICING.trialPaise } : null,
       totalCount: SUBSCRIPTION_CYCLES,
     });
+    logEvent(uid, 'checkout_started', { trial });
     res.json({
       checkout: { keyId: razorpay.razorpayKeyId, subscriptionId: sub.id, email: user.email },
       trial,
     });
   } catch (error) {
     console.error('[razorpay create]', error);
+    logEvent(uid, 'checkout_error', { message: (error as Error).message?.slice(0, 200) });
     res.status(502).send('Could not start the payment. Try again.');
   }
 }
@@ -262,6 +269,7 @@ app.post('/verifySubscription', async (req, res) => {
     return;
   }
   if (!razorpay.checkoutSignatureValid(paymentId, sub.id, signature)) {
+    logEvent(uid, 'payment_verify_failed', { reason: 'bad_signature' });
     res.status(400).send('Payment could not be verified.');
     return;
   }
@@ -321,6 +329,7 @@ app.post('/cancelSubscription', async (req, res) => {
      WHERE id = $1 AND status IN ('trial','active');`,
     [live.id, iso()],
   );
+  logEvent(uid, 'subscription_cancelled', { by: 'app' });
   res.json({ cancelled: true });
 });
 
@@ -370,6 +379,7 @@ app.post('/deleteAccount', async (req, res) => {
     await q('UPDATE users SET deleted_at = $2, last_seen_at = $2 WHERE id = $1;', [uid, now]);
     await q('DELETE FROM sessions WHERE user_id = $1;', [uid]);
   });
+  logEvent(uid, 'account_deleted', {}, req.body?.appVersion);
   res.json({ deleted: true });
 });
 
@@ -387,6 +397,9 @@ app.post('/getEntitlement', async (req, res) => {
     }
   }
   const premium = sub !== undefined && Date.parse(sub.valid_until) > Date.now();
+  // The app asks on launch, on every return to the foreground and after
+  // sign-in, so this doubles as an app-open event until the app sends its own.
+  logEvent(uid, 'app_foreground', { premium, status: sub?.status ?? 'none' });
   res.json({
     premium,
     validUntil: sub?.valid_until ?? null,

@@ -285,6 +285,13 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   check('…subscription expired', (await rows('SELECT status FROM subscriptions WHERE user_id=$1', [gina.uid]))[0].status === 'expired');
   check('…personal data kept', (await rows('SELECT email FROM users WHERE id=$1', [gina.uid]))[0].email !== null);
 
+  // Product events: logged fire-and-forget, so give the last inserts a moment.
+  await new Promise((r) => setTimeout(r, 300));
+  const logged = new Set((await rows('SELECT DISTINCT event FROM events')).map((r) => r.event));
+  for (const e of ['signup', 'sign_in', 'app_foreground', 'checkout_started', 'trial_started', 'subscription_cancelled', 'account_deleted']) {
+    check(`event logged: ${e}`, logged.has(e), [...logged].join(','));
+  }
+
   // Rate limit on sign-in (30 / 15 min / IP; this run has used 11)
   let limited = 0;
   for (let i = 0; i < 30; i++) if ((await call('/auth/google', { body: { idToken: 'forged-x' } })).status === 429) limited++;
