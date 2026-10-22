@@ -301,7 +301,7 @@ export async function getEntitlement(session: Session): Promise<RemoteEntitlemen
  */
 export async function deleteAccount(session: Session): Promise<void> {
   if (!backendConfigured) return;
-  // The version tells the server this app shows the keep-or-cancel choice.
+  // The version tells the server this app no longer promises a cancel on delete.
   await post('/deleteAccount', session, { appVersion: APP_VERSION });
 }
 

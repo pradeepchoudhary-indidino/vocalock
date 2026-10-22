@@ -336,9 +336,8 @@ function versionAtLeast(version: unknown, min: string): boolean {
 }
 
 /**
- * Delete account. From 1.4 the app tells the user that deleting does not
- * cancel and offers Cancel first, so only a manual cancel (/cancelSubscription)
- * stops the mandate: the subscription is left exactly as it is, an account
+ * Delete account. From 1.4 only a manual cancel (/cancelSubscription) stops
+ * the mandate: the subscription is left exactly as it is, an account
  * that ever paid keeps its identity (signing in again with the same Google
  * account brings it and its Premium back), and one that never paid has its
  * personal data erased. Older apps promised "cancelled straight away", so for
