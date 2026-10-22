@@ -128,7 +128,10 @@ app.post('/auth/google', authLimit, async (req, res) => {
   const token = await createSession(user.id);
   logEvent(user.id, user.created ? 'signup' : 'sign_in', { device_model: req.body?.deviceModel ?? null }, req.body?.appVersion);
   // `created` lets the app report a sign-up to Meta once, not on every sign-in.
-  res.json({ uid: user.id, email: user.email, name: user.name, token, created: user.created });
+  // 1.0-1.3 crash when told to report a sign-up to Meta: their Meta SDK never
+  // initialises. Only 1.4+ is told it was a new account.
+  const created = user.created && versionAtLeast(req.body?.appVersion, '1.4.0');
+  res.json({ uid: user.id, email: user.email, name: user.name, token, created });
 });
 
 // Everything below acts on the signed-in user, and only that user.
@@ -273,7 +276,7 @@ app.post('/verifySubscription', async (req, res) => {
     res.status(400).send('Payment could not be verified.');
     return;
   }
-  res.json(await activateSubscription(uid, sub, paymentId));
+  res.json(await forAppVersion(uid, await activateSubscription(uid, sub, paymentId)));
 });
 
 /**
@@ -302,8 +305,23 @@ app.post('/syncSubscription', async (req, res) => {
     return;
   }
   const [trial] = await razorpay.paidInvoices(sub.id).catch(() => []);
-  res.json(await activateSubscription(uid, sub, trial?.payment_id ?? null));
+  res.json(await forAppVersion(uid, await activateSubscription(uid, sub, trial?.payment_id ?? null)));
 });
+
+/**
+ * 1.0-1.3 report a purchase to Meta whenever the result names a provider, and
+ * that call crashes them (their Meta SDK never initialises). They use provider
+ * for nothing else, so they are sent null. The version is the one the app last
+ * reported: Meta attribution on each launch (1.4+), else the one at sign-in.
+ */
+type PurchaseResult = { status: string; validUntil: string; provider: string | null };
+async function forAppVersion(uid: string, result: PurchaseResult): Promise<PurchaseResult> {
+  const [user] = await query<{ version: string | null }>(
+    'SELECT COALESCE(meta_app_version, app_version) AS version FROM users WHERE id = $1;',
+    [uid],
+  );
+  return versionAtLeast(user?.version, '1.4.0') ? result : { ...result, provider: null };
+}
 
 app.post('/cancelSubscription', async (req, res) => {
   const uid = res.locals.uid as string;

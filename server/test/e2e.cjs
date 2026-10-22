@@ -116,13 +116,13 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   // Auth
   check('no session → 401', (await call('/getEntitlement')).status === 401);
   check('forged Google token → 401', (await call('/auth/google', { body: { idToken: 'forged-1' } })).status === 401);
-  const alice = (await call('/auth/google', { body: { idToken: 'alice', appVersion: '1.0', deviceModel: 'android' } })).data;
+  const alice = (await call('/auth/google', { body: { idToken: 'alice', appVersion: '1.4.0', deviceModel: 'android' } })).data;
   const bob = (await call('/auth/google', { body: { idToken: 'bob' } })).data;
   check('sign-in returns uid + token', Boolean(alice.uid && alice.token && bob.token), JSON.stringify(alice));
   const alice2 = (await call('/auth/google', { body: { idToken: 'alice' } })).data;
   check('same Google account → same user', alice2.uid === alice.uid);
   check('first sign-in says created, the second does not', alice.created === true && alice2.created === false, JSON.stringify([alice.created, alice2.created]));
-  const att = await call('/me/attribution', { token: alice.token, body: { anonId: 'XZ-anon-alice', advertiserId: 'gaid-alice', trackingLimited: false, osVersion: '14', deviceModel: 'Pixel 7', appVersion: '1.2' } });
+  const att = await call('/me/attribution', { token: alice.token, body: { anonId: 'XZ-anon-alice', advertiserId: 'gaid-alice', trackingLimited: false, osVersion: '14', deviceModel: 'Pixel 7', appVersion: '1.4.0' } });
   check('attribution stored', att.status === 200 && (await rows('SELECT meta_anon_id, meta_advertiser_id, meta_tracking_limited FROM users WHERE id=$1', [alice.uid]))[0].meta_advertiser_id === 'gaid-alice');
   const [hashRow] = await rows('SELECT token_hash FROM sessions WHERE user_id = $1 LIMIT 1', [alice.uid]);
   check('session stored hashed, not raw', hashRow && hashRow.token_hash !== alice.token);
@@ -171,7 +171,7 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
     ev && ev.event_name === 'fb_mobile_purchase' && ev.custom_data.value === '199.00' && ev.custom_data.currency === 'INR' && ev.action_source === 'app'
       && renewalEvents[0].url.includes('/v26.0/ds_test/events'), JSON.stringify(ev));
   check('…with the install id, advertising id and a 16-field extinfo',
-    ev && ev.user_data.anon_id === 'XZ-anon-alice' && ev.user_data.madid === 'gaid-alice' && ev.app_data.extinfo.length === 16 && ev.app_data.extinfo[4] === '14' && ev.app_data.extinfo[2] === '1.2' && ev.app_data.advertiser_tracking_enabled === 1, JSON.stringify(ev?.user_data));
+    ev && ev.user_data.anon_id === 'XZ-anon-alice' && ev.user_data.madid === 'gaid-alice' && ev.app_data.extinfo.length === 16 && ev.app_data.extinfo[4] === '14' && ev.app_data.extinfo[2] === '1.4.0' && ev.app_data.advertiser_tracking_enabled === 1, JSON.stringify(ev?.user_data));
   const badHook = await realFetch(BASE + '/webhooks/razorpay', { method: 'POST', headers: { 'X-Razorpay-Signature': 'nope' }, body: '{}' });
   check('webhook with bad signature → 400', badHook.status === 400);
   // Another app on the shared Razorpay account: same uid shape in notes, different plan.
@@ -235,7 +235,7 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   check('missed halted webhook → entitlement asks Razorpay, premium off', dh.premium === false, JSON.stringify(dh));
 
   // Lost redirect: checkout paid at Razorpay, but the app never called verify.
-  const carol = (await call('/auth/google', { body: { idToken: 'carol' } })).data;
+  const carol = (await call('/auth/google', { body: { idToken: 'carol', appVersion: '1.4.0' } })).data;
   const cs = await call('/startSubscription', { token: carol.token });
   const carolSub = subs.get(cs.data.checkout.subscriptionId);
   check('sync before paying → pending', (await call('/syncSubscription', { token: carol.token, body: { subscriptionId: carolSub.id } })).data.status === 'pending');
@@ -275,11 +275,14 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   check('…and signing in again restores the same user', frank2.uid === frank.uid);
 
   // A 1.3 app promised "cancelled straight away": it still gets that.
-  const gina = (await call('/auth/google', { body: { idToken: 'gina' } })).data;
+  const gina = (await call('/auth/google', { body: { idToken: 'gina', appVersion: '1.3.0' } })).data;
+  // 1.3 crashes when told to report to Meta, so it is never told.
+  check('1.3 new account → created not sent', gina.created === false, JSON.stringify(gina.created));
   const gs = await call('/startSubscription', { token: gina.token });
   const ginaSub = subs.get(gs.data.checkout.subscriptionId);
   ginaSub.status = 'authenticated';
-  await call('/syncSubscription', { token: gina.token, body: { subscriptionId: ginaSub.id } });
+  const ginaSync = await call('/syncSubscription', { token: gina.token, body: { subscriptionId: ginaSub.id } });
+  check('1.3 purchase → provider withheld', ginaSync.data.status === 'trial' && ginaSync.data.provider === null, JSON.stringify(ginaSync.data));
   await call('/deleteAccount', { token: gina.token, body: { appVersion: '1.3.0' } });
   check('1.3 delete → mandate stopped at Razorpay', ginaSub.status === 'cancelled', ginaSub.status);
   check('…subscription expired', (await rows('SELECT status FROM subscriptions WHERE user_id=$1', [gina.uid]))[0].status === 'expired');
