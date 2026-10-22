@@ -336,12 +336,11 @@ function versionAtLeast(version: unknown, min: string): boolean {
 }
 
 /**
- * Delete account. From 1.4 only a manual cancel (/cancelSubscription) stops
- * the mandate: the subscription is left exactly as it is, an account
- * that ever paid keeps its identity (signing in again with the same Google
- * account brings it and its Premium back), and one that never paid has its
- * personal data erased. Older apps promised "cancelled straight away", so for
- * them it still stops the mandate and erases, as it used to.
+ * Delete account. Every account keeps its data and is only marked deleted
+ * (signing in again with the same Google account brings it back); erasure is
+ * on request to support, as the privacy policy says. From 1.4 only a manual
+ * cancel (/cancelSubscription) stops the mandate. Older apps promised
+ * "cancelled straight away", so for them it still stops the mandate.
  */
 app.post('/deleteAccount', async (req, res) => {
   const uid = res.locals.uid as string;
@@ -358,12 +357,6 @@ app.post('/deleteAccount', async (req, res) => {
       return;
     }
   }
-  const [{ paid }] = await query<{ paid: boolean }>(
-    `SELECT EXISTS (SELECT 1 FROM subscriptions WHERE user_id = $1)
-         OR EXISTS (SELECT 1 FROM payments WHERE user_id = $1) AS paid;`,
-    [uid],
-  );
-
   const now = iso();
   await transaction(async (q) => {
     if (!keepsSubscription) {
@@ -374,19 +367,7 @@ app.post('/deleteAccount', async (req, res) => {
         [uid, now],
       );
     }
-    if (keepsSubscription && paid) {
-      await q('UPDATE users SET deleted_at = $2, last_seen_at = $2 WHERE id = $1;', [uid, now]);
-    } else {
-      await q(
-        `UPDATE users SET google_sub = NULL, email = NULL, name = NULL, phone = NULL,
-           app_version = NULL, device_model = NULL, meta_anon_id = NULL,
-           meta_advertiser_id = NULL, meta_tracking_limited = NULL,
-           meta_os_version = NULL, meta_device_model = NULL, meta_app_version = NULL,
-           deleted_at = $2, last_seen_at = $2
-         WHERE id = $1;`,
-        [uid, now],
-      );
-    }
+    await q('UPDATE users SET deleted_at = $2, last_seen_at = $2 WHERE id = $1;', [uid, now]);
     await q('DELETE FROM sessions WHERE user_id = $1;', [uid]);
   });
   res.json({ deleted: true });

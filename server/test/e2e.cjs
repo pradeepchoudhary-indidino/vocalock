@@ -270,9 +270,9 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   const frank = (await call('/auth/google', { body: { idToken: 'frank' } })).data;
   await call('/deleteAccount', { token: frank.token, body: { appVersion: '1.4.0' } });
   const [fu] = await rows('SELECT google_sub, email, name, deleted_at FROM users WHERE id=$1', [frank.uid]);
-  check('never-paid account → personal data erased', fu.google_sub === null && fu.email === null && fu.name === null && fu.deleted_at !== null, JSON.stringify(fu));
+  check('never-paid account → data kept, marked deleted', fu.google_sub !== null && fu.email !== null && fu.name !== null && fu.deleted_at !== null, JSON.stringify(fu));
   const frank2 = (await call('/auth/google', { body: { idToken: 'frank' } })).data;
-  check('…and signing in again makes a fresh user', frank2.uid && frank2.uid !== frank.uid);
+  check('…and signing in again restores the same user', frank2.uid === frank.uid);
 
   // A 1.3 app promised "cancelled straight away": it still gets that.
   const gina = (await call('/auth/google', { body: { idToken: 'gina' } })).data;
@@ -283,7 +283,7 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   await call('/deleteAccount', { token: gina.token, body: { appVersion: '1.3.0' } });
   check('1.3 delete → mandate stopped at Razorpay', ginaSub.status === 'cancelled', ginaSub.status);
   check('…subscription expired', (await rows('SELECT status FROM subscriptions WHERE user_id=$1', [gina.uid]))[0].status === 'expired');
-  check('…personal data erased', (await rows('SELECT email FROM users WHERE id=$1', [gina.uid]))[0].email === null);
+  check('…personal data kept', (await rows('SELECT email FROM users WHERE id=$1', [gina.uid]))[0].email !== null);
 
   // Rate limit on sign-in (30 / 15 min / IP; this run has used 11)
   let limited = 0;

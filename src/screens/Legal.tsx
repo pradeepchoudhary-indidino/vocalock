@@ -31,7 +31,7 @@ const DOCS: Record<string, Doc> = {
       },
       {
         heading: 'Your account',
-        text: 'When you sign in with Google we receive your name, email and Google account identifier, and use them only to keep your subscription attached to you. They are not sold or used for advertising. Delete account, in Profile, erases them, unless you have made a payment: then they are kept with your payment records. Deleting your account does not cancel your subscription; cancel it in Payment Settings.',
+        text: 'When you sign in with Google we receive your name, email and Google account identifier, and use them only to keep your subscription attached to you. They are not sold or used for advertising. Delete account, in Profile, closes your account but keeps them, so signing in again restores it; to have them erased, email support@indidino.com. Deleting your account does not cancel your subscription; cancel it in Payment Settings.',
       },
       {
         heading: 'Payments',
