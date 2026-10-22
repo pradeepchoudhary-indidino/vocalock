@@ -294,13 +294,15 @@ export async function getEntitlement(session: Session): Promise<RemoteEntitlemen
 }
 
 /**
- * Stops the subscription, erases the account's personal data and ends every
- * session. Without a server the account only ever lived on this phone, and
+ * Ends every session. The subscription is left running (only a cancel stops
+ * it), and the server erases personal data only for accounts that never paid.
+ * Without a server the account only ever lived on this phone, and
  * signing out removes it.
  */
 export async function deleteAccount(session: Session): Promise<void> {
   if (!backendConfigured) return;
-  await post('/deleteAccount', session);
+  // The version tells the server this app shows the keep-or-cancel choice.
+  await post('/deleteAccount', session, { appVersion: APP_VERSION });
 }
 
 export async function cancelSubscription(session: Session): Promise<void> {

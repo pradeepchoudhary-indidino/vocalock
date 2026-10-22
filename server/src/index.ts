@@ -109,7 +109,8 @@ app.post('/auth/google', authLimit, async (req, res) => {
            name = EXCLUDED.name,
            last_seen_at = EXCLUDED.last_seen_at,
            app_version = EXCLUDED.app_version,
-           device_model = EXCLUDED.device_model
+           device_model = EXCLUDED.device_model,
+           deleted_at = NULL
      RETURNING id, email, name, (xmax = 0) AS created;`,
     [
       newId('usr'),
@@ -323,40 +324,70 @@ app.post('/cancelSubscription', async (req, res) => {
   res.json({ cancelled: true });
 });
 
+/** Whether a dotted version is at least `min`; anything unparseable is not. */
+function versionAtLeast(version: unknown, min: string): boolean {
+  const a = String(version ?? '').split('.').map(Number);
+  const b = min.split('.').map(Number);
+  if (a.some(Number.isNaN) || a.length < 2) return false;
+  for (let i = 0; i < b.length; i++) {
+    if ((a[i] ?? 0) !== b[i]) return (a[i] ?? 0) > b[i];
+  }
+  return true;
+}
+
 /**
- * Play's account-deletion requirement. Personal data goes: name, email, the
- * Google id, every session. The subscription and payment rows stay, attached to
- * an id that no longer leads to a person, because payment records must be kept
- * for tax purposes. The mandate is stopped first so nothing is charged after.
+ * Delete account. From 1.4 the app tells the user that deleting does not
+ * cancel and offers Cancel first, so only a manual cancel (/cancelSubscription)
+ * stops the mandate: the subscription is left exactly as it is, an account
+ * that ever paid keeps its identity (signing in again with the same Google
+ * account brings it and its Premium back), and one that never paid has its
+ * personal data erased. Older apps promised "cancelled straight away", so for
+ * them it still stops the mandate and erases, as it used to.
  */
 app.post('/deleteAccount', async (req, res) => {
   const uid = res.locals.uid as string;
-  const [live] = await query<{ provider: string | null; mandate_id: string | null }>(
-    `SELECT provider, mandate_id FROM subscriptions
-     WHERE user_id = $1 AND status IN ('trial','active');`,
+  const keepsSubscription = versionAtLeast(req.body?.appVersion, '1.4.0');
+
+  if (!keepsSubscription) {
+    const [live] = await query<{ provider: string | null; mandate_id: string | null }>(
+      `SELECT provider, mandate_id FROM subscriptions
+       WHERE user_id = $1 AND status IN ('trial','active');`,
+      [uid],
+    );
+    if (live?.provider === 'razorpay' && live.mandate_id && !(await stopMandate(live.mandate_id))) {
+      res.status(502).send('Could not stop your subscription, so the account was not deleted. Try again.');
+      return;
+    }
+  }
+  const [{ paid }] = await query<{ paid: boolean }>(
+    `SELECT EXISTS (SELECT 1 FROM subscriptions WHERE user_id = $1)
+         OR EXISTS (SELECT 1 FROM payments WHERE user_id = $1) AS paid;`,
     [uid],
   );
-  if (live?.provider === 'razorpay' && live.mandate_id && !(await stopMandate(live.mandate_id))) {
-    res.status(502).send('Could not stop your subscription, so the account was not deleted. Try again.');
-    return;
-  }
 
   const now = iso();
   await transaction(async (q) => {
-    await q(
-      `UPDATE subscriptions SET status = 'expired', valid_until = $2,
-         cancelled_at = COALESCE(cancelled_at, $2)
-       WHERE user_id = $1 AND status IN ('trial','active','cancelled');`,
-      [uid, now],
-    );
-    await q(
-      `UPDATE users SET google_sub = NULL, email = NULL, name = NULL, phone = NULL,
-         app_version = NULL, device_model = NULL, meta_anon_id = NULL,
-         meta_advertiser_id = NULL, meta_tracking_limited = NULL,
-         meta_os_version = NULL, meta_device_model = NULL, meta_app_version = NULL, last_seen_at = $2
-       WHERE id = $1;`,
-      [uid, now],
-    );
+    if (!keepsSubscription) {
+      await q(
+        `UPDATE subscriptions SET status = 'expired', valid_until = $2,
+           cancelled_at = COALESCE(cancelled_at, $2)
+         WHERE user_id = $1 AND status IN ('trial','active','cancelled');`,
+        [uid, now],
+      );
+    }
+    if (keepsSubscription && paid) {
+      await q('UPDATE users SET deleted_at = $2, last_seen_at = $2 WHERE id = $1;', [uid, now]);
+    } else {
+      await q(
+        `UPDATE users SET google_sub = NULL, email = NULL, name = NULL, phone = NULL,
+           app_version = NULL, device_model = NULL, meta_anon_id = NULL,
+           meta_advertiser_id = NULL, meta_tracking_limited = NULL,
+           meta_os_version = NULL, meta_device_model = NULL, meta_app_version = NULL,
+           deleted_at = $2, last_seen_at = $2
+         WHERE id = $1;`,
+        [uid, now],
+      );
+    }
     await q('DELETE FROM sessions WHERE user_id = $1;', [uid]);
   });
   res.json({ deleted: true });

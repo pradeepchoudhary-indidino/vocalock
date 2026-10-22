@@ -4,7 +4,7 @@ import { Screen } from '../components/Screen';
 import { NavBar } from '../components/NavBar';
 import { Card, LinkRow, SectionLabel, Segmented, Sheet } from '../components/Controls';
 import { CardIcon, DocIcon, LifebuoyIcon, LogOutIcon, ShieldIcon, UserIcon } from '../components/Icons';
-import { daysLeft, isPremium, usePremium } from '../store/account';
+import { PRICING, daysLeft, isPremium, usePremium } from '../store/account';
 import { APP_VERSION } from '../lib/analytics';
 import { setThemePref, useTheme, type ThemePref } from '../lib/theme';
 
@@ -19,15 +19,18 @@ const PLAN_LABEL: Record<string, string> = {
 /** Screen 13. */
 export function Profile() {
   const navigate = useNavigate();
-  const { session, entitlement, signOut, deleteAccount } = usePremium();
+  const { session, entitlement, signOut, deleteAccount, cancel } = usePremium();
   const { pref: themePref } = useTheme();
   const [confirmOut, setConfirmOut] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   const premium = isPremium(entitlement);
   const left = daysLeft(entitlement);
+  // Deleting the account never cancels: only the Cancel button stops the mandate.
+  const subscribed = premium && (entitlement.status === 'trial' || entitlement.status === 'active');
 
   return (
     <Screen
@@ -170,15 +173,41 @@ export function Profile() {
       {confirmDelete ? (
         <Sheet title="Delete account" onDismiss={() => setConfirmDelete(false)}>
           <h2 className="card__title">Delete your account?</h2>
-          <p className="card__text">
-            Your subscription is cancelled straight away and you lose Premium now, not at the
-            end of the period. Your name, email and sign-in are erased. Payment records are kept,
-            without your name, because the law requires it. This cannot be undone.
-          </p>
+          {subscribed ? (
+            <>
+              <p className="card__text">
+                Deleting your account does <strong>not</strong> cancel your subscription. You
+                will still be charged {PRICING.currency}
+                {PRICING.renewalPrice} every {PRICING.periodDays} days until you cancel it.
+              </p>
+              <button
+                className="btn btn--primary"
+                type="button"
+                disabled={cancelling || deleting}
+                onClick={async () => {
+                  setCancelling(true);
+                  setDeleteError('');
+                  try {
+                    await cancel();
+                  } catch (failure) {
+                    setDeleteError((failure as Error).message || 'Could not cancel. Try again.');
+                  } finally {
+                    setCancelling(false);
+                  }
+                }}
+              >
+                {cancelling ? 'Cancelling…' : 'Cancel subscription'}
+              </button>
+            </>
+          ) : (
+            <p className="card__text">
+              You will be signed out on every device.
+            </p>
+          )}
           <button
             className="btn btn--danger"
             type="button"
-            disabled={deleting}
+            disabled={deleting || cancelling}
             onClick={async () => {
               setDeleting(true);
               setDeleteError('');
@@ -193,7 +222,7 @@ export function Profile() {
               navigate('/login', { replace: true });
             }}
           >
-            {deleting ? 'Deleting…' : 'Delete my account'}
+            {deleting ? 'Deleting…' : subscribed ? 'Delete account only' : 'Delete my account'}
           </button>
           {deleteError ? <div className="field-error">{deleteError}</div> : null}
           <button className="text-btn" type="button" onClick={() => setConfirmDelete(false)}>

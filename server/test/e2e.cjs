@@ -246,21 +246,46 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   await call('/syncSubscription', { token: carol.token, body: { subscriptionId: carolSub.id } });
   check('sync twice → still one subscription row', (await rows('SELECT 1 FROM subscriptions WHERE user_id=$1', [carol.uid])).length === 1);
 
-  // Account deletion
-  const d = await call('/deleteAccount', { token: alice.token });
-  check('deleteAccount → deleted', d.data.deleted === true, JSON.stringify(d.data));
-  check('old session no longer works', (await call('/getEntitlement', { token: alice.token })).status === 401);
-  const [u] = await rows('SELECT google_sub, email, name FROM users WHERE id=$1', [alice.uid]);
-  check('personal data erased', u.google_sub === null && u.email === null && u.name === null, JSON.stringify(u));
-  check('…including the Meta ids', (await rows('SELECT meta_anon_id, meta_advertiser_id FROM users WHERE id=$1', [alice.uid]))[0].meta_advertiser_id === null);
+  // Account deletion: never cancels; paid accounts are kept and restorable
+  const carolStatusBefore = carolSub.status;
+  const dc = await call('/deleteAccount', { token: carol.token, body: { appVersion: '1.4.0' } });
+  check('deleteAccount (live trial) → deleted', dc.data.deleted === true, JSON.stringify(dc.data));
+  check('old session no longer works', (await call('/getEntitlement', { token: carol.token })).status === 401);
+  check('…mandate NOT stopped at Razorpay', carolSub.status === carolStatusBefore && carolSub.status !== 'cancelled', carolSub.status);
+  check('…subscription row untouched', (await rows('SELECT status FROM subscriptions WHERE user_id=$1', [carol.uid]))[0].status === 'trial');
+  const [cu] = await rows('SELECT google_sub, email, deleted_at FROM users WHERE id=$1', [carol.uid]);
+  check('…identity kept, marked deleted', cu.google_sub !== null && cu.email !== null && cu.deleted_at !== null, JSON.stringify(cu));
+  const carol2 = (await call('/auth/google', { body: { idToken: 'carol' } })).data;
+  check('same Google account afterwards → same user', carol2.uid === carol.uid, JSON.stringify(carol2));
+  check('…Premium restored', (await call('/getEntitlement', { token: carol2.token })).data.premium === true);
+  check('…no longer marked deleted', (await rows('SELECT deleted_at FROM users WHERE id=$1', [carol.uid]))[0].deleted_at === null);
+
+  const d = await call('/deleteAccount', { token: alice.token, body: { appVersion: '1.4.0' } });
+  check('deleteAccount (paid, cancelled) → deleted', d.data.deleted === true, JSON.stringify(d.data));
   check('payment records kept', (await rows('SELECT 1 FROM payments WHERE user_id=$1', [alice.uid])).length === 3);
   const again = (await call('/auth/google', { body: { idToken: 'alice' } })).data;
-  check('same Google account afterwards → fresh user', again.uid && again.uid !== alice.uid);
-  check('…but still no second trial after deleting the account', (await call('/getEntitlement', { token: again.token })).data.trialEligible === false);
-  const again2 = await call('/startSubscription', { token: again.token });
-  check('…and its checkout charges ₹199 now', again2.data.trial === false, JSON.stringify(again2.data));
+  check('paid account comes back on sign-in', again.uid === alice.uid);
+  check('…still no second trial', (await call('/getEntitlement', { token: again.token })).data.trialEligible === false);
 
-  // Rate limit on sign-in (30 / 15 min / IP; this run has used 7)
+  const frank = (await call('/auth/google', { body: { idToken: 'frank' } })).data;
+  await call('/deleteAccount', { token: frank.token, body: { appVersion: '1.4.0' } });
+  const [fu] = await rows('SELECT google_sub, email, name, deleted_at FROM users WHERE id=$1', [frank.uid]);
+  check('never-paid account → personal data erased', fu.google_sub === null && fu.email === null && fu.name === null && fu.deleted_at !== null, JSON.stringify(fu));
+  const frank2 = (await call('/auth/google', { body: { idToken: 'frank' } })).data;
+  check('…and signing in again makes a fresh user', frank2.uid && frank2.uid !== frank.uid);
+
+  // A 1.3 app promised "cancelled straight away": it still gets that.
+  const gina = (await call('/auth/google', { body: { idToken: 'gina' } })).data;
+  const gs = await call('/startSubscription', { token: gina.token });
+  const ginaSub = subs.get(gs.data.checkout.subscriptionId);
+  ginaSub.status = 'authenticated';
+  await call('/syncSubscription', { token: gina.token, body: { subscriptionId: ginaSub.id } });
+  await call('/deleteAccount', { token: gina.token, body: { appVersion: '1.3.0' } });
+  check('1.3 delete → mandate stopped at Razorpay', ginaSub.status === 'cancelled', ginaSub.status);
+  check('…subscription expired', (await rows('SELECT status FROM subscriptions WHERE user_id=$1', [gina.uid]))[0].status === 'expired');
+  check('…personal data erased', (await rows('SELECT email FROM users WHERE id=$1', [gina.uid]))[0].email === null);
+
+  // Rate limit on sign-in (30 / 15 min / IP; this run has used 11)
   let limited = 0;
   for (let i = 0; i < 30; i++) if ((await call('/auth/google', { body: { idToken: 'forged-x' } })).status === 429) limited++;
   check('sign-in rate limit kicks in', limited > 0, `429s: ${limited}`);
