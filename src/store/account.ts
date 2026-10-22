@@ -158,6 +158,9 @@ export const usePremium = create<AccountState>((set, get) => ({
     set({ session: kept });
     setCrashUser(session.uid);
     void syncMetaAttribution(kept);
+    // A returning account may already have Premium, or have used its trial;
+    // until this lands the paywall would offer the ₹1 trial to everyone.
+    void get().refresh().catch(() => undefined);
   },
 
   signOut: async () => {

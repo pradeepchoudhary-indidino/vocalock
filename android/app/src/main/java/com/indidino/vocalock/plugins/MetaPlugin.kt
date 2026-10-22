@@ -2,6 +2,8 @@ package com.indidino.vocalock.plugins
 
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
+import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
 import com.facebook.internal.AttributionIdentifiers
@@ -29,8 +31,10 @@ import java.util.Currency
 @CapacitorPlugin(name = "Meta")
 class MetaPlugin : Plugin() {
 
+    // Also requires the SDK to have started: in 1.0-1.3 it never did, and
+    // creating a logger then threw and took the whole app down.
     private val enabled: Boolean
-        get() = context.resources.getBoolean(R.bool.meta_enabled)
+        get() = context.resources.getBoolean(R.bool.meta_enabled) && FacebookSdk.isInitialized()
 
     private val logger by lazy { AppEventsLogger.newLogger(context) }
 
@@ -41,31 +45,37 @@ class MetaPlugin : Plugin() {
     @PluginMethod
     fun logEvent(call: PluginCall) {
         if (!enabled) return call.resolve()
+        val event = call.getString("event")
+        if (event !in setOf("registration", "trial", "subscribe")) return call.reject("Unknown event")
         val value = call.getDouble("value")
         val currency = call.getString("currency") ?: "INR"
-        when (call.getString("event")) {
-            "registration" -> logger.logEvent(
-                AppEventsConstants.EVENT_NAME_COMPLETED_REGISTRATION,
-                Bundle().apply {
-                    putString(AppEventsConstants.EVENT_PARAM_REGISTRATION_METHOD, call.getString("method") ?: "google")
-                },
-            )
-            "trial" -> logger.logEvent(
-                AppEventsConstants.EVENT_NAME_START_TRIAL,
-                value ?: 0.0,
-                Bundle().apply { putString(AppEventsConstants.EVENT_PARAM_CURRENCY, currency) },
-            )
-            // A paid first period is both a subscription and revenue, so it is
-            // also logged as a purchase: that is what value optimisation reads.
-            "subscribe" -> {
-                logger.logEvent(
-                    AppEventsConstants.EVENT_NAME_SUBSCRIBE,
+        // Analytics must never crash the app: a lost event is the worst case.
+        try {
+            when (event) {
+                "registration" -> logger.logEvent(
+                    AppEventsConstants.EVENT_NAME_COMPLETED_REGISTRATION,
+                    Bundle().apply {
+                        putString(AppEventsConstants.EVENT_PARAM_REGISTRATION_METHOD, call.getString("method") ?: "google")
+                    },
+                )
+                "trial" -> logger.logEvent(
+                    AppEventsConstants.EVENT_NAME_START_TRIAL,
                     value ?: 0.0,
                     Bundle().apply { putString(AppEventsConstants.EVENT_PARAM_CURRENCY, currency) },
                 )
-                if (value != null) logger.logPurchase(BigDecimal.valueOf(value), Currency.getInstance(currency))
+                // A paid first period is both a subscription and revenue, so it is
+                // also logged as a purchase: that is what value optimisation reads.
+                "subscribe" -> {
+                    logger.logEvent(
+                        AppEventsConstants.EVENT_NAME_SUBSCRIBE,
+                        value ?: 0.0,
+                        Bundle().apply { putString(AppEventsConstants.EVENT_PARAM_CURRENCY, currency) },
+                    )
+                    if (value != null) logger.logPurchase(BigDecimal.valueOf(value), Currency.getInstance(currency))
+                }
             }
-            else -> return call.reject("Unknown event")
+        } catch (e: Exception) {
+            Log.w("MetaPlugin", "logEvent failed", e)
         }
         call.resolve()
     }
@@ -80,17 +90,22 @@ class MetaPlugin : Plugin() {
     fun getAttribution(call: PluginCall) {
         if (!enabled) return call.resolve(JSObject())
         Thread {
-            val ids = AttributionIdentifiers.getAttributionIdentifiers(context)
-            call.resolve(
-                JSObject()
-                    .put("anonId", AppEventsLogger.getAnonymousAppDeviceGUID(context))
-                    .put("advertiserId", ids?.androidAdvertiserId ?: JSONObject.NULL)
-                    .put("trackingLimited", ids?.isTrackingLimited ?: true)
-                    // Meta rejects a server event whose device info lacks these.
-                    .put("osVersion", Build.VERSION.RELEASE)
-                    .put("deviceModel", Build.MODEL)
-                    .put("appVersion", context.packageManager.getPackageInfo(context.packageName, 0).versionName),
-            )
+            try {
+                val ids = AttributionIdentifiers.getAttributionIdentifiers(context)
+                call.resolve(
+                    JSObject()
+                        .put("anonId", AppEventsLogger.getAnonymousAppDeviceGUID(context))
+                        .put("advertiserId", ids?.androidAdvertiserId ?: JSONObject.NULL)
+                        .put("trackingLimited", ids?.isTrackingLimited ?: true)
+                        // Meta rejects a server event whose device info lacks these.
+                        .put("osVersion", Build.VERSION.RELEASE)
+                        .put("deviceModel", Build.MODEL)
+                        .put("appVersion", context.packageManager.getPackageInfo(context.packageName, 0).versionName),
+                )
+            } catch (e: Exception) {
+                Log.w("MetaPlugin", "getAttribution failed", e)
+                call.resolve(JSObject())
+            }
         }.start()
     }
 }

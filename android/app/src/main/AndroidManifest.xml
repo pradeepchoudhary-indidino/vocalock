@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="true"
@@ -53,6 +54,15 @@
         <meta-data
             android:name="com.facebook.sdk.AdvertiserIDCollectionEnabled"
             android:value="@bool/meta_enabled" />
+        <!-- The provider that starts the Meta SDK. @capgo/capacitor-social-login
+             removes it (it starts the SDK itself, but only for Facebook login,
+             which we don't use), and without it no Meta event was ever sent.
+             The app manifest outranks the library's, so this puts it back. -->
+        <provider
+            android:name="com.facebook.internal.FacebookInitProvider"
+            android:authorities="${applicationId}.FacebookInitProvider"
+            android:exported="false"
+            tools:node="replace" />
 
         <!-- Screen 12, "Phone found". Native so it can show over the lock screen
              with no WebView alive. -->
