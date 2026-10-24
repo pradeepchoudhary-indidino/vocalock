@@ -13,7 +13,8 @@ import {
   ToggleRow,
 } from '../components/Controls';
 import { ClapIcon, ShieldIcon } from '../components/Icons';
-import { Listener, type Sensitivity } from '../plugins';
+import { Listener, type ListenerSettings, type Sensitivity } from '../plugins';
+import { track } from '../lib/analytics';
 import { missingPermissionCount, useSettings } from '../store/settings';
 
 const RINGTONES = [
@@ -33,6 +34,14 @@ export function ClapSettings() {
     if (!loaded) void hydrate();
     else void refreshPermissions();
   }, [loaded, hydrate, refreshPermissions]);
+
+  // One event per setting changed, with its new value; nothing personal here.
+  const change = (next: Partial<ListenerSettings>) => {
+    for (const [field, value] of Object.entries(next)) {
+      track('clap_setting_change', { field, value });
+    }
+    void patch(next);
+  };
 
   const missing = missingPermissionCount(permissions);
   const on = settings.clapEnabled && serviceRunning;
@@ -76,7 +85,14 @@ export function ClapSettings() {
       }
       dock={
         <div className="btn-pair">
-          <button className="btn btn--yellow" type="button" onClick={() => void Listener.testAlert()}>
+          <button
+            className="btn btn--yellow"
+            type="button"
+            onClick={() => {
+              track('test_alert');
+              void Listener.testAlert();
+            }}
+          >
             Test alert
           </button>
           <button className="btn btn--primary" type="button" onClick={() => navigate('/calibrate')}>
@@ -118,7 +134,7 @@ export function ClapSettings() {
             { value: 'med', label: 'Med' },
             { value: 'high', label: 'High' },
           ]}
-          onChange={(sensitivity) => void patch({ sensitivity })}
+          onChange={(sensitivity) => change({ sensitivity })}
         />
         <div className="row__sub" style={{ marginTop: 8 }}>
           Higher picks up quieter claps but reacts to more background noise.
@@ -130,21 +146,21 @@ export function ClapSettings() {
           value={settings.clapsRequired}
           min={1}
           max={5}
-          onChange={(clapsRequired) => void patch({ clapsRequired })}
+          onChange={(clapsRequired) => change({ clapsRequired })}
         />
         <ToggleRow
           label="Whistle detection"
           sub="Also ring on a held whistle"
           checked={settings.whistleEnabled}
           tint="mint"
-          onChange={(whistleEnabled) => void patch({ whistleEnabled })}
+          onChange={(whistleEnabled) => change({ whistleEnabled })}
         />
         <ToggleRow
           label="Only when screen is off"
           sub="Saves a lot of battery. You do not need to find a phone you are holding."
           checked={settings.onlyWhenScreenOff}
           tint="mint"
-          onChange={(onlyWhenScreenOff) => void patch({ onlyWhenScreenOff })}
+          onChange={(onlyWhenScreenOff) => change({ onlyWhenScreenOff })}
         />
       </Card>
 
@@ -155,20 +171,20 @@ export function ClapSettings() {
           sub="Rings at alarm volume, even on silent"
           checked={settings.ring}
           tint="mint"
-          onChange={(ring) => void patch({ ring })}
+          onChange={(ring) => change({ ring })}
         />
         <ToggleRow
           label="Vibrate"
           checked={settings.vibrate}
           tint="mint"
-          onChange={(vibrate) => void patch({ vibrate })}
+          onChange={(vibrate) => change({ vibrate })}
         />
         <ToggleRow
           label="Flashlight"
           sub="Strobes the torch so you can spot it in the dark"
           checked={settings.flashlight}
           tint="mint"
-          onChange={(flashlight) => void patch({ flashlight })}
+          onChange={(flashlight) => change({ flashlight })}
         />
         <div className="row">
           <div className="row__main">
@@ -178,7 +194,7 @@ export function ClapSettings() {
             className="select"
             value={settings.ringtone}
             aria-label="Ringtone"
-            onChange={(e) => void patch({ ringtone: e.target.value })}
+            onChange={(e) => change({ ringtone: e.target.value })}
           >
             {RINGTONES.map((r) => (
               <option key={r.value} value={r.value}>
@@ -195,7 +211,7 @@ export function ClapSettings() {
           max={120}
           step={10}
           format={(v) => `${v}s`}
-          onChange={(alertDurationSec) => void patch({ alertDurationSec })}
+          onChange={(alertDurationSec) => change({ alertDurationSec })}
         />
       </Card>
 

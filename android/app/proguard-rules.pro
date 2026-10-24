@@ -55,3 +55,19 @@
 # compileOnly and absent from the APK (keeping out its AD_ID permission). The
 # plugin's FacebookProvider still references it but is never initialised.
 -dontwarn com.facebook.**
+
+# --- Razorpay Checkout (RazorpayPlugin) ---------------------------------------
+# From Razorpay's Android integration guide. Checkout talks to its page through
+# @JavascriptInterface methods and calls back onPayment* on MainActivity by
+# name, so neither may be renamed or stripped.
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keepattributes JavascriptInterface
+-keepattributes *Annotation*
+-dontwarn com.razorpay.**
+-keep class com.razorpay.** {*;}
+-optimizations !method/inlining/*
+-keepclasseswithmembers class * {
+  public void onPayment*(...);
+}

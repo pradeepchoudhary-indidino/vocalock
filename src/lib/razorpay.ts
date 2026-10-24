@@ -1,15 +1,18 @@
 import { App } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
-import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
+import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 
 /**
- * Razorpay Checkout, through the hosted page on indidino.com.
+ * Razorpay Checkout.
  *
- * The Razorpay account is registered to that website, so checkout must run
- * there rather than inside the app's WebView. The page takes the checkout
- * options as `?data=` JSON, opens Razorpay, and reports the result back.
+ * On the phone (1.5+) it is Razorpay's native Android Checkout, through
+ * RazorpayPlugin: in the app, no browser, installed UPI apps as tiles.
  *
- * On the phone it opens in a Chrome Custom Tab, not the WebView: card payments
+ * The hosted page on indidino.com is the fallback, for an app shell without the
+ * plugin and for the browser. The page takes the checkout options as `?data=`
+ * JSON, opens Razorpay, and reports the result back.
+ *
+ * On the phone that page opens in a Chrome Custom Tab, not the WebView: card payments
  * open the bank's OTP page as a popup, which a WebView cannot show, and a real
  * browser also hands UPI links to the UPI apps. After paying, the page sends
  * the browser to RETURN_URL, which Android routes back into this app.
@@ -45,23 +48,66 @@ interface CheckoutOptions {
   email: string | null;
 }
 
-function pageUrl(opts: CheckoutOptions, callback?: string): string {
-  const data = {
+/** Razorpay Checkout options, shared by the native SDK and the hosted page. */
+function checkoutOptions(opts: CheckoutOptions) {
+  return {
     key: opts.keyId,
     subscription_id: opts.subscriptionId,
     name: 'VocaLock',
     description: 'Premium, renews every 30 days',
     theme: { color: '#1565C0' },
-    // Checkout asks for the mobile number itself; UPI needs one anyway.
-    ...(opts.email ? { prefill: { email: opts.email } } : {}),
+    // Razorpay insists on a mobile number, and Google sign-in gives us none.
+    // Most people were typing 9999999999 just to get past the field, so it is
+    // filled with that and hidden: one less form between the tap and the UPI app.
+    prefill: { contact: '9999999999', ...(opts.email ? { email: opts.email } : {}) },
+    readonly: { contact: true },
+    hidden: { contact: true },
+    // The account is shared with other apps; this marks the payment as ours.
+    notes: { _source: 'vocalock' },
   };
-  const params = new URLSearchParams({ data: JSON.stringify(data) });
+}
+
+function pageUrl(opts: CheckoutOptions, callback?: string): string {
+  const params = new URLSearchParams({ data: JSON.stringify(checkoutOptions(opts)) });
   if (callback) params.set('callback', callback);
   return `${PAGE_URL}?${params.toString()}`;
 }
 
+interface RazorpayNative {
+  open(options: { options: Record<string, unknown> }): Promise<{
+    paymentId: string;
+    subscriptionId: string;
+    signature: string;
+  }>;
+}
+
+/** MainActivity registers it; absent on the web and in builds before 1.5. */
+const RazorpayNative = registerPlugin<RazorpayNative>('RazorpayPlugin');
+
 export function openSubscriptionCheckout(opts: CheckoutOptions): Promise<CheckoutResult> {
-  return Capacitor.isNativePlatform() ? checkoutInCustomTab(opts) : checkoutInPopup(opts);
+  if (!Capacitor.isNativePlatform()) return checkoutInPopup(opts);
+  return Capacitor.isPluginAvailable('RazorpayPlugin')
+    ? checkoutNative(opts)
+    : checkoutInCustomTab(opts);
+}
+
+/**
+ * Razorpay's own Android Checkout, inside the app: no browser, and the UPI apps
+ * on the phone as one-tap tiles. Returns the same three values the hosted page
+ * did, so the server verifies it the same way.
+ */
+async function checkoutNative(opts: CheckoutOptions): Promise<CheckoutResult> {
+  try {
+    const result = await RazorpayNative.open({ options: checkoutOptions(opts) });
+    if (!result.paymentId || !result.signature) throw new CheckoutDismissed();
+    // The SDK's copy of the subscription id is informational; the server checks
+    // the signature against the id it created.
+    return { ...result, subscriptionId: opts.subscriptionId };
+  } catch (error) {
+    if (error instanceof CheckoutDismissed) throw error;
+    if ((error as { code?: string }).code === 'cancelled') throw new CheckoutDismissed();
+    throw error instanceof Error ? error : new Error('Payment did not go through');
+  }
 }
 
 function checkoutInCustomTab(opts: CheckoutOptions): Promise<CheckoutResult> {

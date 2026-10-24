@@ -2,7 +2,10 @@ import { WebPlugin } from '@capacitor/core';
 import {
   DEFAULT_SETTINGS,
   type ListenerPlugin,
+  type Language,
   type ListenerSettings,
+  type ModelStateEvent,
+  type NativeEvent,
   type PermissionStatus,
 } from './definitions';
 
@@ -122,6 +125,46 @@ export class ListenerPluginWeb extends WebPlugin implements ListenerPlugin {
 
   async stopPhraseCheck(): Promise<void> {
     // Nothing to cancel in the mock.
+  }
+
+  async drainNativeEvents(): Promise<{ events: NativeEvent[] }> {
+    return { events: [] };
+  }
+
+  private mockModels = new Set<Language>();
+
+  async getModelState({ language }: { language: Language }): Promise<ModelStateEvent> {
+    const total = language === 'hi' ? 44_458_845 : 37_573_330;
+    const ready = this.mockModels.has(language);
+    return {
+      language,
+      state: ready ? 'ready' : 'missing',
+      downloadedBytes: ready ? total : 0,
+      totalBytes: total,
+    };
+  }
+
+  async prepareModel({ language }: { language: Language }): Promise<ModelStateEvent> {
+    // Mimic a few seconds of download so the progress screen can be built.
+    const state = await this.getModelState({ language });
+    if (state.state === 'ready') return state;
+    const total = state.totalBytes;
+    let done = 0;
+    const tick = window.setInterval(() => {
+      done = Math.min(total, done + total / 12);
+      const finished = done >= total;
+      if (finished) {
+        window.clearInterval(tick);
+        this.mockModels.add(language);
+      }
+      this.notifyListeners('modelState', {
+        language,
+        state: finished ? 'ready' : 'downloading',
+        downloadedBytes: done,
+        totalBytes: total,
+      });
+    }, 300);
+    return { ...state, state: 'downloading' };
   }
 
   async clearPin(): Promise<void> {

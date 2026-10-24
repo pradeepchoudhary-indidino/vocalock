@@ -8,18 +8,26 @@ import androidx.core.view.WindowInsetsCompat
 import com.getcapacitor.BridgeActivity
 import com.indidino.vocalock.plugins.ListenerPlugin
 import com.indidino.vocalock.plugins.MetaPlugin
+import com.indidino.vocalock.plugins.RazorpayPlugin
 import com.indidino.vocalock.plugins.VoiceSetupPlugin
 import com.indidino.vocalock.service.BootReceiver
 import com.indidino.vocalock.service.ListenerService
 import com.indidino.vocalock.service.NotificationManagerCompatSafe
 import com.indidino.vocalock.service.SettingsStore
+import com.razorpay.PaymentData
+import com.razorpay.PaymentResultWithDataListener
 
-class MainActivity : BridgeActivity() {
+/**
+ * Also Razorpay Checkout's result listener: the SDK reports to the Activity it
+ * was opened from, so both callbacks are handed straight to RazorpayPlugin.
+ */
+class MainActivity : BridgeActivity(), PaymentResultWithDataListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         registerPlugin(ListenerPlugin::class.java)
         registerPlugin(VoiceSetupPlugin::class.java)
         registerPlugin(MetaPlugin::class.java)
+        registerPlugin(RazorpayPlugin::class.java)
         super.onCreate(savedInstanceState)
         // Android 15+ forces edge-to-edge; this makes 8-14 match, with
         // transparent bars over the page. The web side pads with --safe-*.
@@ -27,6 +35,14 @@ class MainActivity : BridgeActivity() {
         paintWebViewGround()
         publishInsets()
         resumeListeningIfArmed()
+    }
+
+    override fun onPaymentSuccess(paymentId: String?, data: PaymentData?) {
+        RazorpayPlugin.onSuccess(paymentId, data)
+    }
+
+    override fun onPaymentError(code: Int, response: String?, data: PaymentData?) {
+        RazorpayPlugin.onError(code, response, data)
     }
 
     /**

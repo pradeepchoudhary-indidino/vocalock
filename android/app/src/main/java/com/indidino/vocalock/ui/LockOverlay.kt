@@ -20,10 +20,12 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import com.indidino.vocalock.R
+import com.indidino.vocalock.service.NativeEvents
 import com.indidino.vocalock.service.SecureStore
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.json.JSONObject
 
 /**
  * The lock screen itself (spec section 4.6). A TYPE_APPLICATION_OVERLAY window,
@@ -365,6 +367,11 @@ class LockOverlay(private val context: Context) {
         val candidate = pin.toString()
         if (!SecureStore.verifyPin(context, candidate)) {
             wrongAttempts++
+            NativeEvents.record(
+                context,
+                "pin_failed",
+                JSONObject().put("attempt", wrongAttempts),
+            )
             pin.setLength(0)
             refreshDots()
             if (wrongAttempts >= MAX_ATTEMPTS) {

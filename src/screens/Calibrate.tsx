@@ -16,8 +16,11 @@ export function Calibrate() {
   const [heard, setHeard] = useState(false);
   const heardTimer = useRef<number | null>(null);
 
+  const clapCount = useRef(0);
+
   useEffect(() => {
     track('calibrate_open');
+    const opened = Date.now();
     const handles: PluginListenerHandle[] = [];
     let live = true;
 
@@ -26,6 +29,7 @@ export function Calibrate() {
         setLevels((prev) => [...prev.slice(1), Math.min(1, Math.max(0, level))]);
       });
       const clapHandle = await Listener.addListener('clapDetected', () => {
+        clapCount.current += 1;
         setClaps((n) => n + 1);
         setHeard(true);
         if (heardTimer.current !== null) window.clearTimeout(heardTimer.current);
@@ -42,6 +46,7 @@ export function Calibrate() {
 
     return () => {
       live = false;
+      track('calibrate_done', { claps: clapCount.current, ms: Date.now() - opened });
       if (heardTimer.current !== null) window.clearTimeout(heardTimer.current);
       void Listener.stopCalibration();
       handles.forEach((h) => void h.remove());
@@ -60,7 +65,14 @@ export function Calibrate() {
         </>
       }
       dock={
-        <button className="btn btn--mint" type="button" onClick={() => void Listener.testAlert()}>
+        <button
+          className="btn btn--mint"
+          type="button"
+          onClick={() => {
+            track('test_alert');
+            void Listener.testAlert();
+          }}
+        >
           Test alert
         </button>
       }

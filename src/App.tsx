@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
@@ -46,6 +46,7 @@ export function App() {
   const accountLoaded = usePremium((s) => s.loaded);
   const signedIn = usePremium((s) => s.session !== null);
   const premium = usePremium((s) => isPremium(s.entitlement));
+  const previousScreen = useRef<string | null>(null);
 
   // index.html painted the theme before first paint; adopt it and start
   // following the system setting while the preference is 'auto'.
@@ -105,6 +106,12 @@ export function App() {
     ];
     return () => handles.forEach((h) => void h.then((l) => l.remove()));
   }, [accountLoaded]);
+
+  // Every screen, with where the user came from.
+  useEffect(() => {
+    track('screen_view', { screen: location.pathname, from: previousScreen.current });
+    previousScreen.current = location.pathname;
+  }, [location.pathname]);
 
   // Pull the window insets once the page exists.
   //
@@ -167,17 +174,9 @@ export function App() {
         await Listener.addListener('serviceState', ({ running }) => setServiceRunning(running)),
       );
       handles.push(
-        await Listener.addListener('lockState', ({ locked, how }) => {
-          void patch({ isLocked: locked });
-          if (locked) track('lock_shown');
-          else if (how) track('unlock', { how });
-        }),
-      );
-      handles.push(
-        await Listener.addListener('alertFired', ({ trigger }) => track('alert_fired', { trigger })),
-      );
-      handles.push(
-        await Listener.addListener('alertStopped', ({ how }) => track('alert_stopped', { how })),
+        // Locks, unlocks and alerts are tracked natively (NativeEvents.kt), so
+        // they count with the app closed too.
+        await Listener.addListener('lockState', ({ locked }) => void patch({ isLocked: locked })),
       );
     })();
     return () => handles.forEach((h) => void h.remove());

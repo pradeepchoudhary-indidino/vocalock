@@ -58,6 +58,7 @@ export function BackupPin() {
     }
 
     if (first !== second) {
+      track('pin_set', { ok: false, reason: 'mismatch' });
       setError('Those did not match. Try again.');
       setSecond('');
       setStage('enter');
@@ -75,7 +76,8 @@ export function BackupPin() {
       setSecond('');
       setCommitted(true);
       reset();
-      track('voice_setup_done');
+      track('pin_set', { ok: true, digits: first.length });
+      track('voice_setup_done', { mode: 'overlay', language });
       navigate('/voice-lock/done', { replace: true });
     } catch (err) {
       setBusy(false);

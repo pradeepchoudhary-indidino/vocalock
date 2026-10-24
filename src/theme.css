@@ -769,8 +769,8 @@ button {
 
 /* The solid icon circle. Each carries its own hard drop. */
 .row__icon {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   flex: none;
   border-radius: var(--r-pill);
   display: grid;
@@ -1484,31 +1484,97 @@ button {
 
 /* ---------- paywall ---------- */
 
-.paywall {
-  flex: 1;
+.price__terms {
+  font-size: var(--t-label);
+  color: var(--ink-muted);
+  text-align: center;
+  margin-top: var(--s2);
+  line-height: 1.5;
+}
+
+/* ---------- paywall layout (brand bar, media card, price, features) ---------- */
+
+/* The paywall body is a column whose media card takes whatever height is left,
+   so the card fills the screen like a video would, on any phone. */
+.pw {
   display: flex;
   flex-direction: column;
+  min-height: 100%;
 }
 
-.paywall__video-wrap {
+.pw-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
-  margin-bottom: var(--s5);
+  min-height: 44px;
+  margin: calc(var(--safe-top) - var(--s2)) 0 var(--s3);
 }
 
-.paywall__video {
-  width: 100%;
-  aspect-ratio: 16 / 10;
-  border-radius: var(--r-card);
+.pw-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-family: var(--display);
+  font-size: var(--t-row);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.pw-brand__tile {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: #fff;
   border: 2px solid var(--f-line);
-  background: var(--f-wash);
+  box-shadow: 0 3px 0 var(--f-line-edge);
+  display: grid;
+  place-items: center;
+}
+
+/* Small, but a full 44px target and always on screen. */
+.pw-close {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  color: var(--ink-muted);
+  background: var(--f-card);
+  border: 2px solid var(--f-line);
+}
+
+.pw-media {
+  position: relative;
+  width: 100%;
+  flex: 1 0 auto;
+  /* Same box for slides and video: neither decides the height. */
+  min-height: 220px;
+  border-radius: var(--r-card);
+  overflow: hidden;
+  background: var(--f-card);
+  border: 2px solid var(--f-line);
+  border-bottom: var(--edge-card) solid var(--f-line-edge);
+}
+
+.pw-media__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   display: block;
+  background: var(--f-wash);
 }
 
-.paywall__unmute {
+.pw-media__unmute {
   position: absolute;
   left: 50%;
-  bottom: var(--s3);
+  bottom: var(--s5);
   transform: translateX(-50%);
   background: var(--yellow);
   color: var(--yellow-ink);
@@ -1521,131 +1587,265 @@ button {
   font-weight: 600;
 }
 
-.paywall__video-fallback {
+.pw-media__track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: var(--f-divider);
+}
+
+.pw-media__progress {
+  display: block;
+  height: 100%;
+  background: var(--f-solid);
+  transition: width 250ms linear;
+}
+
+.pw-media__slides {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  aspect-ratio: 16 / 10;
-  border-radius: var(--r-card);
-  background: var(--f-hero);
+  height: 100%;
+  display: block;
+  background: var(--f-wash);
+}
+
+.pw-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  padding: var(--s4);
+  text-align: center;
+  animation: pw-slide-in 420ms ease both;
+}
+
+.pw-slide__badge {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--s1);
+}
+
+.pw-slide__disc {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: var(--r-pill);
   display: grid;
   place-items: center;
   color: #fff;
-  font-size: 46px;
-  margin-bottom: var(--s5);
+  animation: float 3.2s ease-in-out infinite;
 }
 
-.trial-tag {
-  display: inline-block;
-  padding: 4px 12px;
+.pw-slide__ring {
+  position: absolute;
+  width: 76px;
+  height: 76px;
   border-radius: var(--r-pill);
+  border: 3px solid currentColor;
+  opacity: 0.35;
+  animation: ripple 2.4s ease-out infinite;
+}
+
+.pw-slide__ring:nth-of-type(2) {
+  animation-delay: 1.2s;
+}
+
+.pw-slide--clap { color: var(--f-solid); }
+.pw-slide--clap .pw-slide__disc {
+  background: var(--f-solid);
+  box-shadow: 0 5px 0 var(--f-solid-edge);
+}
+
+.pw-slide--lock { color: #7a5af0; }
+.pw-slide--lock .pw-slide__disc {
+  background: #7a5af0;
+  box-shadow: 0 5px 0 #5236c2;
+}
+
+.pw-slide--torch { color: var(--yellow); }
+.pw-slide--torch .pw-slide__disc {
   background: var(--yellow);
   color: var(--yellow-ink);
-  box-shadow: 0 var(--edge-chip) 0 var(--yellow-edge);
+  box-shadow: 0 5px 0 var(--yellow-edge);
+}
+
+.pw-slide__title {
   font-family: var(--display);
-  font-size: var(--t-caption);
-  line-height: 18px;
+  font-size: var(--t-heading);
+  line-height: 26px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  color: var(--ink);
 }
 
-.price {
-  text-align: center;
-  margin: var(--s2) 0;
-}
-
-.price__big {
-  font-family: var(--display);
-  font-size: 48px;
-  line-height: 52px;
-  font-weight: 600;
-  color: var(--f-ink);
-}
-
-.price__then {
+.pw-slide__sub {
   font-size: var(--t-body);
+  line-height: 20px;
   color: var(--ink-muted);
-  margin-top: var(--s1);
+}
+
+/* Story-style segments: one per slide, the current one filling up. */
+.pw-media__segments {
+  position: absolute;
+  left: var(--s4);
+  right: var(--s4);
+  bottom: var(--s3);
+  display: flex;
+  gap: 6px;
+}
+
+.pw-media__segment {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--f-line);
+  overflow: hidden;
+}
+
+.pw-media__fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--f-solid);
+}
+
+.pw-media__fill--done {
+  width: 100%;
+}
+
+.pw-media__fill--run {
+  animation: pw-fill linear forwards;
+}
+
+@keyframes pw-fill {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes pw-slide-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
+}
+
+.pw-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: var(--s4);
+}
+
+.pw-title {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 28px;
+  line-height: 32px;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: center;
   text-wrap: balance;
 }
 
-.paywall__required {
-  margin: 0;
-  font-size: var(--t-caption);
-  line-height: 18px;
-  color: #fff;
-  opacity: 0.95;
-  text-align: center;
-}
-
-/* Play wants the way out of the paywall plainly visible, so it is a full
-   button rather than a faint link. */
-.paywall__dismiss {
+.pw-price {
   margin-top: var(--s3);
 }
 
-.price__terms {
-  font-size: var(--t-label);
+.pw-price b {
+  font-size: 64px;
+  line-height: 64px;
+}
+
+/* "today" is a footnote to the amount, not a second headline. Doubled class
+   to beat .price__amount span, which comes later in the file. */
+.price__amount.pw-price span {
+  font-size: var(--t-row);
+  line-height: 20px;
+  font-weight: 500;
   color: var(--ink-muted);
+}
+
+.pw-then {
+  margin: var(--s2) 0 0;
   text-align: center;
-  margin-top: var(--s2);
-  line-height: 1.5;
-}
-
-.bullets {
-  margin: var(--s5) 0 var(--s2);
-  display: grid;
-  gap: var(--s3);
-}
-
-.bullet {
-  display: flex;
-  gap: var(--s3);
-  align-items: flex-start;
   font-size: var(--t-body);
   line-height: 20px;
+  color: var(--ink-muted);
 }
 
-.bullet__tick {
-  width: 26px;
-  height: 26px;
+.pw-features {
+  list-style: none;
+  margin: var(--s4) 0 var(--s2);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.pw-feature {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-family: var(--display);
+  font-size: var(--t-row);
+  line-height: 22px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* Soft washes rather than solid discs: the slides above carry the colour. */
+.pw-feature__icon {
+  width: 40px;
+  height: 40px;
+  flex: none;
   border-radius: var(--r-pill);
-  background: var(--green);
-  color: #fff;
-  box-shadow: 0 2px 0 var(--green-edge);
   display: grid;
   place-items: center;
-  font-size: var(--t-caption);
-  font-weight: 700;
-  flex: none;
 }
 
-.payer-picker {
-  display: flex;
-  gap: var(--s3);
-  margin: var(--s5) 0 var(--s1);
-}
-
-.payer {
-  flex: 1;
-  border-radius: var(--r-sm);
-  padding: var(--s3) var(--s2);
-  text-align: center;
-  font-size: var(--t-label);
-  font-weight: 600;
-  background: var(--f-card);
-  color: var(--ink);
-  border: 2px solid var(--f-line);
-  box-shadow: 0 var(--edge-chip) 0 var(--f-line-edge);
-}
-
-.payer[aria-pressed='true'] {
-  border-color: var(--f-solid);
+.pw-feature__icon--clap {
+  background: var(--f-wash);
   color: var(--f-ink);
 }
 
-.payer__logo {
-  display: block;
-  font-size: var(--t-heading);
-  margin-bottom: var(--s1);
+.pw-feature__icon--lock {
+  background: color-mix(in srgb, #7a5af0 16%, transparent);
+  color: #7a5af0;
+}
+
+.pw-feature__icon--offline {
+  background: color-mix(in srgb, var(--green) 16%, transparent);
+  color: var(--green);
+}
+
+.pw-terms {
+  /* Clear of the button's raised bottom edge, which draws below its box. */
+  margin: var(--s4) 0 0;
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--ink-muted);
+  text-align: center;
+  text-wrap: balance;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-slide,
+  .pw-slide__disc,
+  .pw-slide__ring,
+  .pw-media__fill--run {
+    animation: none;
+  }
+
+  .pw-media__fill--run {
+    width: 100%;
+  }
 }
 
 /* ---------- calibrate meter ---------- */
@@ -2502,22 +2702,6 @@ button {
   animation: float 3.2s ease-in-out infinite;
 }
 
-.paywall-mark__badge {
-  position: absolute;
-  top: -10px;
-  right: -10px;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--r-pill);
-  background: var(--yellow);
-  color: var(--yellow-ink);
-  display: grid;
-  place-items: center;
-  box-shadow: 0 var(--edge-chip) 0 var(--yellow-edge);
-  font-size: var(--t-caption);
-  animation: bob 2.8s ease-in-out infinite;
-}
-
 /* The price, as a baseline pair: the amount in the flow's hue, the word in ink. */
 .price__amount {
   display: flex;
@@ -2541,127 +2725,6 @@ button {
   color: var(--ink);
 }
 
-.price-card {
-  background: var(--f-card);
-  border: 2px solid var(--f-line);
-  border-bottom: var(--edge-card) solid var(--f-line-edge);
-  border-radius: var(--r-card);
-  padding: 12px 18px;
-  margin-bottom: var(--s3);
-}
-
-.price-card__rule {
-  height: 2px;
-  background: var(--f-divider);
-  border-radius: 2px;
-  margin: 8px 0;
-}
-
-/* What happens, and when — a two-stop vertical timeline. */
-.timeline__step {
-  display: flex;
-  gap: var(--s3);
-}
-
-.timeline__rail {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 22px;
-  flex: none;
-}
-
-.timeline__dot {
-  width: 22px;
-  height: 22px;
-  border-radius: var(--r-pill);
-  background: var(--f-solid-ink);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-size: 11px;
-  flex: none;
-}
-
-.timeline__dot--next {
-  background: var(--f-card);
-  border: 3px solid var(--f-solid-ink);
-  color: transparent;
-}
-
-.timeline__line {
-  width: 3px;
-  flex: 1;
-  min-height: 14px;
-  background: var(--f-wash);
-  border-radius: 2px;
-}
-
-.timeline__body {
-  padding-bottom: var(--s2);
-}
-
-.timeline__label {
-  font-size: var(--t-body);
-  line-height: 20px;
-  font-weight: 600;
-}
-
-.timeline__sub {
-  font-size: var(--t-caption);
-  line-height: 18px;
-  color: var(--ink-muted);
-}
-
-/* The four selling points, each with its own solid circle. */
-.bullets {
-  list-style: none;
-  margin: 0 0 var(--s4);
-  padding: 0 var(--s1);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.bullet {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-  font-size: var(--t-body);
-  line-height: 20px;
-}
-
-.bullet__tick {
-  width: 36px;
-  height: 36px;
-  flex: none;
-  border-radius: var(--r-pill);
-  display: grid;
-  place-items: center;
-  color: #fff;
-}
-
-.bullet__tick--clap {
-  background: var(--f-solid);
-  box-shadow: 0 var(--edge-chip) 0 var(--f-solid-edge);
-}
-
-.bullet__tick--lock {
-  background: #7a5af0;
-  box-shadow: 0 var(--edge-chip) 0 #5236c2;
-}
-
-.bullet__tick--offline {
-  background: var(--green);
-  box-shadow: 0 var(--edge-chip) 0 var(--green-edge);
-}
-
-.bullet__tick--torch {
-  background: var(--yellow);
-  color: var(--yellow-ink);
-  box-shadow: 0 var(--edge-chip) 0 var(--yellow-edge);
-}
-
 .price__terms {
   font-size: var(--t-label);
   line-height: 17px;
@@ -2672,8 +2735,7 @@ button {
 
 @media (prefers-reduced-motion: reduce) {
   .paywall-mark__tile,
-  .paywall-mark__ring,
-  .paywall-mark__badge {
+  .paywall-mark__ring {
     animation: none;
   }
 }
@@ -3012,6 +3074,22 @@ button {
   line-height: 20px;
   color: var(--ink-muted);
   min-height: 20px;
+}
+
+/* One-time speech model download, shown in place of the phrase check. */
+.model-progress {
+  width: 100%;
+  height: 10px;
+  background: var(--f-track);
+  border: 2px solid var(--f-line);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+.model-progress__bar {
+  height: 100%;
+  background: var(--f-solid);
+  transition: width 250ms linear;
 }
 
 .verify__ok {

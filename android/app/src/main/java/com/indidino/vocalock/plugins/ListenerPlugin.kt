@@ -21,9 +21,11 @@ import com.indidino.vocalock.service.AlertController
 import com.indidino.vocalock.service.ListenerBus
 import com.indidino.vocalock.service.DeviceLock
 import com.indidino.vocalock.service.LockController
+import com.indidino.vocalock.service.NativeEvents
 import com.indidino.vocalock.service.ListenerService
 import com.indidino.vocalock.service.SecureStore
 import com.indidino.vocalock.service.SettingsStore
+import com.indidino.vocalock.service.VoskModels
 import org.json.JSONObject
 
 /**
@@ -201,6 +203,30 @@ class ListenerPlugin : Plugin() {
     fun stopPhraseCheck(call: PluginCall) {
         ListenerService.stopPhraseCheck(context)
         call.resolve()
+    }
+
+    // ----- speech models -----
+
+    /** Starts the language's one-time download if needed; resolves with its state. */
+    @PluginMethod
+    fun prepareModel(call: PluginCall) {
+        val language = call.getString("language") ?: "en"
+        VoskModels.prepare(context, language)
+        call.resolve(JSObject.fromJSONObject(VoskModels.state(context, language)))
+    }
+
+    @PluginMethod
+    fun getModelState(call: PluginCall) {
+        val language = call.getString("language") ?: "en"
+        call.resolve(JSObject.fromJSONObject(VoskModels.state(context, language)))
+    }
+
+    // ----- analytics -----
+
+    /** Native events recorded since the last call (see NativeEvents); clears them. */
+    @PluginMethod
+    fun drainNativeEvents(call: PluginCall) {
+        call.resolve(JSObject().put("events", NativeEvents.drain(context)))
     }
 
     // ----- device admin (the real lock screen) -----

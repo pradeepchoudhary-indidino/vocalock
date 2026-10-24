@@ -20,6 +20,9 @@ object LockController {
     var isLocked = false
         private set
 
+    /** Wall clock, for how long the lock stayed up; 0 when unknown (restored). */
+    private var lockedAt = 0L
+
     /** Set by ListenerService so a spoken unlock can clear the overlay. */
     @Volatile
     var onLockStateChanged: ((locked: Boolean, how: String?) -> Unit)? = null
@@ -44,6 +47,7 @@ object LockController {
         // the problem it solves. The phone's own lock screen achieves the same
         // thing with no prompt at all.
         if (DeviceLock.lockNow(app)) {
+            if (announce) NativeEvents.record(app, "lock_shown", JSONObject().put("mode", "device"))
             // Android holds the lock now, not us: there is no overlay to
             // dismiss later and no lock state of ours to track. The user gets
             // back in with their own credential.
@@ -60,6 +64,7 @@ object LockController {
         val canUnlockByVoice = settings.unlockPhrase.isNotEmpty()
         val canUnlockByPin = SecureStore.pinLength(app) in 4..6
         if (!canUnlockByVoice && !canUnlockByPin) {
+            NativeEvents.record(app, "lock_refused", JSONObject().put("reason", "no_unlock_method"))
             Log.w(TAG, "refusing to show the overlay: no unlock phrase and no PIN")
             return
         }
@@ -69,13 +74,16 @@ object LockController {
             view.onUnlocked = { how -> clear(app, how) }
             view.show()
         } else {
+            NativeEvents.record(app, "lock_refused", JSONObject().put("reason", "no_overlay_permission"))
             Log.w(TAG, "no device admin and no overlay permission; cannot lock")
             return
         }
 
         isLocked = true
+        lockedAt = System.currentTimeMillis()
         SettingsStore.setLocked(app, true)
         if (announce) {
+            NativeEvents.record(app, "lock_shown", JSONObject().put("mode", "overlay"))
             ListenerBus.emit("lockState", JSONObject().put("locked", true))
             onLockStateChanged?.invoke(true, null)
         }
@@ -102,6 +110,14 @@ object LockController {
         val app = context.applicationContext
         isLocked = false
         SettingsStore.setLocked(app, false)
+        NativeEvents.record(
+            app,
+            "unlock",
+            JSONObject()
+                .put("how", how)
+                .apply { if (lockedAt > 0) put("locked_ms", System.currentTimeMillis() - lockedAt) },
+        )
+        lockedAt = 0L
         ListenerBus.emit("lockState", JSONObject().put("locked", false).put("how", how))
         onLockStateChanged?.invoke(false, how)
     }

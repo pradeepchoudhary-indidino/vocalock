@@ -38,8 +38,8 @@ android {
         resValue "string", "meta_app_id", metaAppId
         resValue "string", "meta_client_token", metaClientToken
         resValue "bool", "meta_enabled", (!metaAppId.isEmpty() && !metaClientToken.isEmpty()).toString()
-        versionCode 6
-        versionName "1.4"
+        versionCode 7
+        versionName "1.5"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // 85 locales of AndroidX strings ship by default; we support two.
         resConfigs "en", "hi"
@@ -56,10 +56,6 @@ android {
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
-    }
-    // The Vosk model is already a zip; re-compressing it just slows the build.
-    androidResources {
-        noCompress += ['zip']
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_21
@@ -137,6 +133,9 @@ dependencies {
     // Meta App Events: install attribution and the funnel events Meta ads
     // optimise for. Core only — no Facebook Login.
     implementation "com.facebook.android:facebook-core:18.3.0"
+    // Razorpay's native Checkout: in-app payment with UPI app tiles, in place
+    // of the hosted page in a Custom Tab (RazorpayPlugin).
+    implementation "com.razorpay:checkout:1.6.41"
     // Native crash capture. Vosk runs as C++ inside the listener service, and a
     // crash there never reaches the Java handler.
     implementation "com.google.firebase:firebase-crashlytics-ndk:$firebaseCrashlyticsVersion"

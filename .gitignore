@@ -32,7 +32,10 @@ android/app/google-services.json
 
 # --- large binaries fetched by scripts/fetch-assets.sh ---
 # 78 MB of speech models. Downloadable and verifiable, so they do not belong in
-# git history where they can never be removed.
+# git history where they can never be removed. The app downloads them from our
+# server; scripts/publish-models.sh puts them there.
+models/
+# Where they lived when the APK bundled them (1.4 and earlier).
 android/app/src/main/assets/vosk-model-*.zip
 
 # Pulled database snapshots contain a real phone number.

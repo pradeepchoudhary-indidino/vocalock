@@ -54,25 +54,30 @@ export function bearerToken(req: Request): string {
   return (req.header('authorization') ?? '').replace(/^Bearer /, '');
 }
 
+/** The signed-in user behind the request's session token, or null. */
+export async function sessionUser(req: Request): Promise<string | null> {
+  const token = bearerToken(req);
+  if (!token) return null;
+  const [session] = await query<{ user_id: string }>(
+    'SELECT user_id FROM sessions WHERE token_hash = $1 AND expires_at > $2;',
+    [hash(token), new Date().toISOString()],
+  );
+  return session?.user_id ?? null;
+}
+
 /** Sets `res.locals.uid` from the session token, or answers 401. */
 export async function requireSession(req: Request, res: Response, next: NextFunction) {
-  const token = bearerToken(req);
-  let session: { user_id: string } | undefined;
+  let uid: string | null;
   try {
-    [session] = token
-      ? await query<{ user_id: string }>(
-          'SELECT user_id FROM sessions WHERE token_hash = $1 AND expires_at > $2;',
-          [hash(token), new Date().toISOString()],
-        )
-      : [];
+    uid = await sessionUser(req);
   } catch (error) {
     next(error); // Express 4 does not catch a rejected async middleware itself
     return;
   }
-  if (!session) {
+  if (!uid) {
     res.status(401).send('Please sign in again.');
     return;
   }
-  res.locals.uid = session.user_id;
+  res.locals.uid = uid;
   next();
 }

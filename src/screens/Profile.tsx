@@ -7,6 +7,7 @@ import { CardIcon, DocIcon, LifebuoyIcon, LogOutIcon, ShieldIcon, UserIcon } fro
 import { daysLeft, isPremium, usePremium } from '../store/account';
 import { APP_VERSION } from '../lib/analytics';
 import { setThemePref, useTheme, type ThemePref } from '../lib/theme';
+import { track } from '../lib/analytics';
 
 const PLAN_LABEL: Record<string, string> = {
   none: 'No plan',
@@ -79,7 +80,10 @@ export function Profile() {
       <Card>
         <Segmented<ThemePref>
           value={themePref}
-          onChange={setThemePref}
+          onChange={(next) => {
+            track('theme_change', { theme: next });
+            setThemePref(next);
+          }}
           options={[
             { value: 'auto', label: 'Auto' },
             { value: 'light', label: 'Light' },
@@ -136,6 +140,7 @@ export function Profile() {
           icon={<UserIcon />}
           tint="peach"
           onClick={() => {
+            track('delete_account_tap');
             setDeleteError('');
             setConfirmDelete(true);
           }}
@@ -179,6 +184,7 @@ export function Profile() {
               setDeleting(true);
               setDeleteError('');
               try {
+                track('delete_account_confirmed');
                 await deleteAccount();
               } catch (failure) {
                 setDeleteError((failure as Error).message || 'Could not delete. Try again.');

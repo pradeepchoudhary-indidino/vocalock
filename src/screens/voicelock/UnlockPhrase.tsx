@@ -38,6 +38,12 @@ export function UnlockPhrase() {
   const tooShort = touched && unlockPhrase !== '' && words < 2;
   const canContinue = unlockPhrase !== '' && words >= 2 && !same && !confusable;
 
+  // Why a recorded unlock phrase could not be used, once per phrase.
+  const rejection = unlockPhrase === '' ? null : same ? 'same_as_lock' : confusable ? 'too_similar' : words < 2 ? 'too_short' : null;
+  useEffect(() => {
+    if (rejection) track('phrase_rejected', { phrase: 'unlock', reason: rejection });
+  }, [rejection, unlockPhrase]);
+
   const startOver = () => {
     setUnlockPhrase('');
     setTouched(false);

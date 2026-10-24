@@ -55,13 +55,20 @@ export function Login() {
     if (busy) return;
     setBusy(true);
     setError('');
+    track('login_tap', { method: 'google', retry: error !== '' });
     try {
       const session = await signInWithGoogle();
       await signIn(session);
-      track('login_success', { method: 'google' });
+      track('login_success', { method: 'google', new_user: session.created === true });
       navigate('/paywall', { replace: true });
     } catch (err) {
-      if (!(err instanceof SignInCancelled)) {
+      if (err instanceof SignInCancelled) {
+        track('login_cancelled', { method: 'google' });
+      } else {
+        track('login_failed', {
+          method: 'google',
+          message: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+        });
         setError(err instanceof Error ? err.message : 'Could not sign in. Try again.');
       }
     } finally {

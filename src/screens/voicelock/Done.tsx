@@ -4,6 +4,7 @@ import { LockIcon, MicIcon } from '../../components/Icons';
 import { Note } from '../../components/Controls';
 import { Listener } from '../../plugins';
 import { useSettings } from '../../store/settings';
+import { track } from '../../lib/analytics';
 
 /** Confirmation after setup, with a safe way to see the lock before trusting it. */
 export function VoiceLockDone() {
@@ -22,7 +23,10 @@ export function VoiceLockDone() {
       }
       dock={
         <>
-          <button className="btn btn--lilac" type="button" onClick={() => void Listener.lock()}>
+          <button className="btn btn--lilac" type="button" onClick={() => {
+            track('lock_try_it', { from: 'done' });
+            void Listener.lock();
+          }}>
             Try it now
           </button>
           <button className="text-btn" type="button" onClick={() => navigate('/home', { replace: true })}>

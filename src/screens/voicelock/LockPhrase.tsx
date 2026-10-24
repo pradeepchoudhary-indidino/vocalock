@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Screen } from '../../components/Screen';
 import { NavBar } from '../../components/NavBar';
@@ -6,6 +6,7 @@ import { StepPips } from '../../components/Controls';
 import { PhraseCapture } from '../../components/PhraseCapture';
 import { PhraseCheck } from '../../components/PhraseCheck';
 import { detectLanguage } from '../../lib/language';
+import { Listener } from '../../plugins';
 import { useVoiceSetup, wordCount } from '../../store/voiceSetup';
 import { track } from '../../lib/analytics';
 
@@ -20,7 +21,10 @@ export function LockPhrase() {
     (text: string) => {
       // The script decides the model: Devanagari needs the Hindi one. No picker
       // — the user already told us which language they speak by speaking it.
-      setLanguage(detectLanguage(text));
+      const language = detectLanguage(text);
+      setLanguage(language);
+      // Start its one-time download now, so it is usually done by the check.
+      void Listener.prepareModel({ language }).catch(() => undefined);
       setLockPhrase(text);
       setTouched(true);
     },
@@ -35,6 +39,10 @@ export function LockPhrase() {
 
   const tooShort = touched && lockPhrase !== '' && wordCount(lockPhrase) < 2;
   const canContinue = lockPhrase !== '' && wordCount(lockPhrase) >= 2;
+
+  useEffect(() => {
+    if (tooShort) track('phrase_rejected', { phrase: 'lock', reason: 'too_short' });
+  }, [tooShort, lockPhrase]);
 
   const nav = (
     <>

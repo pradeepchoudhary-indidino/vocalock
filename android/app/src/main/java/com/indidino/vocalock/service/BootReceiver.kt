@@ -12,6 +12,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.indidino.vocalock.MainActivity
 import com.indidino.vocalock.R
+import org.json.JSONObject
 
 /**
  * Spec section 4.2.
@@ -57,6 +58,13 @@ class BootReceiver : BroadcastReceiver() {
 
         val settings = SettingsStore.read(context)
         if (!settings.needsMic) return
+        NativeEvents.record(
+            context,
+            "boot_reminder_shown",
+            JSONObject()
+                .put("clap", settings.clapEnabled)
+                .put("voice_lock", settings.voiceLockEnabled),
+        )
 
         // A lock that was showing when the phone went down must not survive a
         // reboot as an un-dismissable overlay with no service behind it.

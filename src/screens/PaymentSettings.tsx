@@ -100,6 +100,7 @@ export function PaymentSettings() {
               try {
                 await cancel();
               } catch (failure) {
+                track('cancel_confirmed', { ok: false });
                 setError((failure as Error).message || 'Could not cancel. Try again.');
                 return;
               } finally {
@@ -113,7 +114,14 @@ export function PaymentSettings() {
             Yes, cancel it
           </button>
           {error ? <div className="field-error">{error}</div> : null}
-          <button className="text-btn" type="button" onClick={() => setConfirm(false)}>
+          <button
+            className="text-btn"
+            type="button"
+            onClick={() => {
+              track('cancel_abandoned');
+              setConfirm(false);
+            }}
+          >
             Keep my subscription
           </button>
         </Sheet>

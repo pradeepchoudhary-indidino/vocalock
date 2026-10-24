@@ -12,8 +12,8 @@ import kotlin.math.min
  *
  * Vosk runs against a grammar limited to the phrases we care about plus [unk],
  * so it is only ever asked "is this one of these, or none of them" — far more
- * accurate and far cheaper than open dictation. The model ships inside the APK,
- * so nothing is downloaded and no audio leaves the device.
+ * accurate and far cheaper than open dictation. The model is downloaded once by
+ * [VoskModels]; after that everything runs on the phone and no audio leaves it.
  *
  * Also used by setup to check a candidate phrase before saving it: see
  * [armForCheck]. The model comes from [VoskModels], so that check reuses the
@@ -117,6 +117,11 @@ class PhraseSpotter(
         }
         lastFiredAt = 0L
         true
+    } catch (e: VoskModels.NotInstalled) {
+        // Its download has been started; ListenerService re-arms once it lands.
+        Log.i(TAG, e.message ?: "model not downloaded")
+        release()
+        false
     } catch (e: Throwable) {
         // Throwable, not Exception: a missing or unloadable libvosk.so arrives
         // as UnsatisfiedLinkError, and it must not take the service down.

@@ -57,6 +57,7 @@ export function Permissions() {
   }, [refreshPermissions]);
 
   const request = async (key: PermissionName) => {
+    track('permission_request', { name: key });
     if (key === 'batteryExempt') await Listener.openBatterySettings();
     else if (key === 'overlay') await Listener.openOverlaySettings();
     else await Listener.requestPermission({ name: key });
@@ -68,7 +69,10 @@ export function Permissions() {
   };
 
   const onAllow = (key: PermissionName) => {
-    if (key === 'mic' && !permissions.mic) setDisclosureFor('mic');
+    if (key === 'mic' && !permissions.mic) {
+      track('permission_request', { name: key, step: 'disclosure_shown' });
+      setDisclosureFor('mic');
+    }
     else void request(key);
   };
 
@@ -143,7 +147,14 @@ export function Permissions() {
               Continue
             </button>
             <div style={{ height: 8 }} />
-            <button className="btn btn--quiet" type="button" onClick={() => setDisclosureFor(null)}>
+            <button
+              className="btn btn--quiet"
+              type="button"
+              onClick={() => {
+                track('permission_result', { name: 'mic', granted: false, step: 'disclosure_declined' });
+                setDisclosureFor(null);
+              }}
+            >
               Not now
             </button>
           </Card>

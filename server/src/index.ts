@@ -1,8 +1,9 @@
 import express from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { bearerToken, createSession, deleteSession, requireSession, verifyGoogleIdToken } from './auth';
+import { bearerToken, createSession, deleteSession, requireSession, sessionUser, verifyGoogleIdToken } from './auth';
 import { query, transaction } from './db';
-import { logEvent } from './events';
+import { readAppConfig } from './config';
+import { insertAppEvents, logEvent, parseAppEvents } from './events';
 import * as razorpay from './razorpay';
 import {
   PRICING,
@@ -135,6 +136,37 @@ app.post('/auth/google', authLimit, async (req, res) => {
 });
 
 // Everything below acts on the signed-in user, and only that user.
+// ---------------------------------------------------------------- app config
+
+// Public and before requireSession: the paywall reads it before anyone signs in.
+app.get('/config', async (_req, res, next) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await readAppConfig());
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ---------------------------------------------------------------- app events
+
+// Per IP, and generous: Indian mobile carriers put many phones behind one IP.
+const eventsLimit = rateLimit({ windowMs: 15 * 60_000, limit: 600, standardHeaders: 'draft-8', legacyHeaders: false });
+
+// Before requireSession: the app reports events from before sign-in too, tied
+// together by the install's anon_id in props. With a valid session the events
+// are attributed to that user.
+app.post('/events', eventsLimit, async (req, res, next) => {
+  try {
+    const events = parseAppEvents(req.body);
+    const uid = await sessionUser(req).catch(() => null);
+    await insertAppEvents(uid, req.body?.appVersion, events);
+    res.json({ stored: events.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.use(requireSession);
 
 /** The Meta SDK's ids for this install; see meta.ts for what they are for. */

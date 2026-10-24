@@ -6,6 +6,7 @@ import { LockIcon, MicIcon } from '../../components/Icons';
 import { Card, Note, Sheet, ToggleRow } from '../../components/Controls';
 import { Listener } from '../../plugins';
 import { useSettings } from '../../store/settings';
+import { track } from '../../lib/analytics';
 
 /** Manage an existing voice lock: re-record, disarm, or remove it entirely. */
 export function VoiceLockManage() {
@@ -37,6 +38,7 @@ export function VoiceLockManage() {
   }, [refreshMode]);
 
   const remove = async () => {
+    track('voice_lock_reset');
     await patch({ lockPhrase: '', unlockPhrase: '', voiceLockEnabled: false, isLocked: false });
     await Listener.clearPin();
     await syncService();
@@ -79,7 +81,14 @@ export function VoiceLockManage() {
         </>
       }
       dock={
-        <button className="btn btn--lilac" type="button" onClick={() => void Listener.lock()}>
+        <button
+          className="btn btn--lilac"
+          type="button"
+          onClick={() => {
+            track('lock_try_it', { from: 'manage' });
+            void Listener.lock();
+          }}
+        >
           Lock my screen now
         </button>
       }
@@ -91,6 +100,7 @@ export function VoiceLockManage() {
           checked={settings.voiceLockEnabled}
           tint="lilac"
           onChange={async (next) => {
+            track('voice_lock_toggle', { on: next, from: 'manage' });
             await patch({ voiceLockEnabled: next });
             await syncService();
           }}
@@ -105,6 +115,7 @@ export function VoiceLockManage() {
           checked={deviceLock}
           tint="lilac"
           onChange={(next) => {
+            track('voice_setup_step', { step: 'device_lock_toggle', on: next, from: 'manage' });
             if (next) void Listener.requestDeviceLock();
             else void Listener.releaseDeviceLock().then(refreshMode);
           }}

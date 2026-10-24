@@ -4,7 +4,7 @@ Voice lock + clap-to-find utility for Android. Built to [`spec.md`](./spec.md).
 
 - **App name:** VocaLock
 - **Package id:** `com.indidino.vocalock`
-- **Launch languages:** English and Hindi (each ships its own Vosk model)
+- **Launch languages:** English and Hindi (each has its own Vosk model, downloaded on first use)
 - **Milestones done:** M0–M3, and M4 with Razorpay payments (see Payments)
 - **ABI:** arm64-v8a only — see the Vosk section
 
@@ -171,7 +171,7 @@ directly, not Firebase Auth, and data lives in Postgres, not Firestore.
 ## Why voice lock can refuse a phrase
 
 Setup captures phrases through Android's `SpeechRecognizer`, which knows far more
-words than the bundled offline Vosk model. Record "band karo" with the English model
+words than the offline Vosk model. Record "band karo" with the English model
 loaded and Vosk drops the word it does not know:
 
 ```

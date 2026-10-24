@@ -14,6 +14,7 @@ import {
 } from '../lib/api';
 import type { PlanStatus } from '../db/types';
 import { setCrashUser } from '../lib/crashlytics';
+import { flush as flushAnalytics, setAnalyticsToken, track } from '../lib/analytics';
 import { metaPurchase, metaRegistration } from '../lib/meta';
 
 const KEY_ENTITLEMENT = 'vocalock.entitlement';
@@ -118,6 +119,7 @@ export const usePremium = create<AccountState>((set, get) => ({
     }
     set({ entitlement: parsed, session: restored, loaded: true });
     setCrashUser(restored?.uid ?? null);
+    setAnalyticsToken(restored?.token ?? null);
     if (restored) void syncMetaAttribution(restored);
     if (restored) {
       try {
@@ -157,6 +159,7 @@ export const usePremium = create<AccountState>((set, get) => ({
     await Preferences.set({ key: KEY_SESSION, value: JSON.stringify(kept) });
     set({ session: kept });
     setCrashUser(session.uid);
+    setAnalyticsToken(session.token ?? null);
     void syncMetaAttribution(kept);
     // A returning account may already have Premium, or have used its trial;
     // until this lands the paywall would offer the ₹1 trial to everyone.
@@ -165,6 +168,9 @@ export const usePremium = create<AccountState>((set, get) => ({
 
   signOut: async () => {
     const session = get().session;
+    if (session) track('sign_out');
+    // Send what this account did while its token still identifies it.
+    await flushAnalytics();
     // Best effort: an offline sign-out still clears this phone.
     if (session) await signOutRemote(session).catch(() => undefined);
     await Promise.all([
@@ -173,6 +179,7 @@ export const usePremium = create<AccountState>((set, get) => ({
     ]);
     set({ session: null, entitlement: NO_ENTITLEMENT });
     setCrashUser(null);
+    setAnalyticsToken(null);
   },
 
   deleteAccount: async () => {

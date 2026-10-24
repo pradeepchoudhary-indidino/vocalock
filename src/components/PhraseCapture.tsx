@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import type { PluginListenerHandle } from '@capacitor/core';
 import { BulbIcon, CheckIcon, MicIcon } from './Icons';
 import { VoiceSetup } from '../plugins';
-import { deviceSpeechTag } from '../lib/language';
+import { detectLanguage, deviceSpeechTag } from '../lib/language';
+import { track } from '../lib/analytics';
 
 type Phase = 'idle' | 'listening' | 'captured';
 
@@ -34,11 +35,17 @@ export function PhraseCapture({
         setPartial(text),
       );
       const onFinal = await VoiceSetup.addListener('finalTranscript', ({ text }) => {
+        // The shape of the phrase, never the phrase itself.
+        track('phrase_captured', {
+          words: text.trim().split(/\s+/).length,
+          script: detectLanguage(text),
+        });
         setPartial('');
         setPhase('captured');
         onCaptured(text);
       });
-      const onError = await VoiceSetup.addListener('captureError', ({ message }) => {
+      const onError = await VoiceSetup.addListener('captureError', ({ message, code }) => {
+        track('phrase_capture_error', { code, message });
         setPartial('');
         setPhase('idle');
         setError(message);
@@ -68,12 +75,17 @@ export function PhraseCapture({
     setError('');
     setPartial('');
     setPhase('listening');
+    track('phrase_capture_start', { device_language: deviceSpeechTag(), redo: captured !== '' });
     try {
       // The device's own language decides how we listen; the script that comes
       // back then decides which offline model spots it.
       await VoiceSetup.startCapture({ language: deviceSpeechTag() });
     } catch (err) {
       setPhase('idle');
+      track('phrase_capture_error', {
+        code: 'start_failed',
+        message: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+      });
       setError(err instanceof Error ? err.message : 'Could not start listening');
     }
   };

@@ -5,6 +5,34 @@ release is tagged `vX.Y.0` at the commit its app bundle was built from; the
 version code is in brackets. Server and website changes ship with
 `scripts/deploy.sh` and are listed under the release they belong to.
 
+## 1.5.0 (7) — unreleased
+
+- Change: the app no longer carries its speech models. Play download drops from
+  ~87 MB to ~8 MB. Voice lock setup downloads the one model the user's
+  language needs (English 38 MB or Hindi 44 MB) from
+  `vocalock.indidino.com/models/`, resuming after drops and checking its
+  SHA-256, then deletes the zip once unpacked, so the phone no longer stores
+  the model twice. Upgrades from 1.4 keep their unpacked model and download
+  nothing. Models are published with `scripts/publish-models.sh`.
+- Change: checkout is Razorpay's native Android Checkout (`RazorpayPlugin`),
+  inside the app with installed UPI apps as tiles, instead of the hosted page
+  in a Chrome tab (kept as the fallback). The mobile number is prefilled as
+  9999999999 and hidden. Server side unchanged.
+- Change: paywall redesigned — brand bar with close, a media card that fills
+  the free height (feature slides, or a video set on the server with
+  `scripts/paywall-video.sh`, no release needed), large price, three features,
+  one button. "Not now" and the trial chip removed; the close button and Back
+  are the way out.
+- New: product analytics. The app queues its events on the phone and sends
+  them in batches to `POST /events` (source = 'app'); native events (alerts,
+  locks, unlocks, wrong PINs, mic failures, service restarts, model downloads)
+  are recorded while the app is closed and sent on the next open.
+- In-app privacy text: says the model is downloaded once; delete-account text
+  from the 2026-10-22 server change (all account data kept on delete).
+- Server (deployed 2026-10-24): `GET /config` (runtime settings, read from
+  `/opt/vocalock/config/app-config.json`) and `POST /events`; privacy page
+  says the model is downloaded.
+
 ## 1.4.0 (6) — 2026-10-22
 
 Sent to Play review on 2026-10-22.

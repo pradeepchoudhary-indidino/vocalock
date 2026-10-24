@@ -19,6 +19,7 @@ import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.indidino.vocalock.R
@@ -65,6 +66,9 @@ object AlertController {
     var isActive = false
         private set
 
+    private var startedAt = 0L
+    private var activeTrigger = ""
+
     /** Seconds left before the alert gives up, for the countdown on screen. */
     @Volatile
     var secondsLeft = 0
@@ -108,6 +112,17 @@ object AlertController {
             }
         }.also { handler.postDelayed(it, 1_000L) }
 
+        startedAt = SystemClock.elapsedRealtime()
+        activeTrigger = trigger
+        NativeEvents.record(
+            app,
+            "alert_fired",
+            JSONObject()
+                .put("trigger", trigger)
+                .put("ring", settings.ring)
+                .put("vibrate", settings.vibrate)
+                .put("flashlight", settings.flashlight),
+        )
         ListenerBus.emit("alertFired", JSONObject().put("trigger", trigger))
     }
 
@@ -130,6 +145,14 @@ object AlertController {
         NotificationManagerCompatSafe.cancel(app, NOTIFICATION_ID)
         AlertActivity.onStopped()
 
+        NativeEvents.record(
+            app,
+            "alert_stopped",
+            JSONObject()
+                .put("how", how)
+                .put("trigger", activeTrigger)
+                .put("after_ms", SystemClock.elapsedRealtime() - startedAt),
+        )
         ListenerBus.emit("alertStopped", JSONObject().put("how", how))
     }
 

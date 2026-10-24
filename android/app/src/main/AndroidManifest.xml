@@ -142,6 +142,16 @@
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+        <!-- Lets Razorpay Checkout see which UPI apps are installed and show
+             them as tiles; without it Android 11+ hides them from the app. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" android:host="pay" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" android:host="mandate" />
+        </intent>
     </queries>
 
     <!-- Torch only; the app never opens the camera for pictures. -->

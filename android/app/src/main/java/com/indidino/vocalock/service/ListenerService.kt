@@ -19,7 +19,9 @@ import android.media.AudioPlaybackConfiguration
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -235,6 +237,15 @@ class ListenerService : Service() {
     private val prefsListener =
         SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> reloadSettings() }
 
+    /** Voice lock armed before its model arrived picks it up as soon as it does. */
+    private val modelInstalled: (String) -> Unit = { language ->
+        mainHandler.post {
+            if (VoskModels.normalizeLanguage(settings.language) == language) syncPhraseSpotter()
+        }
+    }
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
@@ -271,6 +282,7 @@ class ListenerService : Service() {
             if (!calibrating) AlertController.start(this, "whistle")
         }
         settings = SettingsStore.read(this)
+        VoskModels.addInstalledListener(modelInstalled)
         applySettings()
         SettingsStore.prefs(this).registerOnSharedPreferenceChangeListener(prefsListener)
         // A lock that was up when the service died must come back with it.
@@ -294,6 +306,16 @@ class ListenerService : Service() {
         startForegroundSafely()
         isRunning = true
         ListenerBus.emit("serviceState", JSONObject().put("running", true))
+
+        if (intent == null) {
+            NativeEvents.record(
+                this,
+                "service_restarted",
+                JSONObject()
+                    .put("clap", settings.clapEnabled)
+                    .put("voice_lock", settings.voiceLockEnabled),
+            )
+        }
 
         when (intent?.action) {
             ACTION_STOP -> {
@@ -335,6 +357,7 @@ class ListenerService : Service() {
         stopCapture()
         phraseSpotter?.release()
         phraseSpotter = null
+        VoskModels.removeInstalledListener(modelInstalled)
         VoskModels.releaseAll()
         runCatching { unregisterReceiver(screenReceiver) }
         runCatching { audioManager.unregisterAudioPlaybackCallback(playbackCallback) }
@@ -494,6 +517,7 @@ class ListenerService : Service() {
             AudioFormat.ENCODING_PCM_16BIT,
         )
         if (minBuffer <= 0) {
+            NativeEvents.record(this, "mic_unavailable", JSONObject().put("reason", "no_buffer"))
             Log.e(TAG, "AudioRecord reports no usable buffer size")
             capturing = false
             return null
@@ -508,12 +532,14 @@ class ListenerService : Service() {
                 maxOf(minBuffer, FRAME_SAMPLES * 4),
             )
         } catch (e: SecurityException) {
+            NativeEvents.record(this, "mic_unavailable", JSONObject().put("reason", "permission"))
             Log.e(TAG, "mic permission revoked mid-flight", e)
             capturing = false
             return null
         }
 
         if (record.state != AudioRecord.STATE_INITIALIZED) {
+            NativeEvents.record(this, "mic_unavailable", JSONObject().put("reason", "init_failed"))
             Log.e(TAG, "AudioRecord failed to initialise")
             record.release()
             capturing = false
@@ -682,7 +708,18 @@ class ListenerService : Service() {
             val spotter = ensureSpotter()
             if (!spotter.armForCheck(language, phrase)) {
                 Log.w(TAG, "could not arm the phrase check")
-                finishPhraseCheck(heard = false)
+                // armForCheck has already dropped `checking`, so finishPhraseCheck
+                // would return without telling the screen anything.
+                val missing = !VoskModels.isInstalled(this, language)
+                ListenerBus.emit(
+                    "phraseCheckResult",
+                    JSONObject().put("heard", false).apply { if (missing) put("reason", "model") },
+                )
+                applySettings()
+                if (startedForCalibrationOnly && !settings.needsMic && !calibrating) {
+                    startedForCalibrationOnly = false
+                    stopSelfCleanly()
+                }
                 return@thread
             }
             // Only now start the clock. Loading a model is slow the first time

@@ -90,6 +90,27 @@ export interface LockStateEvent {
 export interface PhraseCheckResultEvent {
   /** True when the offline model actually recognised the candidate phrase. */
   heard: boolean;
+  /** 'model' when it could not run because the language is not downloaded. */
+  reason?: 'model';
+}
+
+/**
+ * The offline speech models are downloaded once per language rather than
+ * shipped in the APK. `error` says why the last attempt failed.
+ */
+export interface ModelStateEvent {
+  language: Language;
+  state: 'missing' | 'downloading' | 'ready' | 'failed';
+  downloadedBytes: number;
+  totalBytes: number;
+  error?: 'network' | 'storage' | 'failed';
+}
+
+export interface NativeEvent {
+  event: string;
+  /** Epoch millis when it happened. */
+  ts: number;
+  props: Record<string, unknown>;
 }
 
 export interface PhraseHeardEvent {
@@ -135,6 +156,19 @@ export interface ListenerPlugin {
   stopPhraseCheck(): Promise<void>;
 
   /**
+   * Starts the language's one-time model download unless it is already on the
+   * phone. Progress arrives as `modelState` events.
+   */
+  prepareModel(options: { language: Language }): Promise<ModelStateEvent>;
+  getModelState(options: { language: Language }): Promise<ModelStateEvent>;
+
+  /**
+   * Events native code recorded (alerts, locks, unlocks, service restarts),
+   * usually while the app was closed. Returns them once and forgets them.
+   */
+  drainNativeEvents(): Promise<{ events: NativeEvent[] }>;
+
+  /**
    * Whether device admin is granted, which is what lets the app lock the real
    * lock screen instead of drawing a cover over it.
    */
@@ -175,6 +209,10 @@ export interface ListenerPlugin {
   addListener(
     eventName: 'phraseCheckResult',
     listener: (event: PhraseCheckResultEvent) => void,
+  ): Promise<PluginListenerHandle>;
+  addListener(
+    eventName: 'modelState',
+    listener: (event: ModelStateEvent) => void,
   ): Promise<PluginListenerHandle>;
   addListener(
     eventName: 'phraseHeard',

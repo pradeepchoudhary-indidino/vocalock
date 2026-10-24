@@ -23,7 +23,7 @@ const DOCS: Record<string, Doc> = {
       },
       {
         heading: 'Audio never leaves your phone',
-        text: 'Every sound VocaLock hears is processed on the device, in memory, and thrown away immediately. Nothing is recorded to a file. Nothing is uploaded. No audio is sent to us, to any server, or to any third party. The speech model used to match your phrases is bundled inside the app and runs offline.',
+        text: 'Every sound VocaLock hears is processed on the device, in memory, and thrown away immediately. Nothing is recorded to a file. Nothing is uploaded. No audio is sent to us, to any server, or to any third party. The speech model used to match your phrases is downloaded once from our server when you set up voice lock, and from then on runs offline.',
       },
       {
         heading: 'What stays on your phone',

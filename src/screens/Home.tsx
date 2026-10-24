@@ -125,6 +125,7 @@ export function Home() {
               navigate('/voice-lock/intro');
               return;
             }
+            track('voice_lock_toggle', { on: !settings.voiceLockEnabled, from: 'home' });
             await patch({ voiceLockEnabled: !settings.voiceLockEnabled });
             await syncService();
           }}
@@ -150,7 +151,10 @@ export function Home() {
         </button>
       ) : null}
 
-      <button className="action-strip" type="button" onClick={() => void Listener.testAlert()}>
+      <button className="action-strip" type="button" onClick={() => {
+          track('test_alert');
+          void Listener.testAlert();
+        }}>
         <span className="action-strip__tile">
           <BoltIcon />
         </span>
