@@ -5,7 +5,7 @@ import { SqliteRepository } from '../db/sqlite';
 import type { Repository } from '../db/types';
 import { APP_VERSION } from './analytics';
 import { metaAttribution } from './meta';
-import { CheckoutDismissed, openSubscriptionCheckout } from './razorpay';
+import { CheckoutDismissed, CheckoutFailed, openSubscriptionCheckout } from './razorpay';
 
 /**
  * Backend client.
@@ -156,10 +156,47 @@ interface StartResponse {
   checkout?: { keyId: string; subscriptionId: string; email: string | null };
 }
 
+type Prepared = { checkout: NonNullable<StartResponse['checkout']>; uid: string; at: number };
+
+/**
+ * A subscription created when the paywall opened, so the tap opens Checkout at
+ * once instead of first waiting on the server and Razorpay. Reused for retries
+ * after a failed or abandoned attempt: Razorpay lets a created subscription be
+ * paid until it expires (expire_by, a day). Kept for less than that, and only
+ * for the user it was made for.
+ */
+let prepared: Prepared | null = null;
+const PREPARED_TTL_MS = 30 * 60_000;
+
+function freshPrepared(session: Session): Prepared | null {
+  if (!prepared || prepared.uid !== session.uid) return null;
+  return Date.now() - prepared.at < PREPARED_TTL_MS ? prepared : null;
+}
+
+/**
+ * Called as the paywall opens. Best effort: if it fails, or the server has no
+ * gateway, the tap simply starts the checkout as before.
+ */
+export async function prepareCheckout(session: Session): Promise<void> {
+  if (!backendConfigured || !session.token || freshPrepared(session)) return;
+  try {
+    const started = await post<StartResponse>('/startSubscription', session, { prepare: true });
+    if (started.checkout) prepared = { checkout: started.checkout, uid: session.uid, at: Date.now() };
+  } catch {
+    // Already Premium (409), rate limited, offline: the tap will say so.
+  }
+}
+
+/** Tells the server about an attempt that did not go through; it checks with Razorpay. */
+function reportAttempt(session: Session, paymentId: string | null) {
+  if (!paymentId) return;
+  void post('/paymentAttempt', session, { paymentId }).catch(() => undefined);
+}
+
 /**
  * With Razorpay configured on the server this opens Checkout and resolves only
  * once the server has verified the payment. Throws CheckoutDismissed if the
- * user closes Checkout.
+ * user closes Checkout, CheckoutFailed if Razorpay reports the payment failed.
  */
 export async function startSubscription(
   session: Session,
@@ -170,23 +207,36 @@ export async function startSubscription(
     const sub = await local.startTrial(session.uid, trialDays);
     return { status: 'trial', validUntil: sub.valid_until, provider: null };
   }
-  const started = await post<StartResponse & Partial<PurchaseResult>>('/startSubscription', session);
-  if (!started.checkout) return started as PurchaseResult; // server has no gateway configured
+  let checkout = freshPrepared(session)?.checkout;
+  if (!checkout) {
+    const started = await post<StartResponse & Partial<PurchaseResult>>('/startSubscription', session);
+    if (!started.checkout) return started as PurchaseResult; // server has no gateway configured
+    checkout = started.checkout;
+    prepared = { checkout, uid: session.uid, at: Date.now() };
+  }
 
   // Written before leaving the app: Android may discard the app while the user
-  // is in the browser and the UPI app, and this is how it finds its way back.
-  await savePendingCheckout(started.checkout.subscriptionId);
+  // is in the UPI app, and this is how it finds its way back.
+  await savePendingCheckout(checkout.subscriptionId);
 
   let paid;
   try {
-    paid = await openSubscriptionCheckout(started.checkout);
+    paid = await openSubscriptionCheckout({ ...checkout, uid: session.uid });
   } catch (error) {
+    if (error instanceof CheckoutDismissed || error instanceof CheckoutFailed) {
+      reportAttempt(session, error.paymentId);
+    }
     if (!(error instanceof CheckoutDismissed)) throw error;
-    // The redirect can be lost even when the payment went through.
+    // The result can be lost even when the payment went through.
     const recovered = await resumePendingCheckout(session, 3);
-    if (recovered) return recovered;
+    if (recovered) {
+      prepared = null;
+      return recovered;
+    }
     throw error;
   }
+  // Used: a paid subscription cannot be checked out again.
+  prepared = null;
   let result: PurchaseResult;
   try {
     result = await post<PurchaseResult>('/verifySubscription', session, paid);

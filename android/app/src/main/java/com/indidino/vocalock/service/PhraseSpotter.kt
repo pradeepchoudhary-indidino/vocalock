@@ -41,6 +41,19 @@ class PhraseSpotter(
 
         /** Do not act on the same phrase twice in quick succession. */
         private const val REPEAT_GUARD_MS = 2_500L
+
+        /**
+         * Must stay in step with normalizePhrase() in src/store/voiceSetup.ts.
+         *
+         * \p{M} matters: Devanagari vowel signs and anusvara are combining marks,
+         * not letters, so a letters-only filter turns "करो" into "कर" and "बंद"
+         * into "बद" — words no Hindi model has ever seen.
+         */
+        fun normalize(text: String): String =
+            text.lowercase()
+                .replace(Regex("[^\\p{L}\\p{N}\\p{M}\\s]"), "")
+                .replace(Regex("\\s+"), " ")
+                .trim()
     }
 
     /**
@@ -255,18 +268,6 @@ class PhraseSpotter(
         return "[$escaped,\"[unk]\"]"
     }
 
-    /**
-     * Must stay in step with normalizePhrase() in src/store/voiceSetup.ts.
-     *
-     * \p{M} matters: Devanagari vowel signs and anusvara are combining marks,
-     * not letters, so a letters-only filter turns "करो" into "कर" and "बंद"
-     * into "बद" — words no Hindi model has ever seen.
-     */
-    private fun normalize(text: String): String =
-        text.lowercase()
-            .replace(Regex("[^\\p{L}\\p{N}\\p{M}\\s]"), "")
-            .replace(Regex("\\s+"), " ")
-            .trim()
 
     private fun editDistance(a: String, b: String): Int {
         if (a == b) return 0

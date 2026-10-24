@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import type { PluginListenerHandle } from '@capacitor/core';
 import { Listener, type Language, type ModelStateEvent } from '../plugins';
 import { Note } from './Controls';
-import { CheckIcon, MicIcon } from './Icons';
+import { CheckIcon } from './Icons';
 import { track } from '../lib/analytics';
 
-type Verdict = 'listening' | 'heard' | 'missed';
+type Verdict = 'checking' | 'heard' | 'missed';
 
 interface PhraseCheckProps {
   phrase: string;
@@ -15,18 +15,23 @@ interface PhraseCheckProps {
 }
 
 /**
- * Proves the offline model can actually recognise the phrase before it is
- * saved.
+ * Proves the offline model can recognise the phrase before it is saved.
  *
  * This exists because the two engines are different: setup captures through
  * Android's SpeechRecognizer, which handles far more words than the offline
  * Vosk model. Without this check a user can record a phrase Vosk will silently
  * drop words from, and voice lock then never fires with nothing to explain why.
+ *
+ * It asks the model's own vocabulary (checkVocabulary), so the phrase is said
+ * once, not a second time for a listening test.
  */
 export function PhraseCheck(props: PhraseCheckProps) {
   const { model, retry } = useModel(props.language);
-  if (model?.state !== 'ready') return <ModelDownload model={model} retry={retry} />;
-  return <PhraseListen {...props} onModelMissing={retry} />;
+  // Unknown for the first instant: show nothing rather than flash the
+  // download screen at someone whose pack is already on the phone.
+  if (model === null) return null;
+  if (model.state !== 'ready') return <ModelDownload model={model} retry={retry} />;
+  return <VocabularyCheck {...props} onModelMissing={retry} />;
 }
 
 /**
@@ -137,49 +142,46 @@ function ModelDownload({ model, retry }: { model: ModelStateEvent | null; retry:
   );
 }
 
-function PhraseListen({
+function VocabularyCheck({
   phrase,
   language,
   onPassed,
   onRejected,
   onModelMissing,
 }: PhraseCheckProps & { onModelMissing: () => void }) {
-  const [verdict, setVerdict] = useState<Verdict>('listening');
+  const [verdict, setVerdict] = useState<Verdict>('checking');
+  const [unknown, setUnknown] = useState<string[]>([]);
 
   useEffect(() => {
-    let handle: PluginListenerHandle | undefined;
     let live = true;
     const started = Date.now();
     track('phrase_check_start', { language });
-
     void (async () => {
-      const h = await Listener.addListener('phraseCheckResult', ({ heard, reason }) => {
-        // Not the phrase's fault: the model went missing (storage cleared, say).
-        // Back to the download rather than blaming the user's words.
-        if (reason === 'model') {
+      try {
+        const result = await Listener.checkVocabulary({ phrase, language });
+        if (!live) return;
+        // The model went missing (storage cleared, say): back to the download
+        // rather than blaming the user's words.
+        if (result.missing) {
           onModelMissing();
           return;
         }
-        track('phrase_check_result', { heard, language, ms: Date.now() - started });
-        setVerdict(heard ? 'heard' : 'missed');
-        if (heard) window.setTimeout(onPassed, 700);
-      });
-      if (!live) {
-        void h.remove();
-        return;
-      }
-      handle = h;
-      try {
-        await Listener.startPhraseCheck({ phrase, language });
+        track('phrase_check_result', {
+          heard: result.known,
+          unknown: result.unknown.length,
+          language,
+          ms: Date.now() - started,
+        });
+        setUnknown(result.unknown);
+        setVerdict(result.known ? 'heard' : 'missed');
+        if (result.known) window.setTimeout(onPassed, 700);
       } catch {
-        setVerdict('missed');
+        // The check itself failed, not the phrase: do not block setup on it.
+        if (live) onPassed();
       }
     })();
-
     return () => {
       live = false;
-      void Listener.stopPhraseCheck();
-      void handle?.remove();
     };
   }, [phrase, language, onPassed, onModelMissing]);
 
@@ -188,13 +190,20 @@ function PhraseListen({
       <>
         <div className="heard-box">
           <div className="heard-box__label">The phrase you recorded</div>
-          <div className="heard-box__value">&ldquo;{phrase}&rdquo;</div>
+          <div className="heard-box__value" data-private>&ldquo;{phrase}&rdquo;</div>
         </div>
 
         <Note tone="warn">
-          VocaLock listens <strong>offline</strong>, and its offline vocabulary is smaller
-          than your keyboard&rsquo;s. Everyday words work best &mdash; try something like
-          &ldquo;lock my phone&rdquo; or &ldquo;good night now&rdquo;.
+          VocaLock listens <strong>offline</strong>, and{' '}
+          {unknown.length === 1 ? (
+            <>
+              &ldquo;<span data-private>{unknown[0]}</span>&rdquo; is not a word it knows
+            </>
+          ) : (
+            <>some of these words are not ones it knows</>
+          )}
+          , so it would never hear this phrase. Everyday words work best &mdash; try
+          something like &ldquo;lock my phone&rdquo; or &ldquo;good night now&rdquo;.
         </Note>
 
         <button className="btn btn--lilac" type="button" onClick={onRejected}>
@@ -206,34 +215,21 @@ function PhraseListen({
 
   return (
     <div className="verify">
-      {/* The same mic the user just recorded with, so the two steps read as one
-          flow rather than as a test that appeared from nowhere. */}
       <div className="mic-field">
-        {verdict === 'listening' ? (
-          <>
-            <span className="mic-ring" />
-            <span className="mic-ring" />
-          </>
-        ) : null}
-        <div
-          className={`mic-btn${verdict === 'listening' ? ' mic-btn--listening' : ' mic-btn--captured'}`}
-          style={{ pointerEvents: 'none' }}
-        >
-          {verdict === 'heard' ? <CheckIcon size={52} /> : <MicIcon size={46} />}
+        <div className="mic-btn mic-btn--captured" style={{ pointerEvents: 'none' }}>
+          {verdict === 'heard' ? <CheckIcon size={52} /> : <span className="spinner" />}
         </div>
       </div>
 
-      <div className="verify__phrase">&ldquo;{phrase}&rdquo;</div>
+      <div className="verify__phrase" data-private>&ldquo;{phrase}&rdquo;</div>
 
       {verdict === 'heard' ? (
         <span className="verify__ok">
           <CheckIcon size={18} />
-          VocaLock heard it
+          VocaLock can hear this phrase
         </span>
       ) : (
-        <p className="verify__state">
-          Say it out loud now, the way you normally would.
-        </p>
+        <p className="verify__state">Checking your phrase…</p>
       )}
     </div>
   );

@@ -17,7 +17,13 @@ import { Listener } from '../plugins';
  * locks, unlocks, service restarts, which mostly happen with the app closed —
  * are recorded by NativeEvents.kt and drained into this queue on the next flush.
  *
- * Never put the user's phrases, PIN or anything they typed in props.
+ * Every tap on a button, link, toggle or option is recorded too (`tap`, with
+ * its label and screen), and time spent per screen (`screen_leave`), so a user's
+ * whole path through the app can be replayed from the events table.
+ *
+ * Never put the user's phrases, PIN or anything they typed in props. Tap labels
+ * come from data-track, then aria-label, then the visible text with anything
+ * under [data-private] removed; the PIN keypad is labelled pin_key.
  */
 export type AnalyticsEvent =
   // lifecycle
@@ -25,6 +31,8 @@ export type AnalyticsEvent =
   | 'app_foreground'
   | 'app_background'
   | 'screen_view'
+  | 'screen_leave'
+  | 'tap'
   | 'js_error'
   // sign-in
   | 'login_tap'
@@ -208,12 +216,76 @@ export async function flush(): Promise<void> {
   }
 }
 
+// ---- screens and taps ------------------------------------------------------
+
+let currentScreenPath: string | null = null;
+let screenEnteredAt = 0;
+
+/**
+ * Called on every route change: closes the previous screen with the time spent
+ * on it, then opens the new one.
+ */
+export function enterScreen(path: string) {
+  if (path === currentScreenPath) return;
+  const from = currentScreenPath;
+  if (from !== null) track('screen_leave', { screen: from, ms: Date.now() - screenEnteredAt, to: path });
+  currentScreenPath = path;
+  screenEnteredAt = Date.now();
+  track('screen_view', { screen: path, from });
+}
+
+const TAPPABLE = [
+  'button',
+  'a',
+  'select',
+  'label',
+  'input[type="checkbox"]',
+  'input[type="radio"]',
+  '[role="button"]',
+  '[role="switch"]',
+  '[role="tab"]',
+  '[role="radio"]',
+  '[role="checkbox"]',
+  '[data-track]',
+].join(',');
+
+function tapLabel(el: Element): string {
+  const named = el.getAttribute('data-track') ?? el.getAttribute('aria-label');
+  if (named) return named.trim().slice(0, 60);
+  if (el.closest('[data-private]')) return 'private';
+  const copy = el.cloneNode(true) as Element;
+  copy.querySelectorAll('[data-private], input, textarea').forEach((n) => n.remove());
+  const text = (copy.textContent ?? '').replace(/\s+/g, ' ').trim();
+  if (text) return text.slice(0, 60);
+  return el.tagName.toLowerCase();
+}
+
+function onTap(event: Event) {
+  const target = event.target instanceof Element ? event.target : null;
+  const el = target?.closest(TAPPABLE);
+  if (!el) return;
+  const props: Record<string, unknown> = { label: tapLabel(el), kind: el.tagName.toLowerCase() };
+  // For a toggle, the state it was switched to (the click has not landed yet,
+  // so the current state is the one being left).
+  if (el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio')) {
+    props.on = !el.checked;
+  } else if (el.getAttribute('aria-checked') !== null) {
+    props.on = el.getAttribute('aria-checked') !== 'true';
+  } else if (el.getAttribute('aria-pressed') !== null) {
+    props.on = el.getAttribute('aria-pressed') !== 'true';
+  }
+  if ((el as HTMLButtonElement).disabled) props.disabled = true;
+  track('tap', props);
+}
+
 /**
  * Starts the periodic flush and the lifecycle events. Called once at boot.
  * Background/foreground also bound sessions: a long absence is a new session.
  */
 export function initAnalytics() {
   window.setInterval(() => void flush(), FLUSH_EVERY_MS);
+  // Capture phase: recorded even when a handler stops the click from bubbling.
+  document.addEventListener('click', onTap, { capture: true, passive: true });
 
   window.addEventListener('error', (e) => {
     track('js_error', { message: String(e.message).slice(0, 200), source: 'error' });
@@ -226,9 +298,19 @@ export function initAnalytics() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       backgroundedAt = Date.now();
+      // The screen they left the app from, and how long they had been on it.
+      if (currentScreenPath !== null) {
+        track('screen_leave', {
+          screen: currentScreenPath,
+          ms: Date.now() - screenEnteredAt,
+          to: 'background',
+        });
+      }
       track('app_background');
       void flush();
     } else if (backgroundedAt > 0) {
+      // Time in the background is not time on the screen.
+      screenEnteredAt = Date.now();
       const away = Date.now() - backgroundedAt;
       if (away > SESSION_GAP_MS) sessionId = newId();
       track('app_foreground', { away_ms: away, new_session: away > SESSION_GAP_MS });

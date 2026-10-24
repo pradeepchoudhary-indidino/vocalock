@@ -26,7 +26,9 @@ Object.assign(process.env, {
   RAZORPAY_WEBHOOK_SECRET: 'wh_secret',
   META_DATASET_ID: 'ds_test',
   META_ACCESS_TOKEN: 'meta_token',
+  APP_CONFIG_PATH: path.join(require('os').tmpdir(), `vocalock-e2e-config-${process.pid}.json`),
 });
+const fs = require('fs');
 
 // --- fake Google: the ID token string is the Google `sub`
 const { OAuth2Client } = require(`${SERVER}/node_modules/google-auth-library`);
@@ -37,6 +39,7 @@ OAuth2Client.prototype.verifyIdToken = async ({ idToken, audience }) => {
 
 // --- fake Razorpay
 const subs = new Map();
+const payments = new Map();
 const metaCalls = [];
 const realFetch = global.fetch;
 global.fetch = async (url, init = {}) => {
@@ -54,6 +57,8 @@ global.fetch = async (url, init = {}) => {
     subs.set(sub.id, sub);
     return json(200, sub);
   }
+  const pm = path.match(/^\/payments\/([^/]+)$/);
+  if (pm) return payments.has(pm[1]) ? json(200, payments.get(pm[1])) : json(400, { error: { description: 'not found' } });
   let m = path.match(/^\/subscriptions\/([^/]+)$/);
   if (m) return subs.has(m[1]) ? json(200, subs.get(m[1])) : json(400, { error: { description: 'not found' } });
   m = path.match(/^\/subscriptions\/([^/]+)\/cancel$/);
@@ -177,11 +182,11 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   // Another app on the shared Razorpay account: same uid shape in notes, different plan.
   const foreign = { id: 'sub_other_app', status: 'authenticated', plan_id: 'plan_calory', start_at: fakeSub.start_at,
     current_start: null, current_end: null, charge_at: null, ended_at: null, notes: { uid: bob.uid } };
-  const fh = await webhook('subscription.authenticated', foreign, { id: 'pay_other_app', amount: 9900, currency: 'INR', status: 'captured' });
-  await webhook('subscription.charged', foreign, { id: 'pay_other_app2', amount: 9900, currency: 'INR', status: 'captured' });
+  const fh = await webhook('subscription.authenticated', foreign, { id: 'pay_otherApp1', amount: 9900, currency: 'INR', status: 'captured' });
+  await webhook('subscription.charged', foreign, { id: 'pay_otherApp12', amount: 9900, currency: 'INR', status: 'captured' });
   check("another app's events → 200 and ignored", fh.status === 200 &&
     (await rows("SELECT 1 FROM subscriptions WHERE mandate_id='sub_other_app'")).length === 0 &&
-    (await rows("SELECT 1 FROM payments WHERE provider_txn_id LIKE 'pay_other_app%'")).length === 0);
+    (await rows("SELECT 1 FROM payments WHERE provider_txn_id LIKE 'pay_otherApp1%'")).length === 0);
   const ent = (await call('/getEntitlement', { token: alice.token })).data;
   check('entitlement: premium, active', ent.premium === true && ent.status === 'active', JSON.stringify(ent));
 
@@ -294,6 +299,106 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   for (const e of ['signup', 'sign_in', 'app_foreground', 'checkout_started', 'trial_started', 'subscription_cancelled', 'account_deleted']) {
     check(`event logged: ${e}`, logged.has(e), [...logged].join(','));
   }
+
+  // --- webhook lands before verify: the payment id is still recorded
+  const jo = (await call('/auth/google', { body: { idToken: 'jo' } })).data;
+  const js = await call('/startSubscription', { token: jo.token });
+  const joSub = subs.get(js.data.checkout.subscriptionId);
+  joSub.status = 'authenticated';
+  joSub._invoices = [];
+  await webhook('subscription.authenticated', joSub); // no payment entity, no invoice yet
+  const joSig = sign(`pay_jo1|${joSub.id}`, 'key_secret');
+  await call('/verifySubscription', { token: jo.token, body: { paymentId: 'pay_jo1', subscriptionId: joSub.id, signature: joSig } });
+  const joPays = await rows('SELECT provider_txn_id FROM payments WHERE user_id=$1', [jo.uid]);
+  check('webhook first, then verify → one payment, with the Razorpay id', joPays.length === 1 && joPays[0].provider_txn_id === 'pay_jo1', JSON.stringify(joPays));
+  const kim = (await call('/auth/google', { body: { idToken: 'kim' } })).data;
+  const ks = await call('/startSubscription', { token: kim.token });
+  const kimSub = subs.get(ks.data.checkout.subscriptionId);
+  kimSub.status = 'authenticated';
+  kimSub._invoices = [{ status: 'paid', payment_id: 'pay_kim1', amount: 100, date: 1 }];
+  await webhook('subscription.authenticated', kimSub);
+  check('webhook alone → payment id looked up from the invoice', (await rows('SELECT provider_txn_id FROM payments WHERE user_id=$1', [kim.uid]))[0]?.provider_txn_id === 'pay_kim1');
+
+  // --- cancel races the cancelled webhook: one event either way
+  const lee = (await call('/auth/google', { body: { idToken: 'lee' } })).data;
+  const ls = await call('/startSubscription', { token: lee.token });
+  const leeSub = subs.get(ls.data.checkout.subscriptionId);
+  leeSub.status = 'authenticated';
+  await call('/syncSubscription', { token: lee.token, body: { subscriptionId: leeSub.id } });
+  const cancelling = call('/cancelSubscription', { token: lee.token });
+  await webhook('subscription.cancelled', { ...leeSub, status: 'cancelled' });
+  await cancelling;
+  await new Promise((r) => setTimeout(r, 300));
+  const leeEvents = await rows("SELECT 1 FROM events WHERE user_id=$1 AND event='subscription_cancelled'", [lee.uid]);
+  check('cancel + simultaneous webhook → one subscription_cancelled event', leeEvents.length === 1, String(leeEvents.length));
+
+  // --- runtime config (GET /config, read from APP_CONFIG_PATH on each request)
+  const cfgPath = process.env.APP_CONFIG_PATH;
+  fs.rmSync(cfgPath, { force: true });
+  let cfg = await call('/config', { method: 'GET' });
+  check('config with no file → no video', cfg.status === 200 && cfg.data.paywallVideoUrl === null, JSON.stringify(cfg.data));
+  check('config is not cached', cfg.headers.get('cache-control') === 'no-store');
+  fs.writeFileSync(cfgPath, JSON.stringify({ paywallVideoUrl: 'https://cdn.example.com/v.mp4' }));
+  cfg = await call('/config', { method: 'GET' });
+  check('config file change is live without a restart', cfg.data.paywallVideoUrl === 'https://cdn.example.com/v.mp4', JSON.stringify(cfg.data));
+  fs.writeFileSync(cfgPath, JSON.stringify({ paywallVideoUrl: 'http://insecure.example.com/v.mp4' }));
+  check('non-https video refused', (await call('/config', { method: 'GET' })).data.paywallVideoUrl === null);
+  fs.writeFileSync(cfgPath, '{ broken');
+  check('broken config file → defaults, not a 500', (await call('/config', { method: 'GET' })).data.paywallVideoUrl === null);
+  check('config needs no session and answers CORS', (await call('/config', { method: 'GET', headers: { Origin: 'https://localhost' } })).headers.get('access-control-allow-origin') === 'https://localhost');
+  fs.rmSync(cfgPath, { force: true });
+
+  // --- app events (POST /events)
+  const now = Date.now();
+  const run = crypto.randomBytes(3).toString('hex'); // events persist across runs
+
+  const anon = await call('/events', { body: { appVersion: '1.5.0', events: [
+    { event: 'app_open', ts: now - 5000, props: { anon_id: `install-1-${run}` } },
+    { event: 'Bad Name', ts: now, props: {} },
+    { event: 'tap', ts: now, props: { label: 'x'.repeat(3000) } },
+  ] } });
+  check('events without a session are stored, malformed ones dropped', anon.status === 200 && anon.data.stored === 1, JSON.stringify(anon.data));
+  const [appEv] = await rows("SELECT user_id, source, app_version, created_at FROM events WHERE props->>'anon_id' = 'install-1-" + run + "'");
+  check("…as source app, no user, the phone's own time",
+    appEv && appEv.user_id === null && appEv.source === 'app' && appEv.app_version === '1.5.0' && Math.abs(new Date(appEv.created_at).getTime() - (now - 5000)) < 1000,
+    JSON.stringify(appEv));
+  const helen = (await call('/auth/google', { body: { idToken: 'helen', appVersion: '1.5.0' } })).data;
+  await call('/events', { token: helen.token, body: { appVersion: '1.5.0', events: [{ event: 'screen_view', ts: now, props: { anon_id: `install-2-${run}`, screen: '/paywall' } }] } });
+  check('events with a session are attributed to the user', (await rows("SELECT user_id FROM events WHERE props->>'anon_id' = 'install-2-" + run + "'"))[0]?.user_id === helen.uid);
+  check('a bad session still stores the events, unattributed', (await call('/events', { token: 'nope', body: { events: [{ event: 'tap', ts: now, props: { anon_id: `install-3-${run}` } }] } })).data.stored === 1
+    && (await rows("SELECT user_id FROM events WHERE props->>'anon_id' = 'install-3-" + run + "'"))[0]?.user_id === null);
+  check('events: no body → stores nothing, no error', (await call('/events', { body: {} })).data.stored === 0);
+
+  // --- checkout prepared at paywall view
+  const prep = await call('/startSubscription', { token: helen.token, body: { prepare: true } });
+  await new Promise((r) => setTimeout(r, 200));
+  const helenEvents = (await rows('SELECT event FROM events WHERE user_id=$1', [helen.uid])).map((r) => r.event);
+  check('prepared checkout → subscription created, logged as prepared not started', Boolean(prep.data.checkout?.subscriptionId) && helenEvents.includes('checkout_prepared') && !helenEvents.includes('checkout_started'), helenEvents.join());
+
+  // --- failed attempts (POST /paymentAttempt)
+  const failed = { id: 'pay_fail1', amount: 100, currency: 'INR', status: 'failed', email: 'helen@example.com', method: 'upi', invoice_id: null,
+    notes: { _source: 'vocalock', app: 'vocalock', uid: helen.uid }, error_code: 'BAD_REQUEST_ERROR', error_reason: 'request_timed_out', error_description: 'timed out', created_at: Math.floor(now / 1000) };
+  payments.set(failed.id, failed);
+  const pa = await call('/paymentAttempt', { token: helen.token, body: { paymentId: failed.id } });
+  await call('/paymentAttempt', { token: helen.token, body: { paymentId: failed.id } }); // reported twice
+  const fp = await rows("SELECT type, status, amount, subscription_id FROM payments WHERE provider_txn_id = 'pay_fail1'");
+  check('failed attempt → one failed ₹1 trial payment on the user', pa.status === 200 && fp.length === 1 && fp[0].status === 'failed' && fp[0].type === 'trial' && fp[0].amount === 100 && fp[0].subscription_id === null, JSON.stringify(fp));
+  await new Promise((r) => setTimeout(r, 200));
+  const [pf] = await rows("SELECT props FROM events WHERE user_id=$1 AND event='payment_failed'", [helen.uid]);
+  check('…logged as payment_failed with the reason', pf?.props?.reason === 'request_timed_out', JSON.stringify(pf));
+  const ivan = (await call('/auth/google', { body: { idToken: 'ivan' } })).data;
+  check("someone else's attempt → 403, not stored", (await call('/paymentAttempt', { token: ivan.token, body: { paymentId: failed.id } })).status === 403
+    && (await rows('SELECT 1 FROM payments WHERE user_id=$1', [ivan.uid])).length === 0);
+  payments.set('pay_otherApp1', { ...failed, id: 'pay_otherApp1', notes: { appId: '3' } });
+  const other = await call('/paymentAttempt', { token: helen.token, body: { paymentId: 'pay_otherApp1' } });
+  check("another app's payment → 403", other.status === 403, `${other.status} ${JSON.stringify(other.data)}`);
+  payments.set('pay_ok1', { ...failed, id: 'pay_ok1', status: 'captured' });
+  await call('/paymentAttempt', { token: helen.token, body: { paymentId: 'pay_ok1' } });
+  check('captured attempt is not recorded here (verify/sync do it)', (await rows("SELECT 1 FROM payments WHERE provider_txn_id='pay_ok1'")).length === 0);
+  payments.set('pay_legacy', { ...failed, id: 'pay_legacy', notes: { _source: 'vocalock' } });
+  check('1.4 attempt without uid → matched by email', (await call('/paymentAttempt', { token: helen.token, body: { paymentId: 'pay_legacy' } })).status === 200);
+  check('bad payment id → 400', (await call('/paymentAttempt', { token: helen.token, body: { paymentId: "x' OR 1=1" } })).status === 400);
+  check('attempt without a session → 401', (await call('/paymentAttempt', { body: { paymentId: failed.id } })).status === 401);
 
   // Rate limit on sign-in (30 / 15 min / IP; this run has used 11)
   let limited = 0;

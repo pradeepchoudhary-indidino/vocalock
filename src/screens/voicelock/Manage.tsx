@@ -114,10 +114,26 @@ export function VoiceLockManage() {
           }
           checked={deviceLock}
           tint="lilac"
-          onChange={(next) => {
+          onChange={async (next) => {
             track('voice_setup_step', { step: 'device_lock_toggle', on: next, from: 'manage' });
-            if (next) void Listener.requestDeviceLock();
-            else void Listener.releaseDeviceLock().then(refreshMode);
+            if (next) {
+              void Listener.requestDeviceLock();
+              return;
+            }
+            // The cover needs a way back in. A phone-lock setup recorded neither
+            // an unlock phrase nor a PIN, and without them the cover refuses to
+            // go up — the lock phrase would silently stop working. So that case
+            // goes through setup, whose cover path records both.
+            const { hasPin } = await Listener.hasPin();
+            if (!settings.unlockPhrase || !hasPin) {
+              navigate('/voice-lock/intro');
+              return;
+            }
+            await Listener.releaseDeviceLock();
+            // Android removes the admin asynchronously; reading it straight
+            // back still says active, so show the switch off and check again.
+            setDeviceLock(false);
+            window.setTimeout(() => void refreshMode(), 1500);
           }}
         />
       </Card>
@@ -130,7 +146,7 @@ export function VoiceLockManage() {
             <LockIcon size={17} />
           </span>
           <span className="phrase-card__label">Lock phrase</span>
-          <span className="phrase-card__value">
+          <span className="phrase-card__value" data-private>
             {settings.lockPhrase ? `\u201c${settings.lockPhrase}\u201d` : 'Not set'}
           </span>
         </div>
@@ -141,7 +157,7 @@ export function VoiceLockManage() {
           <span className="phrase-card__label">
             {!deviceLock && settings.unlockPhrase ? 'Unlock phrase' : 'To unlock'}
           </span>
-          <span className="phrase-card__value">
+          <span className="phrase-card__value" data-private>
             {!deviceLock && settings.unlockPhrase
               ? `\u201c${settings.unlockPhrase}\u201d`
               : 'Fingerprint or PIN'}
@@ -162,17 +178,12 @@ export function VoiceLockManage() {
       </button>
 
       <div style={{ height: 14 }} />
-      {!deviceLock ? (
-        <Note tone="warn">
-          A focus tool, not a security lock. It cannot cover your Android lock screen, and
-          it can be got past by force-stopping VocaLock in Android settings.
-        </Note>
-      ) : (
+      {deviceLock ? (
         <Note>
           Your phrase locks your phone with its own lock screen, so it stays locked even if
           VocaLock is closed or force-stopped.
         </Note>
-      )}
+      ) : null}
 
       {confirmRemove ? (
         <Sheet title="Remove voice lock" onDismiss={() => setConfirmRemove(false)}>

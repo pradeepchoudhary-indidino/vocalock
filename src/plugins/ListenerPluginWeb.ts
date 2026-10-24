@@ -127,6 +127,13 @@ export class ListenerPluginWeb extends WebPlugin implements ListenerPlugin {
     // Nothing to cancel in the mock.
   }
 
+  async checkVocabulary(options: { phrase: string }): Promise<{ known: boolean; unknown: string[] }> {
+    // Mimic the device: "karo" is not in the English model, so the unhappy
+    // path can be exercised in a browser too.
+    const unknown = options.phrase.split(/\s+/).filter((w) => /^karo$/i.test(w));
+    return { known: unknown.length === 0, unknown };
+  }
+
   async drainNativeEvents(): Promise<{ events: NativeEvent[] }> {
     return { events: [] };
   }

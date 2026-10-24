@@ -41,6 +41,7 @@ export function PhraseCapture({
           script: detectLanguage(text),
         });
         setPartial('');
+        setError('');
         setPhase('captured');
         onCaptured(text);
       });
@@ -125,7 +126,7 @@ export function PhraseCapture({
       <div className="transcript">
         {captured ? (
           <div className="transcript__chip">
-            <span className="transcript__text">&ldquo;{captured}&rdquo;</span>
+            <span className="transcript__text" data-private>&ldquo;{captured}&rdquo;</span>
             <button
               className="transcript__redo"
               type="button"
@@ -141,6 +142,7 @@ export function PhraseCapture({
         ) : (
           <div
             className={`transcript__empty${partial ? ' transcript__empty--partial' : ''}`}
+            data-private
           >
             {partial || 'Your phrase will show here'}
           </div>

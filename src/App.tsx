@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
@@ -22,7 +22,8 @@ import { VoiceLockDone } from './screens/voicelock/Done';
 import { VoiceLockManage } from './screens/voicelock/Manage';
 import { Listener } from './plugins';
 import { useSettings } from './store/settings';
-import { track } from './lib/analytics';
+import { enterScreen } from './lib/analytics';
+import { expectedModelLanguage } from './lib/language';
 import { initTheme, useTheme } from './lib/theme';
 
 /** Screens that are Premium. Profile, Payment Settings and Legal stay open. */
@@ -46,7 +47,6 @@ export function App() {
   const accountLoaded = usePremium((s) => s.loaded);
   const signedIn = usePremium((s) => s.session !== null);
   const premium = usePremium((s) => isPremium(s.entitlement));
-  const previousScreen = useRef<string | null>(null);
 
   // index.html painted the theme before first paint; adopt it and start
   // following the system setting while the preference is 'auto'.
@@ -69,7 +69,15 @@ export function App() {
   // and voice lock off, since both keep running natively with the app closed.
   // A lock that is up stays answerable by phrase and PIN until it is lifted.
   useEffect(() => {
-    if (!accountLoaded || !signedIn) return;
+    if (!accountLoaded) return;
+    // Signed out or account deleted: nothing is paid for on this phone any
+    // more, so the microphone must not keep listening in the background.
+    if (!signedIn) {
+      if (settingsLoaded && listening) {
+        void patch({ clapEnabled: false, voiceLockEnabled: false }).then(syncService);
+      }
+      return;
+    }
     if (premium) {
       // A payment settled while the paywall was up (see the checkout effect below).
       if (location.pathname === '/paywall') navigate('/home', { replace: true });
@@ -109,9 +117,16 @@ export function App() {
 
   // Every screen, with where the user came from.
   useEffect(() => {
-    track('screen_view', { screen: location.pathname, from: previousScreen.current });
-    previousScreen.current = location.pathname;
+    enterScreen(location.pathname);
   }, [location.pathname]);
+
+  // Paid but no voice lock yet: fetch the voice pack now, so setup does not wait
+  // on it. A no-op once it is on the phone; a wrong guess is fetched by setup.
+  const voiceLockSetUp = useSettings((s) => s.settings.lockPhrase !== '');
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || !premium || !settingsLoaded || voiceLockSetUp) return;
+    void Listener.prepareModel({ language: expectedModelLanguage() }).catch(() => undefined);
+  }, [premium, settingsLoaded, voiceLockSetUp]);
 
   // Pull the window insets once the page exists.
   //
@@ -176,7 +191,11 @@ export function App() {
       handles.push(
         // Locks, unlocks and alerts are tracked natively (NativeEvents.kt), so
         // they count with the app closed too.
-        await Listener.addListener('lockState', ({ locked }) => void patch({ isLocked: locked })),
+        // A device lock is Android's, not ours, and its unlock is never reported:
+        // recording it as locked would leave the flag stuck on.
+        await Listener.addListener('lockState', ({ locked, mode }) => {
+          if (mode !== 'device') void patch({ isLocked: locked });
+        }),
       );
     })();
     return () => handles.forEach((h) => void h.remove());

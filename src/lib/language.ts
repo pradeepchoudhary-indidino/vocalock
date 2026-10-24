@@ -25,3 +25,12 @@ export function deviceSpeechTag(): string {
   const locale = (navigator.languages?.[0] ?? navigator.language ?? 'en-IN').toLowerCase();
   return locale.startsWith('hi') ? 'hi-IN' : 'en-IN';
 }
+
+/**
+ * The model setup will most likely need, before any phrase exists. Capture
+ * listens in deviceSpeechTag(), and a Hindi capture comes back in Devanagari, so
+ * this matches detectLanguage() on the captured phrase in almost every case.
+ */
+export function expectedModelLanguage(): Language {
+  return deviceSpeechTag() === 'hi-IN' ? 'hi' : 'en';
+}

@@ -83,6 +83,8 @@ export interface ServiceStateEvent {
 
 export interface LockStateEvent {
   locked: boolean;
+  /** 'device' when Android's own lock screen was used; its unlock is never reported. */
+  mode?: 'device';
   /** Present on unlock: how the user got out. */
   how?: 'voice' | 'pin';
 }
@@ -160,6 +162,17 @@ export interface ListenerPlugin {
    * phone. Progress arrives as `modelState` events.
    */
   prepareModel(options: { language: Language }): Promise<ModelStateEvent>;
+
+  /**
+   * Whether the offline model knows every word of the phrase, from its own
+   * vocabulary, so setup needs the phrase said only once. `missing` when the
+   * language has not been downloaded.
+   */
+  checkVocabulary(options: { phrase: string; language: Language }): Promise<{
+    known: boolean;
+    unknown: string[];
+    missing?: boolean;
+  }>;
   getModelState(options: { language: Language }): Promise<ModelStateEvent>;
 
   /**

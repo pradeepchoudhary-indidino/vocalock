@@ -37,8 +37,22 @@ export function FeatureTile({
   settingsLabel,
 }: FeatureTileProps) {
   return (
-    <div className={`tile tile--${feature}${on ? ' tile--on' : ''}`}>
-      <button className="tile__gear" type="button" aria-label={settingsLabel} onClick={onOpen}>
+    // The whole card opens the feature's settings; the gear stays as the
+    // labelled, focusable way in. The action button below does its own thing.
+    <div
+      className={`tile tile--${feature}${on ? ' tile--on' : ''}`}
+      data-track={`Open ${title}`}
+      onClick={onOpen}
+    >
+      <button
+        className="tile__gear"
+        type="button"
+        aria-label={settingsLabel}
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpen();
+        }}
+      >
         <span>
           <GearIcon />
         </span>
@@ -60,7 +74,10 @@ export function FeatureTile({
         type="button"
         aria-label={title}
         aria-pressed={on}
-        onClick={onAction}
+        onClick={(e) => {
+          e.stopPropagation();
+          onAction();
+        }}
       >
         {on && feature === 'clap' ? (
           <span className="bars" aria-hidden="true">

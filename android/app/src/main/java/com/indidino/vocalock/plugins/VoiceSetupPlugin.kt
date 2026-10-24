@@ -2,6 +2,9 @@ package com.indidino.vocalock.plugins
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -23,6 +26,19 @@ import com.indidino.vocalock.service.ListenerService
 class VoiceSetupPlugin : Plugin() {
 
     private var recognizer: SpeechRecognizer? = null
+
+    private val handler = Handler(Looper.getMainLooper())
+
+    companion object {
+        /** SpeechRecognizer.ERROR_SERVER_DISCONNECTED, added in API 31. */
+        private const val ERROR_SERVER_DISCONNECTED = 11
+
+        /** How soon after starting a disconnect counts as the old session's. */
+        private const val DISCONNECT_GRACE_MS = 2_000L
+
+        /** How long to wait for a real answer before reporting it after all. */
+        private const val DISCONNECT_WAIT_MS = 8_000L
+    }
 
     @PluginMethod
     fun isAvailable(call: PluginCall) {
@@ -64,7 +80,10 @@ class VoiceSetupPlugin : Plugin() {
     private fun beginListening(language: String) {
         releaseRecognizer()
         val speech = SpeechRecognizer.createSpeechRecognizer(context)
-        speech.setRecognitionListener(listener)
+        // A listener per recognizer: destroying the previous one still delivers
+        // its last callbacks (ERROR_SERVER_DISCONNECTED, a late NO_MATCH), and
+        // with a shared listener those landed on the new attempt as errors.
+        speech.setRecognitionListener(listenerFor(speech))
         recognizer = speech
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -109,14 +128,27 @@ class VoiceSetupPlugin : Plugin() {
         recognizer = null
     }
 
-    private val listener = object : RecognitionListener {
+    private fun listenerFor(owner: SpeechRecognizer) = object : RecognitionListener {
+        /** Callbacks from a recognizer that has since been replaced are ignored. */
+        private val current: Boolean get() = recognizer === owner
+
+        private val startedAt = SystemClock.elapsedRealtime()
+
+        /** Set once this session has produced anything; ends the grace below. */
+        @Volatile
+        private var answered = false
+
         override fun onPartialResults(partialResults: Bundle?) {
+            if (!current) return
+            answered = true
             firstResult(partialResults)?.let {
                 notifyListeners("partialTranscript", JSObject().put("text", it))
             }
         }
 
         override fun onResults(results: Bundle?) {
+            if (!current) return
+            answered = true
             finishCapture()
             val text = firstResult(results)
             if (text.isNullOrBlank()) {
@@ -127,6 +159,24 @@ class VoiceSetupPlugin : Plugin() {
         }
 
         override fun onError(error: Int) {
+            if (!current) return
+            // Tapping the mic again right after a session ended: Google's
+            // service is still tearing the old one down and reports a
+            // disconnect at once, yet goes on to deliver this session's result
+            // seconds later. Hold that error back; report it only if nothing
+            // else arrives.
+            if (error == ERROR_SERVER_DISCONNECTED &&
+                SystemClock.elapsedRealtime() - startedAt < DISCONNECT_GRACE_MS
+            ) {
+                handler.postDelayed({
+                    if (current && !answered) {
+                        finishCapture()
+                        emitError(error)
+                    }
+                }, DISCONNECT_WAIT_MS)
+                return
+            }
+            answered = true
             finishCapture()
             emitError(error)
         }

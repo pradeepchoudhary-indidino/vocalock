@@ -398,7 +398,10 @@ class LockOverlay(private val context: Context) {
         val size = (13 * density).toInt()
         val margin = (7 * density).toInt()
         row.removeAllViews()
-        repeat(6) { index ->
+        // As many dots as the PIN has digits, so a 4-digit PIN does not look
+        // like it wants six.
+        val digits = SecureStore.pinLength(context).takeIf { it in 4..6 } ?: 6
+        repeat(digits) { index ->
             row.addView(
                 View(context).apply {
                     layoutParams = LinearLayout.LayoutParams(size, size).apply {

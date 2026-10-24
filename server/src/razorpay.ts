@@ -36,6 +36,22 @@ export interface RzpPayment {
   status: string;
 }
 
+/** A checkout attempt, as GET /payments/:id returns it. */
+export interface RzpPaymentAttempt extends RzpPayment {
+  email: string | null;
+  method: string | null;
+  invoice_id: string | null;
+  notes: Record<string, string> | [];
+  error_code: string | null;
+  error_reason: string | null;
+  error_description: string | null;
+  created_at: number;
+}
+
+export function fetchPayment(id: string): Promise<RzpPaymentAttempt> {
+  return call('GET', `/payments/${encodeURIComponent(id)}`);
+}
+
 async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
   const response = await fetch(`${API}${path}`, {
     method,

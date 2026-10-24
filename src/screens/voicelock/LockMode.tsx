@@ -192,8 +192,12 @@ export function LockMode() {
         <button
           className="btn btn--ghost"
           type="button"
-          onClick={() => {
+          onClick={async () => {
             track('voice_setup_step', { step: 2, choice: 'overlay' });
+            // Switching from the phone's lock (an earlier setup) to the cover:
+            // admin left on would keep locking the real lock screen instead.
+            const { active } = await Listener.isDeviceLockAvailable().catch(() => ({ active: false }));
+            if (active) await Listener.releaseDeviceLock().catch(() => undefined);
             navigate('/voice-lock/unlock-phrase');
           }}
         >

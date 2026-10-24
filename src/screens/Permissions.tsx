@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Screen } from '../components/Screen';
 import { NavBar } from '../components/NavBar';
-import { Card, Note } from '../components/Controls';
+import { Card, Note, Sheet } from '../components/Controls';
 import { Listener, type PermissionName } from '../plugins';
 import { track } from '../lib/analytics';
 import { useSettings } from '../store/settings';
@@ -126,39 +126,38 @@ export function Permissions() {
         may also need to lock VocaLock in the recent-apps list.
       </Note>
 
+      {/* Play's prominent disclosure, before the system prompt. A Sheet, rendered
+          into <body>: drawn inside the screen it sat under the docked button. */}
       {disclosureFor === 'mic' ? (
-        <div className="mock-alert" style={{ background: 'rgba(20,33,61,.55)' }}>
-          <Card>
-            <h2 className="card__title">VocaLock needs the microphone</h2>
-            <p className="card__text">
-              VocaLock listens in the background for your claps and for your unlock phrase,
-              including while the app is closed. Audio is processed on your phone only. It is
-              never recorded, saved or sent anywhere.
-            </p>
-            <div style={{ height: 16 }} />
-            <button
-              className="btn btn--primary"
-              type="button"
-              onClick={() => {
-                setDisclosureFor(null);
-                void request('mic');
-              }}
-            >
-              Continue
-            </button>
-            <div style={{ height: 8 }} />
-            <button
-              className="btn btn--quiet"
-              type="button"
-              onClick={() => {
-                track('permission_result', { name: 'mic', granted: false, step: 'disclosure_declined' });
-                setDisclosureFor(null);
-              }}
-            >
-              Not now
-            </button>
-          </Card>
-        </div>
+        <Sheet title="VocaLock needs the microphone" onDismiss={() => setDisclosureFor(null)}>
+          <h2 className="card__title">VocaLock needs the microphone</h2>
+          <p className="card__text">
+            VocaLock listens in the background for your claps and for your unlock phrase,
+            including while the app is closed. Audio is processed on your phone only. It is
+            never recorded, saved or sent anywhere.
+          </p>
+          <div style={{ height: 16 }} />
+          <button
+            className="btn btn--primary"
+            type="button"
+            onClick={() => {
+              setDisclosureFor(null);
+              void request('mic');
+            }}
+          >
+            Continue
+          </button>
+          <button
+            className="text-btn"
+            type="button"
+            onClick={() => {
+              track('permission_result', { name: 'mic', granted: false, step: 'disclosure_declined' });
+              setDisclosureFor(null);
+            }}
+          >
+            Not now
+          </button>
+        </Sheet>
       ) : null}
     </Screen>
   );

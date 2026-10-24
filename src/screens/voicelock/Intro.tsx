@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Screen } from '../../components/Screen';
 import { NavBar } from '../../components/NavBar';
-import { Note } from '../../components/Controls';
 import { useVoiceSetup } from '../../store/voiceSetup';
 import { track } from '../../lib/analytics';
 
@@ -64,16 +63,6 @@ export function VoiceLockIntro() {
           </li>
         </ol>
       </div>
-
-      {/* Which of these is true depends on the mode picked in the next step, so
-          say both rather than the old blanket "it cannot lock your phone" — that
-          stopped being accurate once device-admin locking shipped. */}
-      <Note>
-        <strong>You&rsquo;ll pick how it locks next.</strong> Using your phone&rsquo;s own
-        lock keeps it locked even if VocaLock is force-stopped. The lighter option just
-        covers the screen to keep you off the phone &mdash; handy as a focus tool, but
-        anyone who force-stops VocaLock in Android settings can get past it.
-      </Note>
     </Screen>
   );
 }

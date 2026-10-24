@@ -13,7 +13,9 @@ version code is in brackets. Server and website changes ship with
   `vocalock.indidino.com/models/`, resuming after drops and checking its
   SHA-256, then deletes the zip once unpacked, so the phone no longer stores
   the model twice. Upgrades from 1.4 keep their unpacked model and download
-  nothing. Models are published with `scripts/publish-models.sh`.
+  nothing. Models are published with `scripts/publish-models.sh`. The pack
+  starts downloading as soon as Premium is active (language from the phone's
+  setting), so setup rarely waits on it.
 - Change: checkout is Razorpay's native Android Checkout (`RazorpayPlugin`),
   inside the app with installed UPI apps as tiles, instead of the hosted page
   in a Chrome tab (kept as the fallback). The mobile number is prefilled as

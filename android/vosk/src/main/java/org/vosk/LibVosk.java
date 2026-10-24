@@ -22,6 +22,8 @@ public class LibVosk {
 
     public static native void vosk_model_free(Pointer model);
 
+    public static native int vosk_model_find_word(Pointer model, String word);
+
     public static native Pointer vosk_spk_model_new(String path);
 
     public static native void vosk_spk_model_free(Pointer model);

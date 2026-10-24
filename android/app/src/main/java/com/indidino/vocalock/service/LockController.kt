@@ -27,8 +27,18 @@ object LockController {
     @Volatile
     var onLockStateChanged: ((locked: Boolean, how: String?) -> Unit)? = null
 
+    /**
+     * Brings back an overlay lock that was up when the service died. Never a
+     * device lock: Android holds that one and never tells us it was lifted, so
+     * a stale flag would lock the phone out of nowhere on the next service start.
+     */
     fun restore(context: Context) {
-        if (SettingsStore.read(context).isLocked) lock(context, announce = false)
+        if (!SettingsStore.read(context).isLocked) return
+        if (DeviceLock.isActive(context)) {
+            SettingsStore.setLocked(context, false)
+            return
+        }
+        lock(context, announce = false)
     }
 
     fun lock(context: Context, announce: Boolean = true) {
@@ -50,8 +60,12 @@ object LockController {
             if (announce) NativeEvents.record(app, "lock_shown", JSONObject().put("mode", "device"))
             // Android holds the lock now, not us: there is no overlay to
             // dismiss later and no lock state of ours to track. The user gets
-            // back in with their own credential.
-            if (announce) ListenerBus.emit("lockState", JSONObject().put("locked", true))
+            // back in with their own credential — so nothing may record this
+            // as locked, or restore() would lock the phone again later.
+            SettingsStore.setLocked(app, false)
+            if (announce) {
+                ListenerBus.emit("lockState", JSONObject().put("locked", true).put("mode", "device"))
+            }
             return
         }
 

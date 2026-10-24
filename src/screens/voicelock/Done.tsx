@@ -41,7 +41,7 @@ export function VoiceLockDone() {
             <LockIcon size={17} />
           </span>
           <span className="phrase-card__label">Lock phrase</span>
-          <span className="phrase-card__value">&ldquo;{settings.lockPhrase}&rdquo;</span>
+          <span className="phrase-card__value" data-private>&ldquo;{settings.lockPhrase}&rdquo;</span>
         </div>
         <div className="phrase-card">
           <span className="phrase-card__icon phrase-card__icon--alt">
@@ -50,7 +50,7 @@ export function VoiceLockDone() {
           <span className="phrase-card__label">
             {settings.unlockPhrase ? 'Unlock phrase' : 'To unlock'}
           </span>
-          <span className="phrase-card__value">
+          <span className="phrase-card__value" data-private>
             {settings.unlockPhrase
               ? `\u201c${settings.unlockPhrase}\u201d`
               : 'Fingerprint or PIN'}

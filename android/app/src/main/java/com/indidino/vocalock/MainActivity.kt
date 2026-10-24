@@ -76,10 +76,13 @@ class MainActivity : BridgeActivity(), PaymentResultWithDataListener {
             // of it above that counts as extra.
             val keyboard = ((ime.bottom - bars.bottom).coerceAtLeast(0) / d).toInt()
             view.post {
+                // Guarded: this can run before the page has a document, and
+                // the bare call then throws into the page's error handler.
                 web.evaluateJavascript(
-                    "document.documentElement.style.setProperty('--safe-top','" + top + "px');" +
-                        "document.documentElement.style.setProperty('--safe-bottom','" + bottom + "px');" +
-                        "document.documentElement.style.setProperty('--kb','" + keyboard + "px');",
+                    "(function(){var r=document.documentElement;if(!r)return;" +
+                        "r.style.setProperty('--safe-top','" + top + "px');" +
+                        "r.style.setProperty('--safe-bottom','" + bottom + "px');" +
+                        "r.style.setProperty('--kb','" + keyboard + "px');})();",
                     null,
                 )
             }

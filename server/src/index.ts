@@ -199,7 +199,7 @@ app.post('/auth/signOut', async (req, res) => {
 app.post('/startSubscription', purchaseLimit, async (req, res) => {
   const uid = res.locals.uid as string;
   if (razorpay.razorpayConfigured) {
-    await startRazorpaySubscription(uid, res);
+    await startRazorpaySubscription(uid, res, req.body?.prepare === true);
     return;
   }
 
@@ -246,7 +246,12 @@ app.post('/startSubscription', purchaseLimit, async (req, res) => {
  * /verifySubscription or the subscription.authenticated webhook, whichever
  * arrives first.
  */
-async function startRazorpaySubscription(uid: string, res: express.Response): Promise<void> {
+async function startRazorpaySubscription(
+  uid: string,
+  res: express.Response,
+  /** Created as the paywall opens, ahead of any tap: logged as such, not as a checkout. */
+  prepare = false,
+): Promise<void> {
   const [user] = await query<{ email: string | null }>('SELECT email FROM users WHERE id = $1;', [uid]);
   if (!user) {
     res.status(404).send('Unknown user.');
@@ -271,7 +276,7 @@ async function startRazorpaySubscription(uid: string, res: express.Response): Pr
       trial: trial ? { days: PRICING.trialDays, paise: PRICING.trialPaise } : null,
       totalCount: SUBSCRIPTION_CYCLES,
     });
-    logEvent(uid, 'checkout_started', { trial });
+    logEvent(uid, prepare ? 'checkout_prepared' : 'checkout_started', { trial });
     res.json({
       checkout: { keyId: razorpay.razorpayKeyId, subscriptionId: sub.id, email: user.email },
       trial,
@@ -341,6 +346,65 @@ app.post('/syncSubscription', async (req, res) => {
 });
 
 /**
+ * A checkout attempt that did not go through, reported by the app (1.5+) with
+ * the payment id Checkout gave it. Checked against Razorpay — the app's word is
+ * not taken for any of it — then kept in payments, so every attempt a user made,
+ * paid or failed, is on their record and not only in Razorpay's dashboard.
+ */
+app.post('/paymentAttempt', async (req, res) => {
+  const uid = res.locals.uid as string;
+  const paymentId = String(req.body?.paymentId ?? '');
+  if (!/^pay_[A-Za-z0-9]+$/.test(paymentId)) {
+    res.status(400).send('paymentId required');
+    return;
+  }
+  let payment: razorpay.RzpPaymentAttempt;
+  try {
+    payment = await razorpay.fetchPayment(paymentId);
+  } catch {
+    res.status(400).send('Unknown payment.');
+    return;
+  }
+  const notes = Array.isArray(payment.notes) ? {} : payment.notes;
+  const [user] = await query<{ email: string | null }>('SELECT email FROM users WHERE id = $1;', [uid]);
+  // Ours (the tag Checkout stamps), and this user's: by uid on 1.5+, by email before.
+  const mine =
+    notes._source === 'vocalock' &&
+    (notes.uid ? notes.uid === uid : Boolean(user?.email) && payment.email === user?.email);
+  if (!mine) {
+    res.status(403).send('That payment belongs to someone else.');
+    return;
+  }
+  // A captured one is recorded by verify/sync, with its subscription; only the
+  // ones that went nowhere are recorded here.
+  if (payment.status === 'failed') {
+    await query(
+      `INSERT INTO payments
+         (id, user_id, subscription_id, amount, currency, type, status, provider, provider_txn_id, created_at)
+       VALUES ($1, $2, NULL, $3, $4, $5, 'failed', 'razorpay', $6, $7)
+       ON CONFLICT (provider, provider_txn_id) WHERE provider_txn_id IS NOT NULL DO NOTHING;`,
+      [
+        newId('pay'),
+        uid,
+        payment.amount,
+        payment.currency,
+        payment.amount <= PRICING.trialPaise ? 'trial' : 'renewal',
+        payment.id,
+        iso(payment.created_at * 1000),
+      ],
+    );
+    logEvent(uid, 'payment_failed', {
+      payment_id: payment.id,
+      method: payment.method,
+      reason: payment.error_reason,
+      code: payment.error_code,
+      rupees: payment.amount / 100,
+    });
+  }
+  res.json({ status: payment.status });
+});
+
+/**
  * 1.0-1.3 report a purchase to Meta whenever the result names a provider, and
  * that call crashes them (their Meta SDK never initialises). They use provider
  * for nothing else, so they are sent null. The version is the one the app last
@@ -374,12 +438,14 @@ app.post('/cancelSubscription', async (req, res) => {
   }
 
   // Cancelling ends Premium immediately; the app returns to the paywall.
-  await query(
+  const changed = await query(
     `UPDATE subscriptions SET status = 'cancelled', cancelled_at = $2, valid_until = $2
-     WHERE id = $1 AND status IN ('trial','active');`,
+     WHERE id = $1 AND status IN ('trial','active') RETURNING id;`,
     [live.id, iso()],
   );
-  logEvent(uid, 'subscription_cancelled', { by: 'app' });
+  // Stopping the mandate makes Razorpay send its cancelled webhook, which can
+  // land before this update and log the cancel itself. One cancel, one event.
+  if (changed.length) logEvent(uid, 'subscription_cancelled', { by: 'app' });
   res.json({ cancelled: true });
 });
 

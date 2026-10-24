@@ -37,8 +37,22 @@ export interface CheckoutResult {
  * redirect), so the caller re-checks the entitlement before giving up.
  */
 export class CheckoutDismissed extends Error {
-  constructor() {
+  /** Set when a payment was attempted (and failed) before the user left. */
+  readonly paymentId: string | null;
+
+  constructor(paymentId: string | null = null) {
     super('Payment cancelled');
+    this.paymentId = paymentId;
+  }
+}
+
+/** Razorpay reported the payment as failed: the UPI app declined, it timed out. */
+export class CheckoutFailed extends Error {
+  readonly paymentId: string | null;
+
+  constructor(message: string, paymentId: string | null) {
+    super(message);
+    this.paymentId = paymentId;
   }
 }
 
@@ -46,6 +60,8 @@ interface CheckoutOptions {
   keyId: string;
   subscriptionId: string;
   email: string | null;
+  /** Ours: stamped on every attempt so Razorpay's records name the user. */
+  uid: string;
 }
 
 /** Razorpay Checkout options, shared by the native SDK and the hosted page. */
@@ -62,8 +78,9 @@ function checkoutOptions(opts: CheckoutOptions) {
     prefill: { contact: '9999999999', ...(opts.email ? { email: opts.email } : {}) },
     readonly: { contact: true },
     hidden: { contact: true },
-    // The account is shared with other apps; this marks the payment as ours.
-    notes: { _source: 'vocalock' },
+    // The account is shared with other apps: these mark every attempt, paid or
+    // failed, as VocaLock's and as this user's.
+    notes: { _source: 'vocalock', app: 'vocalock', uid: opts.uid },
   };
 }
 
@@ -105,8 +122,14 @@ async function checkoutNative(opts: CheckoutOptions): Promise<CheckoutResult> {
     return { ...result, subscriptionId: opts.subscriptionId };
   } catch (error) {
     if (error instanceof CheckoutDismissed) throw error;
-    if ((error as { code?: string }).code === 'cancelled') throw new CheckoutDismissed();
-    throw error instanceof Error ? error : new Error('Payment did not go through');
+    const { code, data, message } = error as {
+      code?: string;
+      data?: { paymentId?: string };
+      message?: string;
+    };
+    const paymentId = data?.paymentId || null;
+    if (code === 'cancelled') throw new CheckoutDismissed(paymentId);
+    throw new CheckoutFailed(message || 'Payment did not go through', paymentId);
   }
 }
 

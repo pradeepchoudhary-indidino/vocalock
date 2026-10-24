@@ -145,20 +145,20 @@ export function BackupPin() {
         {keys.map((key) => {
           if (key === 'clear') {
             return (
-              <button key={key} type="button" className="pin-key pin-key--text" onClick={() => setCurrent('')}>
+              <button key={key} type="button" className="pin-key pin-key--text" data-track="pin_clear" onClick={() => setCurrent('')}>
                 Clear
               </button>
             );
           }
           if (key === 'back') {
             return (
-              <button key={key} type="button" className="pin-key" aria-label="Delete" onClick={back}>
+              <button key={key} type="button" className="pin-key" data-track="pin_delete" aria-label="Delete" onClick={back}>
                 &#9003;
               </button>
             );
           }
           return (
-            <button key={key} type="button" className="pin-key" onClick={() => press(key)}>
+            <button key={key} type="button" className="pin-key" data-track="pin_key" onClick={() => press(key)}>
               {key}
             </button>
           );

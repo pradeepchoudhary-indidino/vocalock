@@ -1620,7 +1620,8 @@ button {
   align-items: center;
   justify-content: center;
   gap: var(--s2);
-  padding: var(--s4);
+  /* The bottom keeps the text clear of the progress segments. */
+  padding: var(--s4) var(--s4) calc(var(--s3) + var(--s6));
   text-align: center;
   animation: pw-slide-in 420ms ease both;
 }
@@ -1823,6 +1824,58 @@ button {
 .pw-feature__icon--offline {
   background: color-mix(in srgb, var(--green) 16%, transparent);
   color: var(--green);
+}
+
+/* Short phones (360x640 and the like): the price and features must be in view
+   without scrolling, so the media card gives up height first. */
+@media (max-height: 760px) {
+  .pw-media {
+    min-height: 176px;
+  }
+
+  .pw-slide {
+    gap: var(--s1);
+  }
+
+  .pw-slide__badge {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 0;
+  }
+
+  .pw-slide__disc,
+  .pw-slide__ring {
+    width: 56px;
+    height: 56px;
+  }
+
+  .pw-slide__title {
+    font-size: var(--t-row);
+    line-height: 22px;
+  }
+
+  .pw-heading {
+    margin-top: var(--s3);
+  }
+
+  .pw-title {
+    font-size: 24px;
+    line-height: 28px;
+  }
+
+  .pw-price b {
+    font-size: 52px;
+    line-height: 54px;
+  }
+
+  .pw-top {
+    margin-bottom: var(--s2);
+  }
+}
+
+/* The note's own bottom margin is too much inside the dock. */
+.pw-retry .note {
+  margin-bottom: var(--s3);
 }
 
 .pw-terms {
@@ -2327,6 +2380,17 @@ button {
   transition: background var(--dur) ease, border-color var(--dur) ease;
 }
 
+/* The card is tappable as a whole (it opens the feature's settings). */
+.tile {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tile:active:not(:has(button:active)) {
+  transform: translateY(2px);
+  border-bottom-width: calc(var(--edge-card) - 2px);
+}
+
 /* A live tile warms up: a wash of its own hue falling away to the card colour,
    and an edge in the same hue. This is the main "it is on" signal. */
 .tile--on.tile--clap {
@@ -2740,6 +2804,38 @@ button {
   }
 }
 
+/* Solid icon discs, one colour per feature (Login's feature list). */
+.bullet__tick {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+
+.bullet__tick--clap {
+  background: var(--f-solid);
+  box-shadow: 0 var(--edge-chip) 0 var(--f-solid-edge);
+}
+
+.bullet__tick--lock {
+  background: #7a5af0;
+  box-shadow: 0 var(--edge-chip) 0 #5236c2;
+}
+
+.bullet__tick--offline {
+  background: var(--green);
+  box-shadow: 0 var(--edge-chip) 0 var(--green-edge);
+}
+
+.bullet__tick--torch {
+  background: var(--yellow);
+  color: var(--yellow-ink);
+  box-shadow: 0 var(--edge-chip) 0 var(--yellow-edge);
+}
+
 /* ---------- login ---------- */
 
 .login-hero {
@@ -2917,7 +3013,9 @@ button {
   flex-direction: column;
   align-items: center;
   gap: var(--s2);
-  padding-top: var(--s4);
+  /* The body rides --overlap up under the hero, and the mic's rings grow past
+     its box: clear both, or the ring runs into the hero's edge. */
+  padding-top: calc(var(--overlap) - var(--s2));
 }
 
 /* ============================================================================
@@ -3050,7 +3148,8 @@ button {
   flex-direction: column;
   align-items: center;
   gap: var(--s3);
-  padding-top: var(--s5);
+  /* Same clearance as .capture: the mic sits just under the hero's curve. */
+  padding-top: calc(var(--overlap) - var(--s2));
   text-align: center;
 }
 

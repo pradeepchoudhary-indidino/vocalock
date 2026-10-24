@@ -174,6 +174,9 @@ object VoskModels {
             outcome.exceptionOrNull()?.let { Log.w(TAG, "model download for '$lang' failed", it) }
             emitState(app, lang)
             if (outcome.isSuccess) installedListeners.forEach { runCatching { it(lang) } }
+            // Out of retries because the phone is offline: pick it up again the
+            // moment a connection returns, rather than at the next app open.
+            if (outcome.exceptionOrNull()?.let { describe(it) } == "network") resumeWhenOnline(app, lang)
         }
     }
 
@@ -210,6 +213,18 @@ object VoskModels {
             loaded[lang] = model
             return model
         }
+    }
+
+    /**
+     * The phrase's words the model's vocabulary does not have. A word missing
+     * from the vocabulary is dropped from the grammar and can never be heard, so
+     * a phrase with any is one voice lock would never fire on. Answered from the
+     * model itself, without anyone having to speak. Background thread: loads the
+     * model the first time. Throws [NotInstalled] like [model].
+     */
+    fun unknownWords(context: Context, language: String, phrase: String): List<String> {
+        val model = model(context, language)
+        return phrase.split(' ').filter { it.isNotBlank() && model.findWord(it) < 0 }
     }
 
     fun releaseAll() {
@@ -350,6 +365,33 @@ object VoskModels {
             scratch.deleteRecursively()
             throw IOException("could not move the model into place")
         }
+    }
+
+    /** Languages waiting for a connection; guarded by [lock]. */
+    private val waitingForNetwork = mutableSetOf<String>()
+
+    private fun resumeWhenOnline(context: Context, lang: String) {
+        val connectivity = context.getSystemService(android.net.ConnectivityManager::class.java)
+        // Online already means the failure was something else (our server,
+        // say): waiting for a connection would fire at once and loop. That case
+        // is retried at the next app open instead.
+        val online = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
+            ?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+        if (online) return
+        synchronized(lock) { if (!waitingForNetwork.add(lang)) return }
+        val callback = object : android.net.ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: android.net.Network) {
+                runCatching { connectivity.unregisterNetworkCallback(this) }
+                synchronized(lock) { waitingForNetwork.remove(lang) }
+                Log.i(TAG, "back online; resuming the '$lang' download")
+                prepare(context, lang)
+            }
+        }
+        runCatching { connectivity.registerDefaultNetworkCallback(callback) }
+            .onFailure {
+                synchronized(lock) { waitingForNetwork.remove(lang) }
+                Log.w(TAG, "could not watch for the network", it)
+            }
     }
 
     private fun describe(error: Throwable): String = when {

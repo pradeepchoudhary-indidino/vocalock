@@ -37,8 +37,8 @@ export function Profile() {
           <NavBar title="Profile" />
           <div className="hero__centre">
             <div className="hero-illo">&#128100;</div>
-            <div className="hero__name">{session?.name ?? 'VocaLock'}</div>
-            <div className="hero__sub">{session?.email ?? 'VocaLock account'}</div>
+            <div className="hero__name" data-private>{session?.name ?? 'VocaLock'}</div>
+            <div className="hero__sub" data-private>{session?.email ?? 'VocaLock account'}</div>
           </div>
         </>
       }

@@ -54,12 +54,23 @@ export async function activateSubscription(
     const [user] = await q('SELECT id FROM users WHERE id = $1 FOR UPDATE;', [uid]);
     if (!user) throw new Error(`Unknown user ${uid}`);
 
-    const [existing] = await q<{ status: string; valid_until: string }>(
-      `SELECT status, valid_until FROM subscriptions
+    const [existing] = await q<{ id: string; status: string; valid_until: string }>(
+      `SELECT id, status, valid_until FROM subscriptions
        WHERE provider = 'razorpay' AND mandate_id = $1;`,
       [sub.id],
     );
     if (existing) {
+      // The webhook usually lands first and carries no payment; the app's
+      // verify, a moment later, does. Fill the id in so every payment can be
+      // traced to Razorpay (refunds, disputes).
+      if (paymentId) {
+        await q(
+          `UPDATE payments SET provider_txn_id = $1, provider = 'razorpay'
+           WHERE subscription_id = $2 AND provider_txn_id IS NULL AND status = 'success'
+             AND NOT EXISTS (SELECT 1 FROM payments WHERE provider = 'razorpay' AND provider_txn_id = $1);`,
+          [paymentId, existing.id],
+        );
+      }
       return { status: existing.status, validUntil: existing.valid_until, provider: 'razorpay' };
     }
 
@@ -244,7 +255,11 @@ export async function handleRazorpayEvent(event: RazorpayEvent): Promise<void> {
 
   if (event.event === 'subscription.authenticated') {
     const uid = razorpay.ownerOf(sub);
-    if (uid) await activateSubscription(uid, sub, payment?.id ?? null);
+    if (!uid) return;
+    // This event has no payment entity: look the authorisation payment up, as
+    // the app's sync does, so the row is not saved without its Razorpay id.
+    const paymentId = payment?.id ?? (await razorpay.paidInvoices(sub.id).catch(() => []))[0]?.payment_id ?? null;
+    await activateSubscription(uid, sub, paymentId);
     return;
   }
 

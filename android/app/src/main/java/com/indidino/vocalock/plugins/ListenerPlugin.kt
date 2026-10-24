@@ -22,6 +22,7 @@ import com.indidino.vocalock.service.ListenerBus
 import com.indidino.vocalock.service.DeviceLock
 import com.indidino.vocalock.service.LockController
 import com.indidino.vocalock.service.NativeEvents
+import com.indidino.vocalock.service.PhraseSpotter
 import com.indidino.vocalock.service.ListenerService
 import com.indidino.vocalock.service.SecureStore
 import com.indidino.vocalock.service.SettingsStore
@@ -206,6 +207,36 @@ class ListenerPlugin : Plugin() {
     }
 
     // ----- speech models -----
+
+    /**
+     * Whether the offline model can hear every word of a phrase, answered from
+     * its vocabulary, so setup needs the phrase said only once. Resolves
+     * { known, unknown: [words] }, or { missing: true } before the model is down.
+     */
+    @PluginMethod
+    fun checkVocabulary(call: PluginCall) {
+        val phrase = PhraseSpotter.normalize(call.getString("phrase").orEmpty())
+        val language = call.getString("language") ?: "en"
+        if (phrase.isEmpty()) {
+            call.reject("A phrase is required")
+            return
+        }
+        // Loading the model takes seconds the first time: off the main thread.
+        Thread({
+            try {
+                val unknown = VoskModels.unknownWords(context, language, phrase)
+                call.resolve(
+                    JSObject()
+                        .put("known", unknown.isEmpty())
+                        .put("unknown", org.json.JSONArray(unknown)),
+                )
+            } catch (e: VoskModels.NotInstalled) {
+                call.resolve(JSObject().put("known", false).put("missing", true))
+            } catch (e: Throwable) {
+                call.reject(e.message ?: "Could not check the phrase")
+            }
+        }, "vocalock-vocab").start()
+    }
 
     /** Starts the language's one-time download if needed; resolves with its state. */
     @PluginMethod
@@ -398,6 +429,35 @@ class ListenerPlugin : Plugin() {
             Uri.parse("package:${context.packageName}"),
         )
         if (!launch(intent)) launch(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
+        returnWhenOverlayGranted()
+    }
+
+    /**
+     * "Draw over apps" can only be granted on Android's own Settings page, and
+     * people switch it on and then do not find their way back. So watch for the
+     * grant and bring VocaLock back to the front the moment it lands. Holding
+     * the permission is itself what allows starting an activity from the
+     * background. Gives up after two minutes; Back still works as before.
+     */
+    private fun returnWhenOverlayGranted() {
+        val app = context.applicationContext
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val deadline = android.os.SystemClock.elapsedRealtime() + 120_000L
+        handler.postDelayed(object : Runnable {
+            override fun run() {
+                if (Settings.canDrawOverlays(app)) {
+                    runCatching {
+                        app.startActivity(
+                            Intent(app, com.indidino.vocalock.MainActivity::class.java).addFlags(
+                                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT,
+                            ),
+                        )
+                    }
+                    return
+                }
+                if (android.os.SystemClock.elapsedRealtime() < deadline) handler.postDelayed(this, 500L)
+            }
+        }, 500L)
     }
 
     private fun openAppNotificationSettings() {
