@@ -155,7 +155,12 @@ const rows = async (sql, p = []) => (await db.query(sql, p)).rows;
   check('verify ×2 + authenticated webhook → one sub row, one ₹1 payment',
     (await rows('SELECT 1 FROM subscriptions WHERE user_id=$1', [alice.uid])).length === 1 &&
     (await rows("SELECT amount FROM payments WHERE user_id=$1", [alice.uid])).map((r) => r.amount).join() === '100');
-  check('the server does not report the trial (the app does)', metaCalls.length === 0, String(metaCalls.length));
+  await new Promise((r) => setTimeout(r, 300));
+  const trialEvents = metaCalls.filter((c) => c.body.data[0].event_name === 'StartTrial');
+  const tev = trialEvents[0]?.body.data[0];
+  check('trial reported to Meta once, despite verify ×2 + webhook', trialEvents.length === 1, String(trialEvents.length));
+  check('…as StartTrial, ₹1.00 INR, event id from the Razorpay subscription',
+    tev && tev.custom_data.value === '1.00' && tev.custom_data.currency === 'INR' && tev.event_id === `trial:${subId}` && tev.user_data.anon_id === 'XZ-anon-alice', JSON.stringify(tev));
   check('second purchase while in trial → 409', (await call('/startSubscription', { token: alice.token })).status === 409);
 
   // Renewal
