@@ -1,7 +1,7 @@
 import { query, transaction } from './db';
 import * as razorpay from './razorpay';
 import { logEvent } from './events';
-import { reportRenewal, reportTrial } from './meta';
+import { reportRenewal, reportSubscription, reportTrial } from './meta';
 import { iso, newId } from './util';
 
 /**
@@ -120,6 +120,7 @@ export async function activateSubscription(
   if (started) {
     logEvent(uid, started.status === 'trial' ? 'trial_started' : 'subscription_started', { rupees: started.amount / RUPEE });
     if (started.status === 'trial') void reportTrial(uid, sub.id, started.amount);
+    else void reportSubscription(uid, sub.id, started.amount);
   }
   return result;
 }

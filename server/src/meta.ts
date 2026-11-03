@@ -2,10 +2,11 @@ import { query } from './db';
 
 /**
  * Meta Conversions API, for the funnel events the app cannot report reliably:
- * a renewal, charged by Razorpay while the app is closed, and the ₹1 trial.
+ * a renewal, charged by Razorpay while the app is closed, the ₹1 trial and a
+ * paid first period. All three are sent as Purchase, the event the ads optimise for.
  * 1.5 drops most trials: the entitlement refresh on returning from the UPI app
  * lands before the purchase result, so the app thinks the trial is old news.
- * Install, sign-up and a paid first period come from the Meta SDK in the app.
+ * Install and sign-up come from the Meta SDK in the app.
  *
  * Docs: https://developers.facebook.com/docs/marketing-api/conversions-api/app-events
  */
@@ -30,21 +31,38 @@ export function reportRenewal(uid: string, paymentId: string, paise: number): Pr
 }
 
 /**
- * Reports a ₹1 trial. The Razorpay subscription id is the event id, so the
- * verify call, the webhook and a backfill all describe the same event.
+ * Reports a ₹1 trial, as StartTrial and also as a Purchase: the ad set
+ * optimises for Purchase and cannot be changed, and a trial is the conversion
+ * we actually want counted. The Razorpay subscription id is in both event
+ * ids, so the verify call, the webhook and a backfill describe the same events.
  */
 export function reportTrial(uid: string, subscriptionId: string, paise: number, at?: Date): Promise<boolean> {
-  return reportAppEvent(uid, START_TRIAL, `trial:${subscriptionId}`, paise, at);
+  return reportAppEvents(uid, [
+    { name: START_TRIAL, id: `trial:${subscriptionId}`, paise },
+    { name: PURCHASE, id: `trial-purchase:${subscriptionId}`, paise },
+  ], at);
 }
 
-/** True if Meta accepted the event. Never throws. */
-async function reportAppEvent(
+/**
+ * Reports a paid first period (no trial) as a Purchase. The app's SDK logs one
+ * too, but 1.5's refresh race skips it most of the time; until 1.6 drops the
+ * app's copy, an occasional one may count twice.
+ */
+export function reportSubscription(uid: string, subscriptionId: string, paise: number): Promise<boolean> {
+  return reportAppEvent(uid, PURCHASE, `subscribe:${subscriptionId}`, paise);
+}
+
+function reportAppEvent(uid: string, name: string, id: string, paise: number, at?: Date): Promise<boolean> {
+  return reportAppEvents(uid, [{ name, id, paise }], at);
+}
+
+/** True if Meta accepted the events. Never throws. */
+async function reportAppEvents(
   uid: string,
-  eventName: string,
-  eventId: string,
-  paise: number,
+  items: { name: string; id: string; paise: number }[],
   at = new Date(),
 ): Promise<boolean> {
+  const eventName = items.map((i) => i.name).join('+');
   if (!metaConfigured) return false;
   try {
     const [user] = await query<{
@@ -65,11 +83,11 @@ async function reportAppEvent(
     if (!user?.meta_anon_id || !user.meta_os_version) return false;
     const version = user.meta_app_version ?? '';
     const tracked = user.meta_tracking_limited === false;
-    const event = {
-      event_name: eventName,
+    const events = items.map((item) => ({
+      event_name: item.name,
       event_time: Math.floor(at.getTime() / 1000),
       action_source: 'app',
-      event_id: eventId,
+      event_id: item.id,
       user_data: {
         anon_id: user.meta_anon_id,
         ...(tracked && user.meta_advertiser_id ? { madid: user.meta_advertiser_id } : {}),
@@ -84,11 +102,11 @@ async function reportAppEvent(
         extinfo: ['a2', PACKAGE, version, version, user.meta_os_version, user.meta_device_model ?? '',
           'en_IN', '', '', '', '', '', '', '', '', 'Asia/Kolkata'],
       },
-      custom_data: { currency: 'INR', value: (paise / 100).toFixed(2) },
-    };
+      custom_data: { currency: 'INR', value: (item.paise / 100).toFixed(2) },
+    }));
     const response = await fetch(
       `https://graph.facebook.com/${GRAPH_VERSION}/${DATASET_ID}/events?access_token=${encodeURIComponent(ACCESS_TOKEN)}`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: [event] }) },
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: events }) },
     );
     if (!response.ok) console.error('[meta capi]', eventName, response.status, (await response.text()).slice(0, 300));
     return response.ok;
